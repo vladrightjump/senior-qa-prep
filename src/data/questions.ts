@@ -2,6 +2,7 @@ import type { Category } from "../types";
 import { PART_1_CATEGORIES } from "./categories-1";
 import { PART_2_CATEGORIES } from "./categories-2";
 import { PART_3_CATEGORIES } from "./categories-3";
+import { PART_4_CATEGORIES } from "./categories-4";
 
 const scenarios: Category = {
   id: "scenarios",
@@ -403,4 +404,5 @@ export const CATEGORIES: Category[] = [
   ...PART_3_CATEGORIES,
   scenarios,
   behavioral,
+  ...PART_4_CATEGORIES,
 ];
