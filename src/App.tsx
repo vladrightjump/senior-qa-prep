@@ -7,12 +7,13 @@ import { TopBar } from "./components/TopBar";
 import { Sidebar, NEEDS_INVESTIGATION_ID } from "./components/Sidebar";
 import { QuestionCard } from "./components/QuestionCard";
 
-const STORAGE_KEY = "qa-prep-state-v2";
+const STORAGE_KEY = "qa-prep-state-v3";
 
 interface PersistedState {
   activeCategoryId: string;
   reviewedIds: Set<string>;
   openIds: Set<string>;
+  commentsOpenIds: Set<string>;
   theme: Theme;
 }
 
@@ -20,6 +21,7 @@ const defaultState: PersistedState = {
   activeCategoryId: CATEGORIES[0]!.id,
   reviewedIds: new Set<string>(),
   openIds: new Set<string>(),
+  commentsOpenIds: new Set<string>(),
   theme: "auto",
 };
 
@@ -131,6 +133,15 @@ export default function App() {
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return { ...p, reviewedIds: next };
+    });
+  };
+
+  const toggleComments = (id: string) => {
+    setState((p) => {
+      const next = new Set(p.commentsOpenIds);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return { ...p, commentsOpenIds: next };
     });
   };
 
@@ -286,10 +297,12 @@ export default function App() {
                       isOpen={state.openIds.has(qid)}
                       isFocused={isFocused}
                       isFlagged={meta.flags.has(qid)}
+                      isCommentsOpen={state.commentsOpenIds.has(qid)}
                       comments={meta.commentsByQuestion.get(qid) ?? []}
                       onToggleOpen={() => toggleOpen(qid)}
                       onToggleReviewed={() => toggleReviewed(qid)}
                       onToggleFlag={() => meta.toggleFlag(qid)}
+                      onToggleComments={() => toggleComments(qid)}
                       onAddComment={(body) => meta.addComment(qid, body)}
                       onDeleteComment={(cid) => meta.deleteComment(cid)}
                     />

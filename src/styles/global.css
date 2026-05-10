@@ -427,42 +427,51 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 .q-detail th { color: var(--fg); font-weight: 600; }
 
-/* ----- Investigation flag button ----- */
-.q-flag-btn {
+/* ----- Investigate checkbox (alongside reviewed checkbox) ----- */
+.q-checkbox-investigate {
+  border-color: var(--mid-fg);
+  color: transparent;
+  font-weight: 700;
+  font-size: 12px;
+}
+.q-checkbox-investigate:hover { background: var(--mid-bg); }
+.q-checkbox-investigate.checked {
+  background: var(--mid-fg);
+  border-color: var(--mid-fg);
+  color: var(--bg-elev);
+}
+.q-card.flagged { border-left: 3px solid var(--mid-fg); }
+
+/* ----- Notes (comments) toggle button on the row ----- */
+.q-notes-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
+  gap: 3px;
+  min-width: 36px;
   height: 22px;
-  padding: 0;
+  padding: 0 8px;
   border: 1px solid var(--border-soft);
   background: var(--bg-elev);
   border-radius: 999px;
   font-size: 11px;
+  font-weight: 500;
+  color: var(--fg-muted);
   line-height: 1;
   cursor: pointer;
-  filter: grayscale(0.6);
-  opacity: 0.55;
-  transition: opacity .12s, background .12s, border-color .12s, filter .12s;
-}
-.q-flag-btn:hover { opacity: 1; filter: grayscale(0); }
-.q-flag-btn.active {
-  background: var(--mid-bg);
-  border-color: var(--mid-fg);
-  opacity: 1;
-  filter: none;
-}
-.q-card.flagged { border-left: 3px solid var(--mid-fg); }
-
-.comment-count {
-  font-size: 11px;
-  color: var(--fg-muted);
-  background: var(--bg-soft);
-  border: 1px solid var(--border-soft);
-  padding: 2px 7px;
-  border-radius: 999px;
-  font-weight: 500;
   font-variant-numeric: tabular-nums;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.q-notes-btn:hover { background: var(--bg-soft); color: var(--fg); }
+.q-notes-btn.has-notes {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.q-notes-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
 }
 
 .q-card-source {

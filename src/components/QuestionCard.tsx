@@ -8,10 +8,12 @@ interface QuestionCardProps {
   isOpen: boolean;
   isFocused: boolean;
   isFlagged: boolean;
+  isCommentsOpen: boolean;
   comments: QuestionComment[];
   onToggleOpen: () => void;
   onToggleReviewed: () => void;
   onToggleFlag: () => void;
+  onToggleComments: () => void;
   onAddComment: (body: string) => void;
   onDeleteComment: (commentId: string) => void;
 }
@@ -36,10 +38,12 @@ export function QuestionCard({
   isOpen,
   isFocused,
   isFlagged,
+  isCommentsOpen,
   comments,
   onToggleOpen,
   onToggleReviewed,
   onToggleFlag,
+  onToggleComments,
   onAddComment,
   onDeleteComment,
 }: QuestionCardProps) {
@@ -59,38 +63,49 @@ export function QuestionCard({
     >
       <button className="q-row" onClick={onToggleOpen} aria-expanded={isOpen}>
         <span
-          className={`q-checkbox ${isReviewed ? "checked" : ""}`}
+          className={`q-checkbox q-checkbox-reviewed ${isReviewed ? "checked" : ""}`}
           onClick={(e) => {
             e.stopPropagation();
             onToggleReviewed();
           }}
           role="checkbox"
           aria-checked={isReviewed}
+          aria-label={isReviewed ? "Mark as not reviewed" : "Mark as reviewed"}
           tabIndex={-1}
+          title="Reviewed"
         >
           {isReviewed && "✓"}
+        </span>
+        <span
+          className={`q-checkbox q-checkbox-investigate ${isFlagged ? "checked" : ""}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleFlag();
+          }}
+          role="checkbox"
+          aria-checked={isFlagged}
+          aria-label={isFlagged ? "Remove from investigate list" : "Mark to investigate later"}
+          tabIndex={-1}
+          title="Investigate later"
+        >
+          {isFlagged && "?"}
         </span>
         <span className="q-num">#{num}</span>
         <span className="q-text">{question.q}</span>
         <span className="q-meta">
-          {comments.length > 0 && (
-            <span className="comment-count" title={`${comments.length} note${comments.length === 1 ? "" : "s"}`}>
-              💬 {comments.length}
-            </span>
-          )}
           <span
-            className={`q-flag-btn ${isFlagged ? "active" : ""}`}
+            className={`q-notes-btn ${isCommentsOpen ? "active" : ""} ${comments.length > 0 ? "has-notes" : ""}`}
             onClick={(e) => {
               e.stopPropagation();
-              onToggleFlag();
+              onToggleComments();
             }}
             role="button"
-            aria-label={isFlagged ? "Remove investigation flag" : "Mark for investigation"}
-            aria-pressed={isFlagged}
+            aria-pressed={isCommentsOpen}
+            aria-label={isCommentsOpen ? "Hide notes" : "Show notes"}
             tabIndex={-1}
-            title={isFlagged ? "Flagged for investigation" : "Mark for investigation"}
+            title={comments.length === 0 ? "Add a note" : `${comments.length} note${comments.length === 1 ? "" : "s"}`}
           >
-            🔎
+            💬 {comments.length > 0 ? comments.length : "+"}
           </span>
           <span className={`badge badge-${question.diff}`}>{question.diff}</span>
           {question.tags?.slice(0, 2).map((t) => (
@@ -100,54 +115,56 @@ export function QuestionCard({
         <span className="q-chevron">›</span>
       </button>
       {isOpen && (
-        <>
-          <div className="q-detail" dangerouslySetInnerHTML={{ __html: question.answer }} />
-          <div className="q-comments">
-            <div className="q-comments-title">Notes</div>
-            {comments.length === 0 ? (
-              <div className="q-comments-empty">No notes yet. Add anything you want to remember about this question.</div>
-            ) : (
-              <ul className="q-comment-list">
-                {comments.map((c) => (
-                  <li key={c.id} className="q-comment">
-                    <div className="q-comment-body">{c.body}</div>
-                    <div className="q-comment-foot">
-                      <span className="q-comment-time">{formatRelative(c.created_at)}</span>
-                      <button
-                        className="q-comment-del"
-                        onClick={() => onDeleteComment(c.id)}
-                        aria-label="Delete note"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <div className="q-comment-input">
-              <textarea
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                    e.preventDefault();
-                    submit();
-                  }
-                }}
-                placeholder="Add a note… (⌘/Ctrl+Enter to save)"
-                rows={2}
-              />
-              <button
-                className="q-comment-submit"
-                onClick={submit}
-                disabled={!draft.trim()}
-              >
-                Add note
-              </button>
+        <div className="q-detail" dangerouslySetInnerHTML={{ __html: question.answer }} />
+      )}
+      {isCommentsOpen && (
+        <div className="q-comments">
+          <div className="q-comments-title">Notes</div>
+          {comments.length === 0 ? (
+            <div className="q-comments-empty">
+              No notes yet. Add anything you want to remember about this question.
             </div>
+          ) : (
+            <ul className="q-comment-list">
+              {comments.map((c) => (
+                <li key={c.id} className="q-comment">
+                  <div className="q-comment-body">{c.body}</div>
+                  <div className="q-comment-foot">
+                    <span className="q-comment-time">{formatRelative(c.created_at)}</span>
+                    <button
+                      className="q-comment-del"
+                      onClick={() => onDeleteComment(c.id)}
+                      aria-label="Delete note"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="q-comment-input">
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                  e.preventDefault();
+                  submit();
+                }
+              }}
+              placeholder="Add a note… (⌘/Ctrl+Enter to save)"
+              rows={2}
+            />
+            <button
+              className="q-comment-submit"
+              onClick={submit}
+              disabled={!draft.trim()}
+            >
+              Add note
+            </button>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
