@@ -8,6 +8,7 @@ const typescriptProgramming: Category = {
   desc: "Generics, utility types, design patterns, and async patterns for senior test engineers",
   questions: [
     {
+      id: "a639acea-9191-462e-9d93-682c5f09283c",
       q: "Explain TypeScript generics with a real test utility example.",
       diff: "mid",
       tags: ["typescript", "generics"],
@@ -29,6 +30,7 @@ const user  = parseResponse&lt;User&gt;(await response.json(), userSchema);</cod
 <p>Senior use cases in test frameworks: generic fixture factories, typed API clients, type-safe data builders, generic retry wrappers. The goal is catching shape mismatches at compile time — not at runtime in a failing test at 2am.</p>`
     },
     {
+      id: "d66cc335-486e-4a1a-ab39-38d73cf0d491",
       q: "What are TypeScript utility types and which do you use most in test code?",
       diff: "mid",
       tags: ["typescript", "utility-types"],
@@ -56,6 +58,7 @@ type BuilderArgs = Parameters&lt;typeof OrderBuilder.create&gt;[0];</code></pre>
 <p><strong>Most valuable in practice:</strong> <code>Partial</code> for builder overrides, <code>Omit</code> for create payloads, <code>Record</code> for typed seed maps. Avoids maintaining parallel type definitions that silently drift from each other.</p>`
     },
     {
+      id: "c61046ea-c6ff-4d08-b5ba-e2d5d4a2379c",
       q: "Interface vs. type alias — when do you pick each in test code?",
       diff: "mid",
       tags: ["typescript"],
@@ -81,6 +84,7 @@ type MaybeArray&lt;T&gt; = T | T[];</code></pre>
 <p>Mixed usage within similar concepts is the real smell. Pick one approach per category of thing and be consistent across the framework.</p>`
     },
     {
+      id: "df26c997-5663-4cd7-9e06-160de1cb441b",
       q: "What is a discriminated union and how do you use one in a test framework?",
       diff: "hard",
       tags: ["typescript", "patterns"],
@@ -105,6 +109,7 @@ const order  = assertSuccess(result); // type: Order, fully inferred</code></pre
 <p>Useful in test frameworks for: typed test step results, fixture states (created/failed/torn-down), mock response builders where each HTTP status variant has different fields. Eliminates optional fields that only apply to some cases and the runtime errors they cause.</p>`
     },
     {
+      id: "902e9e36-dce2-44d0-b2e2-0ffa19778b03",
       q: "How do you type an API response safely without using 'any'?",
       diff: "hard",
       tags: ["typescript", "api", "schema"],
@@ -136,6 +141,7 @@ expect(order.currency).toBe('EUR'); // TypeScript knows currency is the enum</co
 <p>Without this: <code>any</code> casts accept wrong shapes silently, breaking at runtime in CI rather than at compile time on your machine. Zod schemas also serve as living documentation of what the API must return.</p>`
     },
     {
+      id: "be699df3-c26a-4de9-a426-3e4f72edfccb",
       q: "Explain Promise.all vs Promise.allSettled — when does each matter in tests?",
       diff: "mid",
       tags: ["typescript", "async"],
@@ -161,6 +167,7 @@ if (failed.length) console.warn('Teardown incomplete:', failed);
 <p><strong>Rule:</strong> <code>Promise.all</code> in arrange/act — all preconditions must hold. <code>Promise.allSettled</code> in teardown — clean up everything regardless of failures, never let teardown errors shadow test failures.</p>`
     },
     {
+      id: "de1e684c-c173-4ad0-845e-314e88c0662e",
       q: "Write a type guard for an API error response.",
       diff: "mid",
       tags: ["typescript", "patterns"],
@@ -194,6 +201,7 @@ if (isAPIError(body)) {
 <p>Better than casting (<code>body as APIError</code>) — casting silently accepts wrong shapes. Type guards fail explicitly at runtime with a clear message, and they compose into reusable assertion helpers.</p>`
     },
     {
+      id: "6e7e9b15-20c6-4906-a43d-b95dec073894",
       q: "How do you write a generic, type-safe data factory for test fixtures?",
       diff: "hard",
       tags: ["typescript", "patterns", "data"],
@@ -228,6 +236,7 @@ const unverified = userFactory.build({ verified: false });</code></pre>
 <p><code>() =&gt; T</code> as the defaults function runs fresh on every call — no shared mutable state between tests. <code>Partial&lt;T&gt;</code> enforces at compile time that overrides only contain real fields — typos become compile errors, not silent wrong test data.</p>`
     },
     {
+      id: "180f222d-645a-42a8-a024-8a1ac04d1758",
       q: "What is module augmentation and how does Playwright use it for custom fixtures?",
       diff: "hard",
       tags: ["typescript", "playwright", "fixtures"],
@@ -264,6 +273,7 @@ export { expect } from '@playwright/test';</code></pre>
 <p>Result: every test file imports <code>{ test }</code> from this fixture module. The params <code>{ checkoutPage, apiClient, testUser }</code> are fully typed — autocomplete, rename refactoring, compile-time errors on typos. No casts, no <code>any</code>.</p>`
     },
     {
+      id: "72fdf060-e0a3-4e5b-a9d8-bb72f12779d2",
       q: "Explain the Strategy pattern with a test framework example.",
       diff: "hard",
       tags: ["typescript", "patterns", "architecture"],
@@ -302,6 +312,7 @@ await authStrategy.authenticate(page);</code></pre>
 <p>Other uses: report formatters, seed strategies (API vs DB direct), notification dispatchers. Adding a new strategy = one new class, zero changes to consumers.</p>`
     },
     {
+      id: "41b017fa-effd-4651-b127-064f4ef958a6",
       q: "What is the difference between map, filter, and reduce — show each used in test data manipulation.",
       diff: "easy",
       tags: ["typescript", "programming"],
@@ -332,6 +343,7 @@ const shippedTotal = orders
 <p>Used constantly for: transforming API responses into assertion inputs, grouping test results by category, computing expected aggregates to compare against database totals. All three are pure — no mutation, safe across parallel workers.</p>`
     },
     {
+      id: "1879f346-7b12-474c-a4b9-ba3112b12a36",
       q: "How do optional chaining and nullish coalescing interact with test assertions?",
       diff: "easy",
       tags: ["typescript"],
@@ -372,6 +384,7 @@ const graphqlContracts: Category = {
   desc: "GraphQL testing in depth and consumer-driven contract testing with Pact and OpenAPI",
   questions: [
     {
+      id: "d8109e8f-a510-4ad2-811a-89f4cab4ba01",
       q: "How is testing a GraphQL API fundamentally different from testing REST?",
       diff: "mid",
       tags: ["graphql", "api"],
@@ -395,6 +408,7 @@ expect(body.errors).toBeUndefined();          // THIS is your real success check
 expect(body.data.order).not.toBeNull();</code></pre>`
     },
     {
+      id: "14d18859-1a7c-4ab5-a934-5de5ced444e2",
       q: "How do you test GraphQL mutations — what makes them different from queries?",
       diff: "mid",
       tags: ["graphql", "api"],
@@ -434,6 +448,7 @@ expect(fetched.status).toBe('PENDING'); // confirms it was actually persisted</c
 </ul>`
     },
     {
+      id: "4d9b85a3-fa72-442e-84b2-5b1b1ba91f54",
       q: "How do you handle partial errors in a GraphQL response?",
       diff: "hard",
       tags: ["graphql", "api"],
@@ -469,6 +484,7 @@ expect(body.errors).toBeUndefined();</code></pre>
 <p>The most common mistake: only asserting on <code>body.data</code> and ignoring <code>body.errors</code>. Tests pass green while the UI renders broken widgets. Always check both fields explicitly.</p>`
     },
     {
+      id: "f58ea388-7683-47ca-93d1-c5f64b7abad0",
       q: "How do you use GraphQL schema introspection to drive test coverage?",
       diff: "hard",
       tags: ["graphql", "api"],
@@ -504,6 +520,7 @@ test('schema has not changed unexpectedly', async () => {
 });</code></pre>`
     },
     {
+      id: "13645dd8-2296-4784-8e5b-e2cc883653a9",
       q: "Schema evolution in GraphQL — how do you test backward compatibility?",
       diff: "hard",
       tags: ["graphql", "contracts"],
@@ -538,6 +555,7 @@ test('orderStatus returns typed enum value', async () => {
 <p><strong>Breaking changes checklist:</strong> removing a field, changing a type (String → Int), making a nullable field required, renaming an enum value, removing an enum value. Any of these fail existing clients unless caught by contract or snapshot tests.</p>`
     },
     {
+      id: "e56a91ad-ed4f-432b-8e51-9be6e7d6fc83",
       q: "Walk through a complete Pact consumer test — what does it actually produce?",
       diff: "hard",
       tags: ["contracts", "pact", "api"],
@@ -572,6 +590,7 @@ it('returns an order by ID', async () =&gt; {
 <p>Pact spins up a local mock server, replays the expected interaction, records it as JSON. That file is published to Pact Broker. The provider pulls it and verifies against their real code. Consumer and provider never share an environment — the contract file is the handshake.</p>`
     },
     {
+      id: "cd6fd9ea-edc3-4404-8012-f2d17d2b63d5",
       q: "Why must provider verification run in the provider's CI — not the consumer's?",
       diff: "hard",
       tags: ["contracts", "pact"],
@@ -598,6 +617,7 @@ test('verify consumer contracts', async () =&gt; {
 <p><strong>The failure scenario that proves value:</strong> API team renames <code>status</code> to <code>orderStatus</code>. Consumer tests still pass (against the old mock). Provider verification fails. The renaming PR is blocked. The consumer team is notified. That is the contract working exactly as designed.</p>`
     },
     {
+      id: "39d22efc-1c40-4af0-b1d5-c90b060b6b58",
       q: "What is an OpenAPI contract and how do you validate API responses against it?",
       diff: "mid",
       tags: ["contracts", "api", "openapi"],
@@ -647,6 +667,7 @@ const projectStructure: Category = {
   desc: "File naming, folder layout, conventions, and configuration management for test frameworks",
   questions: [
     {
+      id: "1611cb8a-85c4-4d0a-9548-72dfc5e66ff9",
       q: "What file naming convention should Playwright test files follow and why?",
       diff: "easy",
       tags: ["conventions", "architecture"],
@@ -676,6 +697,7 @@ tests/
 <p>Name files after the <strong>feature or user journey</strong>, not the component or class. Consistency within the project matters more than which convention you pick. Set <code>testDir</code> in <code>playwright.config.ts</code> to enforce the root.</p>`
     },
     {
+      id: "cc0a0726-9daf-44d3-8d9a-c945e4be46c8",
       q: "What is a barrel file (index.ts) and when does it become harmful?",
       diff: "mid",
       tags: ["conventions", "typescript"],
@@ -700,6 +722,7 @@ import { CheckoutPage, LoginPage } from '../pages';</code></pre>
 <p><strong>Rule:</strong> one barrel per major folder (<code>pages/</code>, <code>api/</code>, <code>fixtures/</code>). No nested barrels. Skip the barrel in <code>utils/</code> unless the folder is very stable — utils tend to grow and barrel maintenance becomes a tax.</p>`
     },
     {
+      id: "64bb5654-b09a-48ab-ab2b-b6cb2774d5c4",
       q: "How do you separate helpers, utilities, and fixtures — where does each live?",
       diff: "hard",
       tags: ["architecture", "conventions"],
@@ -727,6 +750,7 @@ import { CheckoutPage, LoginPage } from '../pages';</code></pre>
 <p>The diagnostic smell: a file in <code>utils/</code> that imports from <code>@playwright/test</code>. That is a helper or fixture, not a utility. Utils must be runnable in any Node context.</p>`
     },
     {
+      id: "131f2197-22e0-46a2-837f-357a953e3cb5",
       q: "How do you manage per-environment configuration in a Playwright framework?",
       diff: "hard",
       tags: ["architecture", "configuration"],
@@ -763,6 +787,7 @@ API_URL=http://localhost:8080</code></pre>
 </ul>`
     },
     {
+      id: "f1d3ce74-e1b1-4ba6-8fc2-e924fd73d735",
       q: "When should a Page Object be split into multiple files?",
       diff: "mid",
       tags: ["pom", "architecture"],
@@ -798,6 +823,7 @@ class CheckoutPage {
 <p>Tests read as: <code>await checkout.payment.fillCard('4242...')</code>. Each section file is independently reviewable and can be changed without touching the others.</p>`
     },
     {
+      id: "3da7fe7b-7ab0-4585-a939-35ea59ab6016",
       q: "What does a well-structured tsconfig.json look like for a Playwright project?",
       diff: "mid",
       tags: ["typescript", "configuration"],
@@ -836,6 +862,7 @@ class CheckoutPage {
 <p><strong>Path aliases</strong> (<code>@fixtures/*</code>) eliminate <code>../../../fixtures/</code> crawling. <strong>Strict mode</strong> is non-negotiable — it catches the null dereferences and missing awaits that cause flaky tests. <code>noUnusedLocals</code> keeps imports clean and startup fast.</p>`
     },
     {
+      id: "27ab85dd-ac64-4050-8771-febfa0282d37",
       q: "Co-located tests vs. a separate test directory — which do you use and when?",
       diff: "mid",
       tags: ["architecture", "conventions"],
@@ -861,6 +888,7 @@ e2e/
 <p>E2E tests exercise multiple source files and full user journeys — co-location with any single source file makes no sense. Component tests belong next to the component so that deleting the component also deletes the test. Never mix the two conventions in the same folder — it breaks <code>testMatch</code> patterns and confuses CI configuration.</p>`
     },
     {
+      id: "d1c960b8-8766-4240-bd94-83e333146cdc",
       q: "How do you version and share test utilities across multiple repositories?",
       diff: "hard",
       tags: ["architecture", "monorepo"],
@@ -890,6 +918,7 @@ const visualRegression: Category = {
   desc: "Screenshot testing, baseline management, tooling, CI integration, and eliminating flakes",
   questions: [
     {
+      id: "19c89568-85e5-4093-9897-9520c4aadd1c",
       q: "Compare Playwright screenshots, Percy, and Applitools — when do you choose each?",
       diff: "hard",
       tags: ["visual", "tools"],
@@ -908,6 +937,7 @@ const visualRegression: Category = {
 <p>Start with Playwright. Migrate only when false positives are consistently blocking PRs and costing more time than the tool costs money.</p>`
     },
     {
+      id: "d8c188f5-8019-4656-97c8-07c8d65ebfbd",
       q: "Who should update screenshot baselines, and when?",
       diff: "hard",
       tags: ["visual", "process"],
@@ -928,6 +958,7 @@ npx playwright test --update-snapshots
 <p><strong>Storage:</strong> keep baselines in version control under <code>tests/snapshots/</code>. Name them descriptively: <code>checkout-light-1280.png</code>, <code>checkout-dark-mobile.png</code>. Review snapshot file changes in PRs the same way you review code changes.</p>`
     },
     {
+      id: "217f394b-6b3d-4d6b-bd87-56bc9728d82b",
       q: "Component-level vs. page-level visual regression — which is more maintainable?",
       diff: "mid",
       tags: ["visual", "strategy"],
@@ -952,6 +983,7 @@ await expect(page.getByTestId('payment-form'))
 <p><strong>Recommendation:</strong> component-level tests in Storybook for the design system, scoped region screenshots in Playwright for integration-level visual checks. Avoid full-page screenshots — every content change breaks them and reviewer fatigue sets in fast.</p>`
     },
     {
+      id: "08e206a2-344f-4b0c-9358-0ab88a251feb",
       q: "What causes pixel-level flakiness in screenshot tests and how do you fix each cause?",
       diff: "hard",
       tags: ["visual", "flakiness"],
@@ -971,6 +1003,7 @@ await expect(page.getByTestId('payment-form'))
 });</code></pre>`
     },
     {
+      id: "594b0adb-43e2-4888-b27c-dd189ec93d6f",
       q: "How do you test dark mode and light mode visually?",
       diff: "mid",
       tags: ["visual", "theming"],
@@ -1003,6 +1036,7 @@ test('both themes render correctly', async ({ page }) =&gt; {
 <p>Keep separate baseline files per theme: <code>checkout-light-1280.png</code>, <code>checkout-dark-1280.png</code>. Never share baselines between themes — they differ by design. The project-based approach (Option 1) is most robust because Playwright controls the colour scheme at the browser level.</p>`
     },
     {
+      id: "ca29f314-e5b6-4db0-8ff0-6f4f36fc6c66",
       q: "How do you integrate visual regression into CI without blocking every PR?",
       diff: "hard",
       tags: ["visual", "ci"],
@@ -1024,6 +1058,7 @@ on:
 <p>Always upload diff artifacts on failure — never fail CI silently on a visual difference. Require a human review step before a visual failure blocks merge. False positives that block merges are the fastest way to get visual testing disabled by the team.</p>`
     },
     {
+      id: "75f7dc2d-6036-44aa-a694-f88344521961",
       q: "How do you use Storybook for visual regression testing?",
       diff: "mid",
       tags: ["visual", "storybook"],
@@ -1058,6 +1093,7 @@ const featureFlags: Category = {
   desc: "Testing flagged features, rollouts, A/B experiments, dark launches, and flag lifecycle",
   questions: [
     {
+      id: "0b72971d-57ce-44d3-9d39-0995df76c9c8",
       q: "How do you structure tests when a feature has three states: off, on, and 10% rollout?",
       diff: "hard",
       tags: ["feature-flags", "strategy"],
@@ -1097,6 +1133,7 @@ test.describe('new checkout — rollout edge cases', () =&gt; {
 <p>Force the flag via override header, admin API, cookie, or test account attribute — whichever your flag service supports. Never depend on sampling logic in automated tests.</p>`
     },
     {
+      id: "099ee5e1-a09d-4bfa-afe7-7e26bf05a08f",
       q: "What is a dark launch and how do you verify one works correctly?",
       diff: "hard",
       tags: ["feature-flags", "strategy"],
@@ -1126,6 +1163,7 @@ test('dark launch pricing engine executes and logs a valid result', async ({ req
 <p>Dark launch verification is log-based, not response-based. Requires access to your observability stack in tests — a logs-query fixture or metrics API client. The test proves the shadow path executed, produced a valid result, and did not affect the user-visible response.</p>`
     },
     {
+      id: "357a0d59-923b-445d-a868-e725ef1c1af7",
       q: "How do you test two feature flags that interact with the same user flow?",
       diff: "hard",
       tags: ["feature-flags", "strategy"],
@@ -1153,6 +1191,7 @@ for (const { newPayment, express, expectedForm } of combinations) {
 <p>With N flags each having 2 states, you have 2^N combinations. Three flags = 8. Focus on: all off, all on, and each flag on alone. Skip low-risk combos only after deliberate risk analysis — not because you forgot to test them.</p>`
     },
     {
+      id: "8b1e408f-9b76-430e-b418-24d61b10bb2c",
       q: "How do you validate that an A/B test variant works correctly before production rollout?",
       diff: "mid",
       tags: ["feature-flags", "ab-testing"],
@@ -1185,6 +1224,7 @@ test('variant B: one-page checkout completes an order', async ({ page }) =&gt; {
 <p>Test both variants fully — variant B ships to 50% of real users. Also test: switching variants mid-session does not corrupt cart state, and analytics always records the correct variant label (wrong label = the experiment is unmeasurable).</p>`
     },
     {
+      id: "8f210726-dc8b-4a44-a5ef-62990315d2f2",
       q: "When should a stale feature flag be removed and how do you test the removal safely?",
       diff: "mid",
       tags: ["feature-flags", "lifecycle"],
@@ -1213,6 +1253,7 @@ test.describe('checkout', () =&gt; {
 });</code></pre>`
     },
     {
+      id: "f154115f-5d60-4cba-bfa4-9f08fa2ca3bf",
       q: "How do you prevent feature flag state from leaking between parallel test workers?",
       diff: "hard",
       tags: ["feature-flags", "isolation", "ci"],

@@ -1,9 +1,12 @@
 import type { Category } from "../types";
 
+export const NEEDS_INVESTIGATION_ID = "__needs_investigation__";
+
 interface SidebarProps {
   categories: Category[];
   activeId: string;
   reviewedIds: Set<string>;
+  flaggedCount: number;
   onSelect: (id: string) => void;
   open: boolean;
   onCloseMobile: () => void;
@@ -13,6 +16,7 @@ export function Sidebar({
   categories,
   activeId,
   reviewedIds,
+  flaggedCount,
   onSelect,
   open,
   onCloseMobile,
@@ -21,12 +25,26 @@ export function Sidebar({
     <>
       {open && <div className="sidebar-backdrop" onClick={onCloseMobile} />}
       <aside className={`sidebar ${open ? "open" : ""}`}>
+        <div className="sidebar-section">Review</div>
+        <button
+          className={`nav-item nav-item-flag ${
+            activeId === NEEDS_INVESTIGATION_ID ? "active" : ""
+          }`}
+          onClick={() => {
+            onSelect(NEEDS_INVESTIGATION_ID);
+            onCloseMobile();
+          }}
+        >
+          <span>🔎 Needs investigation</span>
+          <span className="nav-item-meta">
+            <span>{flaggedCount} flagged</span>
+          </span>
+        </button>
+        <div style={{ height: 18 }} />
         <div className="sidebar-section">Categories</div>
         {categories.map((cat, i) => {
           const total = cat.questions.length;
-          const reviewed = cat.questions.filter((_, qi) =>
-            reviewedIds.has(`${cat.id}::${qi}`)
-          ).length;
+          const reviewed = cat.questions.filter((q) => reviewedIds.has(q.id)).length;
           return (
             <button
               key={cat.id}
@@ -52,6 +70,7 @@ export function Sidebar({
           <kbd>j</kbd>/<kbd>k</kbd> next/prev<br />
           <kbd>Space</kbd> toggle<br />
           <kbd>r</kbd> mark reviewed<br />
+          <kbd>f</kbd> flag investigate<br />
           <kbd>Esc</kbd> unfocus
         </div>
       </aside>

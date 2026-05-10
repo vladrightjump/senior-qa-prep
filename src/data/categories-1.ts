@@ -9,6 +9,7 @@ const playwrightTS: Category = {
   desc: "Locators, fixtures, async patterns, auto-waiting, framework-grade code",
   questions: [
     {
+      id: "847d243e-3692-4c18-89a0-ffd32fe1c971",
       q: "What is the difference between page.locator() and page.$()? Which should you use in a senior framework?",
       diff: "mid",
       tags: ["playwright", "locators"],
@@ -23,6 +24,7 @@ await handle.click();
 await page.locator('.btn').click();</code></pre>`
     },
     {
+      id: "095314fd-a666-4ea9-9848-11e27b4db6eb",
       q: "Walk through Playwright's auto-waiting mechanism. What does it actually wait for, and where does it fall short?",
       diff: "hard",
       tags: ["playwright", "flakiness"],
@@ -36,6 +38,7 @@ await page.locator('.btn').click();</code></pre>`
 </ul>`
     },
     {
+      id: "e9d8b68b-fbc6-46de-a2ad-1e17b0f87455",
       q: "Implement a TypeScript Page Object for a checkout page with proper encapsulation.",
       diff: "mid",
       tags: ["playwright", "typescript", "pom"],
@@ -72,6 +75,7 @@ export class CheckoutPage {
 <p><strong>Senior signals:</strong> <code>getByRole</code>/<code>getByTestId</code> over CSS, intent-based methods, assertions on preconditions for next steps.</p>`
     },
     {
+      id: "38ab2df2-cbe7-413b-af8f-d758ef6f341a",
       q: "Explain Playwright fixtures. Why are they superior to beforeEach hooks for a senior framework?",
       diff: "hard",
       tags: ["playwright", "fixtures", "architecture"],
@@ -103,6 +107,7 @@ export const test = base.extend<Fixtures>({
 </ul>`
     },
     {
+      id: "84c68f69-4120-4f2e-9844-8919296e784d",
       q: "How do you reuse authentication state without logging in for every test?",
       diff: "mid",
       tags: ["playwright", "auth", "performance"],
@@ -129,6 +134,7 @@ test('authenticate', async ({ page }) => {
 <p>Multi-role: separate state files per role. Even faster: skip UI login, hit the auth API directly.</p>`
     },
     {
+      id: "3ea69109-251f-439b-bb47-9b2bc1fd37de",
       q: "What's wrong with: <code>expect(page.locator('.btn').click()).toBeVisible()</code>",
       diff: "easy",
       tags: ["playwright", "async"],
@@ -139,6 +145,7 @@ await expect(page.locator('.result')).toBeVisible();</code></pre>
 <p>Classic interview filter — separates copy-paste candidates from those who understand async control flow.</p>`
     },
     {
+      id: "1ab81cad-5f1b-4ea1-80b2-5928c2d33c19",
       q: "How do you intercept and mock a network request? When is it correct vs. wrong?",
       diff: "mid",
       tags: ["playwright", "mocking", "api"],
@@ -153,6 +160,7 @@ await expect(page.locator('.result')).toBeVisible();</code></pre>
 <p><strong>When NOT to mock:</strong> happy paths (real integration matters), contract validation (mocks drift), end-to-end confidence.</p>`
     },
     {
+      id: "f975cd9c-2c6b-4d88-889e-6a35d30bc9b1",
       q: "Explain async/await vs. Promises and why it matters in tests.",
       diff: "mid",
       tags: ["typescript", "async"],
@@ -168,6 +176,7 @@ await expect(page.getByText('Welcome')).toBeVisible();</code></pre>
 <p>Senior tip: enable <code>@typescript-eslint/no-floating-promises</code>.</p>`
     },
     {
+      id: "3b30ae11-78b1-4908-b081-a96e3ece1e46",
       q: "What is expect.poll() and when do you use it instead of standard assertions?",
       diff: "hard",
       tags: ["playwright", "flakiness"],
@@ -187,6 +196,7 @@ await expect.poll(async () => {
 <p>For eventual consistency: button click triggers background job, UI shows "Processing" → "Done". <code>expect.poll</code> waits without arbitrary timeouts.</p>`
     },
     {
+      id: "57023c00-399b-40d7-9615-cbd45bc11099",
       q: "Write a TypeScript retry wrapper with exponential backoff that only retries on network errors, not 4xx.",
       diff: "hard",
       tags: ["typescript", "patterns"],
@@ -213,6 +223,7 @@ async function retry&lt;T&gt;(
 <p>Senior signals: generic typing, retryable vs non-retryable distinction, exponential backoff, last-error preservation.</p>`
     },
     {
+      id: "5e9678d5-670d-4c56-afcb-b64e0b5f07b6",
       q: "How do you parameterize a test to run with multiple data sets?",
       diff: "mid",
       tags: ["playwright", "data-driven"],
@@ -231,6 +242,7 @@ for (const { code, expectedTotal } of currencies) {
 <p>Each runs as a separate test with its own report row. Don't put all in one test with a loop — when one fails, you lose the others' signal.</p>`
     },
     {
+      id: "c68de5fd-bf37-47ed-8f57-a6899db2e69b",
       q: "How do you test file upload in Playwright?",
       diff: "mid",
       tags: ["playwright"],
@@ -248,6 +260,7 @@ await page.getByTestId('dropzone').dispatchEvent('drop', {
 <p>For DnD, the cleanest pattern is to bypass the visual drop and call <code>setInputFiles</code> on the underlying hidden input if it exists.</p>`
     },
     {
+      id: "eaea2709-8727-43cf-8385-8a31f288b1c5",
       q: "How do you debug a Playwright test that fails only in CI?",
       diff: "hard",
       tags: ["playwright", "debugging", "ci"],
@@ -263,6 +276,7 @@ await page.getByTestId('dropzone').dispatchEvent('drop', {
 <p>Trace viewer alone solves 80% of these.</p>`
     },
     {
+      id: "09beb14f-824b-4f0f-90ab-114900770f98",
       q: "Decode this playwright.config.ts and explain the senior signals.",
       diff: "hard",
       tags: ["playwright", "ci"],
@@ -295,6 +309,7 @@ await page.getByTestId('dropzone').dispatchEvent('drop', {
 </ul>`
     },
     {
+      id: "efc8a1ff-e399-4b2c-b802-35f09e0ae075",
       q: "What is testIdAttribute and why is it strategically important?",
       diff: "mid",
       tags: ["playwright", "selectors"],
@@ -307,6 +322,7 @@ await page.getByTestId('submit-btn').click();
 <p><strong>Strategic value:</strong> standardizing on test IDs makes selectors stable across UI refactors. CSS classes break when devs rename components — test IDs only break if a developer deliberately removes the contract.</p>`
     },
     {
+      id: "cdaaae6b-10cb-4adf-82a2-036c53050486",
       q: "Explain TypeScript unknown vs. any. When do you use each?",
       diff: "mid",
       tags: ["typescript"],
@@ -322,6 +338,7 @@ if (typeof response === 'object' &amp;&amp; response &amp;&amp; 'foo' in respons
 <p>In tests: prefer <code>unknown</code> for API responses, validate with Zod or Ajv. <code>any</code> is acceptable in narrow scopes wrapping legacy code, never in shared utilities.</p>`
     },
     {
+      id: "ae008fcc-6440-4af4-8b91-d8209ab56382",
       q: "How do you handle iframes in Playwright?",
       diff: "mid",
       tags: ["playwright"],
@@ -331,6 +348,7 @@ await frame.getByRole('button', { name: 'Pay' }).click();</code></pre>
 <p><code>frameLocator</code> is lazy and auto-waits. Avoid older <code>page.frame()</code> — it returns a snapshot Frame object that doesn't auto-wait.</p>`
     },
     {
+      id: "3e67b911-cd91-4d05-be7b-43c6625bf1ea",
       q: "What is a worker-scoped fixture and when do you need one?",
       diff: "hard",
       tags: ["playwright", "fixtures"],
@@ -348,6 +366,7 @@ export const test = base.extend&lt;{}, WorkerFixtures&gt;({
 <p><strong>Don't use for:</strong> mutable state — concurrent tests interfere. Default test scope is safer.</p>`
     },
     {
+      id: "f428a9e2-2e0a-4f15-9a3b-0ca38319e940",
       q: "How do you isolate test data when 8 parallel workers hit the same backend?",
       diff: "hard",
       tags: ["playwright", "data", "architecture"],
@@ -361,6 +380,7 @@ export const test = base.extend&lt;{}, WorkerFixtures&gt;({
 <p><strong>Anti-pattern:</strong> hardcoded users (<code>test@example.com</code>). Two workers hit the same login, one logs the other out. #1 cause of "works locally, fails with workers > 1".</p>`
     },
     {
+      id: "ddccc787-021c-4eda-b765-f04f53306679",
       q: "Your suite has 800 tests at 40 minutes. How do you bring it under 10?",
       diff: "hard",
       tags: ["playwright", "ci", "performance"],
@@ -376,6 +396,7 @@ export const test = base.extend&lt;{}, WorkerFixtures&gt;({
 <p>Realistic outcome: 4 shards × 4 workers ≈ 8 min wall clock. Cost rises linearly — balance speed vs. budget.</p>`
     },
     {
+      id: "a632764a-f84c-4dbd-8e63-10003a3c074a",
       q: "How do you handle a flaky test caused by an animation?",
       diff: "mid",
       tags: ["playwright", "flakiness"],
@@ -388,6 +409,7 @@ export const test = base.extend&lt;{}, WorkerFixtures&gt;({
 <p>Disabling animations is the production-grade answer — fast, deterministic, and matches CI environments.</p>`
     },
     {
+      id: "9fe11971-faae-45bd-9777-54651b9ea671",
       q: "How do you test multi-tab or new-window flows?",
       diff: "mid",
       tags: ["playwright"],
@@ -403,6 +425,7 @@ await expect(newPage).toHaveTitle(/Report/);
 <p>Always use <code>Promise.all</code> with <code>waitForEvent</code> + the action that triggers it — avoids race between the click and the listener.</p>`
     },
     {
+      id: "3b0793b6-080c-411c-8a4f-42f74e74a7e3",
       q: "What is the Trace Viewer and how do you use it?",
       diff: "mid",
       tags: ["playwright", "debugging"],
@@ -417,6 +440,7 @@ npx playwright show-trace trace.zip
 <p>What you see: action list with screenshots, before/after DOM, network tab with requests, console output, source code with the failing line. It's why CI failures are debuggable from your laptop.</p>`
     },
     {
+      id: "421d1036-1090-4bac-b22b-837bfdd077e7",
       q: "Visual regression testing in Playwright — how do you implement it without flakes?",
       diff: "hard",
       tags: ["playwright", "visual"],
@@ -435,6 +459,7 @@ npx playwright show-trace trace.zip
 </ul>`
     },
     {
+      id: "d626ba12-5175-4b31-a369-e9b18707f3b1",
       q: "How do you test API responses inside a Playwright test?",
       diff: "mid",
       tags: ["playwright", "api"],
@@ -455,6 +480,7 @@ npx playwright show-trace trace.zip
 <p>Hybrid API+UI tests are faster than UI-only and cover real integration. Use API for setup, UI for the user-visible assertion.</p>`
     },
     {
+      id: "cf57c72e-c6c8-428e-9e26-2df38ab7541a",
       q: "How does Playwright's Locator chaining work? Show a complex example.",
       diff: "mid",
       tags: ["playwright", "locators"],
@@ -472,6 +498,7 @@ const enabledBtns = page.getByRole('button').filter({ hasNot: page.getByText('Di
 <p>Chaining preserves auto-waiting through the chain. Each scoping is lazy — re-evaluated on every action.</p>`
     },
     {
+      id: "55c75fe5-166b-4e5c-8a7b-f38714ad89c6",
       q: "What is test.step() and why use it?",
       diff: "mid",
       tags: ["playwright", "reporting"],
@@ -494,6 +521,7 @@ const enabledBtns = page.getByRole('button').filter({ hasNot: page.getByText('Di
 <p>Steps appear in the HTML report as collapsible sections. Failure messages show which step failed. Improves debuggability without changing test logic.</p>`
     },
     {
+      id: "15c18646-5fc4-4e0f-90ae-e28c8e72b8df",
       q: "How do you handle a date/time picker that depends on real wall-clock time?",
       diff: "hard",
       tags: ["playwright", "time"],
@@ -507,6 +535,7 @@ await page.setExtraHTTPHeaders({ 'X-Mock-Time': '2026-05-06T10:00:00Z' });</code
 <p><strong>Don't</strong> hardcode "today's date" in test data. Don't compare with <code>new Date()</code> in assertions — flake on midnight rollover. Always control time explicitly.</p>`
     },
     {
+      id: "27eb1ab6-e425-40d7-9fc4-d48577375e8f",
       q: "What is page.evaluate() and when should you avoid it?",
       diff: "mid",
       tags: ["playwright"],
@@ -518,6 +547,7 @@ await page.setExtraHTTPHeaders({ 'X-Mock-Time': '2026-05-06T10:00:00Z' });</code
 <p><strong>Use when:</strong> you need to read or set non-DOM state (window properties, localStorage, redux store). Or for one-off DOM queries that don't fit Locator semantics.</p>`
     },
     {
+      id: "a00dbd5c-0685-4c99-8a97-6dafa621d3ef",
       q: "How do you parallelize tests across multiple browsers?",
       diff: "mid",
       tags: ["playwright", "ci"],
@@ -533,6 +563,7 @@ projects: [
 <p><strong>Senior nuance:</strong> running 5 browsers × full suite = 5x cost. Be selective — smoke on all browsers, full regression on Chromium only, then schedule cross-browser nightly. Don't run cross-browser on every PR unless the product requires it.</p>`
     },
     {
+      id: "e90cfc43-438e-4264-9dbe-c164e9b6a1b9",
       q: "How do you handle a long-running test that times out?",
       diff: "mid",
       tags: ["playwright", "performance"],
@@ -555,6 +586,7 @@ await expect.poll(check, { timeout: 60_000 }).toBe(true);</code></pre>
 <p>Don't increase the global timeout to mask issues. Diagnose first — usually the test is waiting on something that should be polled differently or a real perf regression.</p>`
     },
     {
+      id: "c548d703-50a0-47f2-b880-9691d8577db9",
       q: "How do you implement custom matchers in Playwright?",
       diff: "hard",
       tags: ["playwright", "typescript"],
@@ -588,6 +620,7 @@ const apiRest: Category = {
   desc: "HTTP fundamentals, status codes, idempotency, schema validation, security",
   questions: [
     {
+      id: "c7249af6-1cfc-4abf-85ef-bc68fede73fa",
       q: "Explain the difference between PUT, PATCH, and POST. Which are idempotent?",
       diff: "easy",
       tags: ["http", "rest"],
@@ -599,6 +632,7 @@ const apiRest: Category = {
 <p>Idempotency makes safe retries possible. Network fails mid-request → retry PUT or DELETE without fear. Retrying a POST might double-charge.</p>`
     },
     {
+      id: "da3ad78f-2d88-422e-a9b8-11332ab4874d",
       q: "What's the difference between 401 and 403? If you get 500 instead, what does that mean?",
       diff: "easy",
       tags: ["http"],
@@ -610,6 +644,7 @@ const apiRest: Category = {
 <p>Some APIs return 404 instead of 403 to avoid leaking resource existence — security posture choice, not bug.</p>`
     },
     {
+      id: "b9093c4c-65d6-4f6d-8079-5f90ab4ad6da",
       q: "How do you validate a REST API response beyond status code?",
       diff: "mid",
       tags: ["api", "schema"],
@@ -628,6 +663,7 @@ const body = await response.json();
 expect(ajv.validate(orderSchema, body)).toBe(true);</code></pre>`
     },
     {
+      id: "fa7e0336-6ab2-40a1-bc43-0fdc46fc43de",
       q: "Test authorization on a multi-tenant API: user A must not access user B's data.",
       diff: "hard",
       tags: ["security", "api"],
@@ -644,6 +680,7 @@ expect(ajv.validate(orderSchema, body)).toBe(true);</code></pre>`
 <p>Senior signal: testing the <strong>distinction between 401 and 403</strong>. Wrong code = real bug.</p>`
     },
     {
+      id: "ad8660a7-639e-4d1d-850d-863bbaa3d739",
       q: "What is idempotency in HTTP and how do you implement it for a payment endpoint?",
       diff: "hard",
       tags: ["http", "patterns"],
@@ -662,6 +699,7 @@ return result;</code></pre>
 <p><strong>Test:</strong> same request twice with same key → one charge. Different keys → two charges. Stripe's API is the canonical reference.</p>`
     },
     {
+      id: "c16123d4-8b97-4a87-8edd-153d1c18bcc2",
       q: "How do you test pagination on a REST API? List 5 bugs to look for.",
       diff: "mid",
       tags: ["api"],
@@ -675,6 +713,7 @@ return result;</code></pre>
 <p>Test: first, middle, last, empty, beyond range, varying sizes, sort + paginate combos.</p>`
     },
     {
+      id: "2d1170f0-cf9d-44e0-b2eb-f4b9510689da",
       q: "Path parameters vs. query parameters — when do you use each?",
       diff: "easy",
       tags: ["http", "rest"],
@@ -686,6 +725,7 @@ return result;</code></pre>
 <p><strong>Avoid:</strong> PII or secrets in query params — they appear in logs, history, Referer headers.</p>`
     },
     {
+      id: "b27c915a-c51c-420d-a72a-fad511a61ca0",
       q: "How do you test rate limiting without hammering production?",
       diff: "hard",
       tags: ["api", "performance"],
@@ -707,6 +747,7 @@ expect(recovery.status()).toBe(200);</code></pre>
 <p>Never run rate-limit tests against prod. You'll degrade real users.</p>`
     },
     {
+      id: "2e0d783b-aaa4-4416-bafe-03a42f17ff00",
       q: "What is contract testing? When do you introduce it?",
       diff: "hard",
       tags: ["api", "architecture"],
@@ -720,6 +761,7 @@ expect(recovery.status()).toBe(200);</code></pre>
 <p><strong>Trade-off:</strong> contracts need provider buy-in. Without provider running consumer contracts in their CI, the value evaporates. It's organizational, not just tooling.</p>`
     },
     {
+      id: "4c1886d0-829e-4471-a752-332b6f3b8df3",
       q: "How do you test a race condition like two users buying the last seat?",
       diff: "hard",
       tags: ["api", "concurrency"],
@@ -740,6 +782,7 @@ expect(recovery.status()).toBe(200);</code></pre>
 <p>Run with <code>--repeat-each=50</code>. Single-run race tests are unreliable. Race bugs are intermittent — high-volume runs surface them.</p>`
     },
     {
+      id: "f01daf19-291e-4b39-9d97-d70ec0a14153",
       q: "Walk through testing a webhook: signature, retries, idempotency.",
       diff: "hard",
       tags: ["api", "webhooks"],
@@ -753,6 +796,7 @@ expect(recovery.status()).toBe(200);</code></pre>
 </ol>`
     },
     {
+      id: "8a63699e-18e2-4a6a-820d-527e50b12945",
       q: "What is JSON Schema validation and why is it more reliable than spot-checking fields?",
       diff: "mid",
       tags: ["api", "schema"],
@@ -777,6 +821,7 @@ expect(recovery.status()).toBe(200);</code></pre>
 };</code></pre>`
     },
     {
+      id: "4d4dcc35-896d-41af-8aad-a6ccdfbe771c",
       q: "REST vs. GraphQL from a tester's perspective?",
       diff: "mid",
       tags: ["api"],
@@ -785,6 +830,7 @@ expect(recovery.status()).toBe(200);</code></pre>
 <p>For GraphQL: schema introspection lets you generate test cases. Watch <strong>partial errors</strong> (200 OK with errors in response body) — easy to miss in assertions.</p>`
     },
     {
+      id: "4fcd8c76-109f-46e4-a692-75410bfda4a1",
       q: "What status code should a successful DELETE return?",
       diff: "easy",
       tags: ["http"],
@@ -796,6 +842,7 @@ expect(recovery.status()).toBe(200);</code></pre>
 <p>Calling DELETE again should return <strong>404</strong>, not 500. Proves DELETE is idempotent.</p>`
     },
     {
+      id: "03fd9e55-0435-4055-a0a6-15653460b4c7",
       q: "What is HATEOAS? Should you actually test for it?",
       diff: "hard",
       tags: ["api", "rest"],
@@ -812,6 +859,7 @@ expect(recovery.status()).toBe(200);</code></pre>
 <p><strong>Reality:</strong> few APIs implement true HATEOAS. If yours does, validate <code>_links</code> as part of schema. Test that allowed actions match the resource state (a shipped order shouldn't have a "cancel" link). If your API isn't HATEOAS, don't pretend it is — test what's there.</p>`
     },
     {
+      id: "307a8551-ecd2-4284-bf69-e8eddaf5944b",
       q: "How do you test API versioning?",
       diff: "mid",
       tags: ["api"],
@@ -824,6 +872,7 @@ expect(recovery.status()).toBe(200);</code></pre>
 <p>Critical test: <strong>backward compatibility</strong>. Old clients on v1 must keep working when v2 ships. Run v1 contract tests against the live system after every deploy.</p>`
     },
     {
+      id: "d9a6c3c7-581b-44d0-8e1b-1fd280a11091",
       q: "What is CORS and how do you test it?",
       diff: "mid",
       tags: ["api", "security"],
@@ -841,6 +890,7 @@ Access-Control-Allow-Headers: Content-Type, Authorization</code></pre>
 <p>Test cases: allowed origin works, disallowed origin gets blocked, wildcard <code>*</code> not used in production with credentials, OPTIONS preflight returns correct allowed methods.</p>`
     },
     {
+      id: "1c112ddb-eb7a-4095-90e9-69adf8e41648",
       q: "How do you test an API for SQL injection?",
       diff: "hard",
       tags: ["api", "security"],
@@ -858,6 +908,7 @@ GET /users?id=1;%20WAITFOR%20DELAY%20'00:00:05'</code></pre>
 <p>This is QA + security overlap. Coordinate with the security team — never run injection tests against production without authorization.</p>`
     },
     {
+      id: "585d5f71-8728-49f5-9b6e-230fd8302107",
       q: "Explain JWT structure and what to test about it.",
       diff: "mid",
       tags: ["security", "auth"],
@@ -876,6 +927,7 @@ GET /users?id=1;%20WAITFOR%20DELAY%20'00:00:05'</code></pre>
 </ul>`
     },
     {
+      id: "e145c41c-5036-4f16-b58f-785cc8651634",
       q: "What is OAuth 2.0 and how do you test an OAuth flow?",
       diff: "hard",
       tags: ["security", "auth"],
@@ -890,6 +942,7 @@ GET /users?id=1;%20WAITFOR%20DELAY%20'00:00:05'</code></pre>
 <p><strong>Testing without testing the IdP itself:</strong> mock the authorization server in tests, or use a local Keycloak/Hydra in Docker. Inject a known JWT directly. Test your app's: token validation, refresh flow, expiry handling, scope enforcement. Don't re-test Google's login UI — that's their job.</p>`
     },
     {
+      id: "904618f5-cd63-4590-9da6-d8cdc4dd5a00",
       q: "How do you test API performance and what budgets do you set?",
       diff: "hard",
       tags: ["performance", "api"],

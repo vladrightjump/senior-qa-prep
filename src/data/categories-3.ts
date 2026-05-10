@@ -6,6 +6,7 @@ const ciFlakiness: Category = {
   desc: "GitHub Actions, sharding, parallelism, ruthless flakiness reduction",
   questions: [
     {
+      id: "5ccf56b5-112d-4b1a-8049-93a0a5cc1f67",
       q: "Set up GitHub Actions to run Playwright tests with sharding.",
       diff: "mid",
       tags: ["ci", "github-actions"],
@@ -32,6 +33,7 @@ const ciFlakiness: Category = {
 <p><strong>Senior touches:</strong> <code>fail-fast: false</code> so one failed shard doesn't kill others, <code>--with-deps</code> installs system deps, <code>if: always()</code> uploads reports on failure (you need them most then).</p>`
     },
     {
+      id: "780f5907-0b42-4297-82bb-b7c518a9cd1c",
       q: "Sharding vs. parallelism in Playwright?",
       diff: "mid",
       tags: ["ci"],
@@ -43,6 +45,7 @@ const ciFlakiness: Category = {
 <p>Backend capacity caps combined parallelism. 16 workers hammering staging DB → saturation, parallelism stops helping and starts causing flakes.</p>`
     },
     {
+      id: "32c22f5b-55dc-4674-89fb-4707d194e40e",
       q: "Walk through your investigation process for a flaky test.",
       diff: "hard",
       tags: ["flakiness", "debugging"],
@@ -65,6 +68,7 @@ const ciFlakiness: Category = {
 </ol>`
     },
     {
+      id: "d1da3154-f534-4e9c-9881-49c6cd6880e1",
       q: "Why is 'just add retries' the wrong default fix for flakiness?",
       diff: "hard",
       tags: ["flakiness"],
@@ -78,6 +82,7 @@ const ciFlakiness: Category = {
 <p>Right approach: retries as CI safety net (1–2 max), not permanent solution. Track flakiness rate. Tests that flake repeatedly get fixed or quarantined.</p>`
     },
     {
+      id: "e9727e5a-065b-450a-876c-ff52c72ab9b5",
       q: "Top 5 causes of flakiness in Playwright tests.",
       diff: "mid",
       tags: ["flakiness"],
@@ -91,6 +96,7 @@ const ciFlakiness: Category = {
 <p>Honorable mention: random test data without fixed seed. <code>faker.name.first()</code> producing 'O\\'Brien' once a month and breaking your CSV export test.</p>`
     },
     {
+      id: "1a6418dd-f015-4c78-94bc-0d293a62d641",
       q: "How do you handle secrets in CI without leaking them in traces?",
       diff: "hard",
       tags: ["security", "ci"],
@@ -104,6 +110,7 @@ const ciFlakiness: Category = {
 </ul>`
     },
     {
+      id: "d3956ef3-b676-4cef-a0e4-2bafdd3f671d",
       q: "Set up auth once and reuse across all tests in CI.",
       diff: "mid",
       tags: ["ci", "auth"],
@@ -135,6 +142,7 @@ setup('authenticate', async ({ page }) =&gt; {
 <p>For multiple roles: separate state files per role. Faster: skip UI login, hit auth API directly to mint a token.</p>`
     },
     {
+      id: "9dfdd721-4fa7-4412-86f7-e719f0c363ad",
       q: "Design a CI strategy: PR vs. nightly vs. on-demand.",
       diff: "mid",
       tags: ["ci", "strategy"],
@@ -149,6 +157,7 @@ setup('authenticate', async ({ page }) =&gt; {
 <p>Each gate guards different risk at different cost. PR gate &gt; 30min gets bypassed. Nightly &lt; 10min is too thin.</p>`
     },
     {
+      id: "41d19a7f-bb74-4148-85be-3a656fb731bb",
       q: "What metrics do you track for test suite health?",
       diff: "hard",
       tags: ["metrics"],
@@ -164,6 +173,7 @@ setup('authenticate', async ({ page }) =&gt; {
 <p>Pick one: <strong>flakiness rate</strong>. Captures suite reliability — foundation for everything else.</p>`
     },
     {
+      id: "4b0efaba-9e6f-4d09-97aa-4a6d36722f24",
       q: "How do you cache dependencies efficiently in GitHub Actions?",
       diff: "mid",
       tags: ["ci", "performance"],
@@ -185,6 +195,7 @@ setup('authenticate', async ({ page }) =&gt; {
 <p>Saves 1–2 minutes per run. Cache key includes lock file hash so cache invalidates when deps change. <code>restore-keys</code> falls back to partial matches.</p>`
     },
     {
+      id: "2fb38f36-1e2d-4ddf-9cd1-346ceeb3bb1d",
       q: "How do you reduce CI cost without sacrificing coverage?",
       diff: "hard",
       tags: ["ci", "performance"],
@@ -200,6 +211,7 @@ setup('authenticate', async ({ page }) =&gt; {
 <p>Measure first. Top 5 slowest tests usually consume 40%+ of runtime — fix or split them.</p>`
     },
     {
+      id: "791b007d-9f2d-4cf3-845c-1e5e69cbe941",
       q: "What's the difference between a smoke test suite and a critical-path suite?",
       diff: "mid",
       tags: ["strategy"],
@@ -210,6 +222,7 @@ setup('authenticate', async ({ page }) =&gt; {
 <p>Smoke is "the lights are on". Critical-path is "the business runs". Both gate releases at different stages.</p>`
     },
     {
+      id: "aa08276f-2174-4285-93c9-ab07acf20a0d",
       q: "Your CI has 30% failure rate from environment instability. What do you do?",
       diff: "hard",
       tags: ["ci", "incident"],
@@ -225,6 +238,7 @@ setup('authenticate', async ({ page }) =&gt; {
 <p>The wrong move: "just add retries". You'll never recover trust.</p>`
     },
     {
+      id: "0e4f6ce4-2fb3-47bc-8724-79b12f8dc146",
       q: "How do you generate and publish test reports?",
       diff: "mid",
       tags: ["ci", "reporting"],
@@ -251,6 +265,7 @@ reporter: [
 <p>For long-term trend analysis: ship results to Allure TestOps, ReportPortal, or a custom Grafana dashboard. Without trend data, you can't measure improvement.</p>`
     },
     {
+      id: "617070e3-b47f-4a90-b459-aa74e9c1cda7",
       q: "Your team complains the CI pipeline is too slow. They want you to skip QA gates. What's your response?",
       diff: "hard",
       tags: ["ci", "soft-skills"],
@@ -267,6 +282,7 @@ reporter: [
 <p>Don't accept "skip QA". Don't dismiss the complaint. The right response is "yes, that's a real problem; here's the fix that doesn't sacrifice quality".</p>`
     },
     {
+      id: "f00b6a7d-b754-4ac3-9f18-e74f8a817747",
       q: "How do you set up Docker for Playwright tests in CI?",
       diff: "mid",
       tags: ["ci", "docker"],
@@ -292,6 +308,7 @@ jobs:
 <p>Pin the image version — <code>:latest</code> creates "works yesterday, breaks today" surprises. Image versions match Playwright versions exactly. Update both together.</p>`
     },
     {
+      id: "9842280d-aa2f-4688-8eb5-c49414d0630b",
       q: "How do you implement test result trending across runs?",
       diff: "hard",
       tags: ["ci", "metrics"],
@@ -326,6 +343,7 @@ const testingTheory: Category = {
   desc: "ISTQB foundations applied to senior decisions, not memorized definitions",
   questions: [
     {
+      id: "57364365-abc8-4bed-af03-f68df6a4be0b",
       q: "Verification vs. validation — give a concrete example.",
       diff: "easy",
       tags: ["fundamentals"],
@@ -337,6 +355,7 @@ const testingTheory: Category = {
 <p>A feature can pass verification and fail validation. Most expensive class of bug.</p>`
     },
     {
+      id: "02deedc0-643b-4dd8-8aa0-feec4ed0d118",
       q: "What is shift-left testing? Apply it to a real sprint.",
       diff: "mid",
       tags: ["process"],
@@ -351,6 +370,7 @@ const testingTheory: Category = {
 <p>Bugs caught at refinement cost minutes. Bugs caught in production cost hours and trust.</p>`
     },
     {
+      id: "8d20b5db-1b92-4f60-a20a-8c8acc44248b",
       q: "Boundary value analysis and equivalence partitioning — concrete example.",
       diff: "easy",
       tags: ["technique"],
@@ -364,6 +384,7 @@ const testingTheory: Category = {
 <p>Bugs cluster at boundaries. One value per class + boundaries gives high coverage with minimal cases.</p>`
     },
     {
+      id: "7d1b5ec9-6ba4-4a8d-9358-ab8d18640c58",
       q: "When use decision tables instead of equivalence partitioning?",
       diff: "mid",
       tags: ["technique"],
@@ -378,6 +399,7 @@ const testingTheory: Category = {
 <p>Decision tables for branching business rules. EP for single-input validation.</p>`
     },
     {
+      id: "2e2baba4-1232-43f3-8f4e-87b89d98df5b",
       q: "Risk-based testing when time is limited?",
       diff: "mid",
       tags: ["strategy"],
@@ -392,6 +414,7 @@ const testingTheory: Category = {
 <p>Document what you skipped. "We skipped X because impact is cosmetic and deadline is tight" is defensible. "We forgot to test X" is not.</p>`
     },
     {
+      id: "0bae1aa8-94f8-4e31-a167-d580fb73a764",
       q: "Smoke vs. sanity vs. regression vs. exploratory.",
       diff: "easy",
       tags: ["fundamentals"],
@@ -404,6 +427,7 @@ const testingTheory: Category = {
 <p>Different goals, different gates. Smoke gates fast feedback. Regression gates releases. Exploratory gates UX.</p>`
     },
     {
+      id: "4339f939-b7d9-4108-898d-ea183f1b3969",
       q: "What is test coverage and why isn't 100% the goal?",
       diff: "mid",
       tags: ["metrics"],
@@ -423,6 +447,7 @@ const testingTheory: Category = {
 <p>Track as leading indicator. Real goal: defect escape rate.</p>`
     },
     {
+      id: "7b5790b8-e797-4f1c-a3ef-f8f2dfc807b3",
       q: "Design tests for a feature with no written requirements.",
       diff: "hard",
       tags: ["strategy"],
@@ -437,6 +462,7 @@ const testingTheory: Category = {
 <p>Senior signal: framing as a process problem, not just a personal task.</p>`
     },
     {
+      id: "f7109e4e-fe83-4bf3-8ac2-1b78a186405b",
       q: "Mutation testing — why is it more meaningful than line coverage?",
       diff: "hard",
       tags: ["technique", "metrics"],
@@ -454,6 +480,7 @@ test('returns a number', () =&gt; {
 <p>Tools: <strong>Stryker</strong> (JS/TS), Pitest (Java). Run periodically — expensive. Score = % mutations killed.</p>`
     },
     {
+      id: "466de566-50c4-49fc-8909-1e7a87558c77",
       q: "How do you handle 'that's not a bug, it's a feature'?",
       diff: "hard",
       tags: ["soft-skills"],
@@ -467,6 +494,7 @@ test('returns a number', () =&gt; {
 <p>Wrong move: escalate emotionally or treat as personal. Right move: make conversation about the user, not who's right.</p>`
     },
     {
+      id: "f578727e-637f-4697-90ec-0f07f42dcc60",
       q: "What is exploratory testing and how is it different from ad-hoc testing?",
       diff: "mid",
       tags: ["technique"],
@@ -484,6 +512,7 @@ Open questions: behavior when 3DS times out?</code></pre>
 <p>Exploratory testing finds bugs no script would. It's a skill, not a fallback. Ad-hoc is what you do when you don't know how to do exploratory.</p>`
     },
     {
+      id: "33e4f814-2609-4f66-8798-0c2e4d1f5bcf",
       q: "What's the difference between a defect, a fault, and a failure?",
       diff: "easy",
       tags: ["fundamentals"],
@@ -495,6 +524,7 @@ Open questions: behavior when 3DS times out?</code></pre>
 <p>One fault can cause many failures. One failure can have multiple faults as root causes. ISTQB makes this distinction; in practice teams use "bug" and "defect" interchangeably for both.</p>`
     },
     {
+      id: "4654e566-17b8-427e-919e-5b248ac38f40",
       q: "What is the testing pyramid? When does it not apply?",
       diff: "mid",
       tags: ["strategy", "pyramid"],
@@ -509,6 +539,7 @@ Open questions: behavior when 3DS times out?</code></pre>
 <p>The pyramid is a heuristic, not a law. The principle — favor cheaper tests when they give equivalent confidence — is universal. The exact shape varies by context.</p>`
     },
     {
+      id: "85ac43de-19d5-425c-9faa-9b5bf90c0e70",
       q: "What is a test charter and how do you write one?",
       diff: "mid",
       tags: ["technique"],

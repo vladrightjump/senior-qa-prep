@@ -427,6 +427,161 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 .q-detail th { color: var(--fg); font-weight: 600; }
 
+/* ----- Investigation flag button ----- */
+.q-flag-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-elev);
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  filter: grayscale(0.6);
+  opacity: 0.55;
+  transition: opacity .12s, background .12s, border-color .12s, filter .12s;
+}
+.q-flag-btn:hover { opacity: 1; filter: grayscale(0); }
+.q-flag-btn.active {
+  background: var(--mid-bg);
+  border-color: var(--mid-fg);
+  opacity: 1;
+  filter: none;
+}
+.q-card.flagged { border-left: 3px solid var(--mid-fg); }
+
+.comment-count {
+  font-size: 11px;
+  color: var(--fg-muted);
+  background: var(--bg-soft);
+  border: 1px solid var(--border-soft);
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.q-card-source {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-dim);
+  font-weight: 600;
+  padding: 0 0 4px 4px;
+}
+
+.nav-item-flag { gap: 4px; }
+.nav-item-flag .nav-item-meta { color: var(--mid-fg); }
+
+/* ----- Comments / notes ----- */
+.q-comments {
+  padding: 14px 22px 18px 50px;
+  background: var(--bg);
+  border-top: 1px dashed var(--border-soft);
+}
+.q-comments-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-dim);
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.q-comments-empty {
+  font-size: 13px;
+  color: var(--fg-dim);
+  margin-bottom: 10px;
+  font-style: italic;
+}
+.q-comment-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.q-comment {
+  background: var(--bg-elev);
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+.q-comment-body {
+  font-size: 13.5px;
+  color: var(--fg);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.q-comment-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--fg-dim);
+}
+.q-comment-time { font-variant-numeric: tabular-nums; }
+.q-comment-del {
+  background: transparent;
+  border: 0;
+  color: var(--fg-dim);
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color .12s, background .12s;
+}
+.q-comment-del:hover { color: var(--hard-fg); background: var(--hard-bg); }
+.q-comment-input {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.q-comment-input textarea {
+  font: inherit;
+  width: 100%;
+  resize: vertical;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--fg);
+  border-radius: 6px;
+  font-size: 13.5px;
+  min-height: 56px;
+}
+.q-comment-input textarea:focus {
+  outline: 0;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.q-comment-submit {
+  align-self: flex-start;
+  padding: 6px 14px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: opacity .12s;
+}
+.q-comment-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+.q-comment-submit:hover:not(:disabled) { opacity: 0.92; }
+
+.meta-error {
+  background: var(--hard-bg);
+  color: var(--hard-fg);
+  border: 1px solid var(--hard-fg);
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
 /* ----- Empty state ----- */
 .empty {
   text-align: center;
@@ -467,6 +622,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
   .topbar-progress { font-size: 12px; }
   .q-row { padding: 12px 14px; gap: 10px; }
   .q-detail { padding: 4px 14px 14px 14px; }
+  .q-comments { padding: 12px 14px 14px 14px; }
 }
 
 /* ----- Print ----- */

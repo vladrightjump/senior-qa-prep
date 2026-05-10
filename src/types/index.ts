@@ -1,10 +1,19 @@
 export type Difficulty = "easy" | "mid" | "hard";
 
 export interface Question {
+  id: string;
   q: string;
   diff: Difficulty;
   tags?: string[];
   answer: string;
+}
+
+export interface QuestionComment {
+  id: string;
+  question_id: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Category {

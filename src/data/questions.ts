@@ -10,6 +10,7 @@ const scenarios: Category = {
   desc: "Production-grade situations a senior QA must handle without flinching",
   questions: [
     {
+      id: "4f1544f2-c26c-45b3-abc4-3da3da43efbd",
       q: "P0 bug found 1 hour before release demo. What do you do?",
       diff: "hard",
       tags: ["incident"],
@@ -24,6 +25,7 @@ const scenarios: Category = {
 <p>Senior signal: calm, structured, escalates appropriately, owns analysis but not decision.</p>`
     },
     {
+      id: "d6435e7e-aa66-46d0-bce1-551ee894e693",
       q: "Nightly run: 60 flakes, 30 real failures. Triage in 30 min.",
       diff: "hard",
       tags: ["incident", "flakiness"],
@@ -37,6 +39,7 @@ const scenarios: Category = {
 <p>Instinct to "fix the suite first" is wrong. Real failures are user-impacting bugs — they trump suite quality.</p>`
     },
     {
+      id: "0d272df3-f209-42c0-95f9-81db15bb8dcc",
       q: "Join a team with no automation. 90-day plan.",
       diff: "hard",
       tags: ["strategy"],
@@ -62,6 +65,7 @@ const scenarios: Category = {
 <p><strong>What you don't do:</strong> automate everything in month 1. Depth comes after foundation.</p>`
     },
     {
+      id: "7d20d432-520d-48d9-af02-34029564d160",
       q: "Pressure to skip regression for a deadline. Your response?",
       diff: "hard",
       tags: ["soft-skills"],
@@ -72,6 +76,7 @@ const scenarios: Category = {
 <p>Three things: quantifies risk, proposes concrete compromise, transfers decision to right person. PM owns "ship now"; you own "here's what that costs". Document.</p>`
     },
     {
+      id: "61ac80d2-a32e-4325-9628-0973dee32e04",
       q: "Coverage 85% but bugs keep slipping to prod. What's missing?",
       diff: "hard",
       tags: ["strategy", "metrics"],
@@ -85,6 +90,7 @@ const scenarios: Category = {
 <p>Coverage is a vanity metric without escape rate counterpart. High escape rate = weak suite, regardless of coverage.</p>`
     },
     {
+      id: "83f31073-5a47-42d1-8d2e-d294ca4f5b71",
       q: "Regression broke 47 tests overnight. Triage.",
       diff: "hard",
       tags: ["incident", "debugging"],
@@ -98,6 +104,7 @@ const scenarios: Category = {
 <p>Anti-pattern: 47 separate tickets. Right answer: 1 root-cause fix + 1 regression test.</p>`
     },
     {
+      id: "67de99cb-4c2f-40ae-b032-6af399eca50c",
       q: "Test a feature behind a 10% feature flag.",
       diff: "hard",
       tags: ["strategy"],
@@ -111,6 +118,7 @@ const scenarios: Category = {
 <p>Stale flags accumulate and become technical debt.</p>`
     },
     {
+      id: "72974001-bf3b-49e7-b002-f85e670528a9",
       q: "Communicate test results to a non-technical PM.",
       diff: "mid",
       tags: ["soft-skills"],
@@ -120,6 +128,7 @@ const scenarios: Category = {
 <p>Frame: what works, what's at risk, what's the recommendation. Numbers support narrative; they don't replace it.</p>`
     },
     {
+      id: "d17f88d3-1795-45a6-917e-a1b65981af88",
       q: "Justify ROI of automation to a CFO who only sees cost.",
       diff: "hard",
       tags: ["soft-skills", "metrics"],
@@ -132,6 +141,7 @@ const scenarios: Category = {
 <p>Avoid: "test coverage went up". CFO doesn't care. They care about cost, risk, competitive speed.</p>`
     },
     {
+      id: "51a1015e-7ee6-4d2c-b696-bc9d7ac1077c",
       q: "Test a feature that depends on a third-party payment provider you can't call.",
       diff: "hard",
       tags: ["strategy"],
@@ -145,6 +155,7 @@ const scenarios: Category = {
 <p>Senior approach: layer them. Test mode for the critical path E2E. Mocks for error states. Contract tests if the provider publishes contracts. No single tool covers all needs.</p>`
     },
     {
+      id: "85dfc98f-9862-4606-8973-dbc65faabb6c",
       q: "A team member's tests are constantly flaking. How do you address it without alienating them?",
       diff: "hard",
       tags: ["soft-skills", "flakiness"],
@@ -159,6 +170,7 @@ const scenarios: Category = {
 <p>The wrong move: filing tickets blaming the author. The right move: invest in their growth and the team's patterns.</p>`
     },
     {
+      id: "86a66619-670d-4aa7-87a5-dc358819d416",
       q: "Stakeholder asks for 100% test coverage. How do you respond?",
       diff: "mid",
       tags: ["soft-skills", "metrics"],
@@ -169,6 +181,7 @@ const scenarios: Category = {
 <p>Educate, don't dismiss. Offer a better metric. Tie back to their goal — confidence, not numbers.</p>`
     },
     {
+      id: "606a2acf-2a32-4475-8d6b-6c2c35aa91b0",
       q: "How would you test an Android Automotive infotainment system?",
       diff: "hard",
       tags: ["mobile", "automotive"],
@@ -185,6 +198,7 @@ const scenarios: Category = {
 <p>Specific concerns: emulator differs from real hardware (audio routing, hardware acceleration). Always validate on real head units before release. Automotive grade ≠ consumer grade — the bar is higher.</p>`
     },
     {
+      id: "cc788147-bb41-40c6-bc7c-484428250e97",
       q: "Production has a memory leak only after 6+ hours of runtime. How do you reproduce and verify a fix?",
       diff: "hard",
       tags: ["incident", "performance"],
@@ -198,6 +212,7 @@ const scenarios: Category = {
 <p>The senior signal: turning a one-off incident into ongoing automated coverage.</p>`
     },
     {
+      id: "d1c32db6-5873-4593-b689-31281353a6a9",
       q: "How do you handle a security vulnerability disclosed by an external researcher?",
       diff: "hard",
       tags: ["incident", "security"],
@@ -220,6 +235,7 @@ const behavioral: Category = {
   desc: "STAR-format soft-skill questions — be specific, quantify when possible",
   questions: [
     {
+      id: "b946b271-9de9-4f60-b599-49aadd9abc96",
       q: "Tell me about the most critical bug you ever caught.",
       diff: "mid",
       tags: ["star"],
@@ -233,6 +249,7 @@ const behavioral: Category = {
 <p>Avoid heroic narratives. Be specific about your contribution, humble about the team.</p>`
     },
     {
+      id: "17adca23-658e-4ccf-9a77-04bb68f6298b",
       q: "Time you pushed back on a deadline.",
       diff: "mid",
       tags: ["star", "soft-skills"],
@@ -246,6 +263,7 @@ const behavioral: Category = {
 <p>Bad: "I told them no and they listened." Good: "I laid out trade-off, they shipped anyway, hit the bug, listened next time."</p>`
     },
     {
+      id: "c74c2388-ed51-4c4c-8eea-57afff0c58b1",
       q: "How do you stay current? 3 things you learned in last 6 months.",
       diff: "easy",
       tags: ["soft-skills"],
@@ -258,6 +276,7 @@ const behavioral: Category = {
 <p>Tie at least one to current work. Reading without applying = yellow flag.</p>`
     },
     {
+      id: "d9f269b6-97ef-4563-985f-a8e98aaaefd7",
       q: "Bug that escaped to production. What did you change?",
       diff: "hard",
       tags: ["star", "soft-skills"],
@@ -270,6 +289,7 @@ const behavioral: Category = {
 <p>Strong example: "Empty cart edge case shipped. Unit test had <code>expect(total).toBeGreaterThan(0)</code> instead of equality. Added boundary cases to cart unit test template, now required in PR descriptions for cart changes."</p>`
     },
     {
+      id: "defb1efd-3d21-4f5f-bb27-fbbba58f2d74",
       q: "How do you work with developers who resist writing testable code?",
       diff: "hard",
       tags: ["soft-skills"],
@@ -283,6 +303,7 @@ const behavioral: Category = {
 <p>Wrong: enforcement without context. Right: make their job easier, watch resistance fade.</p>`
     },
     {
+      id: "f6ab8fa7-9e62-45e3-b569-355a1eeeb60d",
       q: "Time you introduced a new tool against initial team resistance.",
       diff: "mid",
       tags: ["star", "soft-skills"],
@@ -296,6 +317,7 @@ const behavioral: Category = {
 <p>Don't introduce 5 tools at once.</p>`
     },
     {
+      id: "6ef9d0f8-b970-4219-bba3-567c7e950c08",
       q: "Overruled on a technical call you disagreed with. What did you do?",
       diff: "hard",
       tags: ["soft-skills"],
@@ -309,6 +331,7 @@ const behavioral: Category = {
 <p>Bad: "I was right, they were wrong." Good: "Disagreed, made my case, lost. 3 months later issue surfaced. Discussed as team, updated practice. Learned to make case more clearly with data."</p>`
     },
     {
+      id: "c842c109-b048-4ac5-af1e-b8f34ed60e7a",
       q: "Why are you leaving your current role? Why this company?",
       diff: "easy",
       tags: ["soft-skills"],
@@ -325,6 +348,7 @@ const behavioral: Category = {
 <p>Don't say "growth" or "good company" — generic = didn't prepare.</p>`
     },
     {
+      id: "39cc250f-e201-43fc-8b40-e86981fd09bc",
       q: "Describe a time you turned around a hostile stakeholder.",
       diff: "hard",
       tags: ["star", "soft-skills"],
@@ -339,6 +363,7 @@ const behavioral: Category = {
 <p>Hostility is usually fear or frustration. Treat it as a signal, not an attack.</p>`
     },
     {
+      id: "9f8b77c1-d3b1-4ec9-9ac2-6773e5fbd1b8",
       q: "How do you handle being wrong in a public discussion?",
       diff: "mid",
       tags: ["soft-skills"],
@@ -351,6 +376,7 @@ const behavioral: Category = {
 <p>The senior signal: you can change your mind without losing credibility. People who can't admit being wrong don't get trusted with hard problems.</p>`
     },
     {
+      id: "f89cb10e-8ec5-43e8-9439-b6ff31fff689",
       q: "Tell me about a project that failed.",
       diff: "hard",
       tags: ["star"],
@@ -364,6 +390,7 @@ const behavioral: Category = {
 <p>Avoid: blaming others, framing the failure as someone else's fault, or claiming you predicted everything. The strong answer is one where you grew.</p>`
     },
     {
+      id: "61cefba6-355c-4d86-92d6-97c36adbc9c8",
       q: "How do you mentor junior QA engineers?",
       diff: "mid",
       tags: ["soft-skills", "mentorship"],
@@ -378,6 +405,7 @@ const behavioral: Category = {
 <p>Mentorship is part of senior responsibility. If asked "what would you bring to the team?" and you don't mention mentorship, that's a gap.</p>`
     },
     {
+      id: "1c8a42ee-9fc0-4524-ad1f-5e129a8a670c",
       q: "What's your approach to learning a new codebase quickly?",
       diff: "mid",
       tags: ["soft-skills"],

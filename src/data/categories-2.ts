@@ -6,6 +6,7 @@ const sql: Category = {
   desc: "Joins, indexes, query plans, data integrity for QA validation",
   questions: [
     {
+      id: "83214253-2067-4c69-9bb5-ded7c41d4a10",
       q: "Explain INNER, LEFT, RIGHT, and FULL OUTER JOIN. When does QA use each?",
       diff: "easy",
       tags: ["sql", "joins"],
@@ -28,6 +29,7 @@ WHERE o.id IS NULL;</code></pre>
 <p><strong>LEFT JOIN + IS NULL</strong> = canonical pattern for finding orphans (broken FK relationships).</p>`
     },
     {
+      id: "b639a26d-fb3b-491a-8c0c-f3957c2af54b",
       q: "Primary key vs. foreign key vs. unique constraint?",
       diff: "easy",
       tags: ["sql", "schema"],
@@ -39,6 +41,7 @@ WHERE o.id IS NULL;</code></pre>
 <p>Test: delete a user with orders. <code>ON DELETE RESTRICT</code> fails the operation. <code>ON DELETE CASCADE</code> deletes orders too. Schema behavior here is critical for data tests.</p>`
     },
     {
+      id: "3ef27da2-6ddc-40da-910e-8cc930bae35f",
       q: "Find the second highest salary in a table.",
       diff: "mid",
       tags: ["sql", "queries"],
@@ -58,6 +61,7 @@ SELECT salary FROM (
 <p><strong>Filters senior candidates:</strong> what if two share the highest? <code>DENSE_RANK</code> handles ties; <code>ROW_NUMBER</code> doesn't.</p>`
     },
     {
+      id: "2b986c72-ecda-4d3e-b99d-909112f5a52a",
       q: "What is an index? When does it help, when does it hurt?",
       diff: "mid",
       tags: ["sql", "performance"],
@@ -73,6 +77,7 @@ SELECT salary FROM (
 <p>Use <code>EXPLAIN</code> to verify the index is actually used.</p>`
     },
     {
+      id: "87e120eb-9cde-48e2-bec8-0f9eb25fde4c",
       q: "What is EXPLAIN? Walk through diagnosing a slow query.",
       diff: "hard",
       tags: ["sql", "performance"],
@@ -88,6 +93,7 @@ SELECT salary FROM (
 <p>Common fix: composite index matching WHERE/ORDER BY columns in correct order.</p>`
     },
     {
+      id: "17c828de-0a58-4e7e-809a-d231cb2cdff0",
       q: "WHERE vs. HAVING?",
       diff: "easy",
       tags: ["sql"],
@@ -103,6 +109,7 @@ HAVING COUNT(*) &gt; 5;  -- after grouping</code></pre>
 <p>Always prefer WHERE when possible — filtering before aggregation is much faster.</p>`
     },
     {
+      id: "136a4f8a-e6d2-441b-bce7-f2cce66c7d73",
       q: "What is a transaction? Explain ACID.",
       diff: "mid",
       tags: ["sql", "transactions"],
@@ -115,6 +122,7 @@ HAVING COUNT(*) &gt; 5;  -- after grouping</code></pre>
 <p>Test: deduct money from A, add to B. If second step fails, both must roll back. A test asserting only step 2 misses the atomicity check.</p>`
     },
     {
+      id: "309e3e19-723f-48e3-97c9-137420cac4f7",
       q: "Find duplicate emails in a users table.",
       diff: "mid",
       tags: ["sql"],
@@ -132,6 +140,7 @@ SELECT id, email FROM (
 <p>Email duplicates break "find user by email" lookups and cause auth issues. A real data-quality test.</p>`
     },
     {
+      id: "ad5f8bd1-382e-4330-ab0f-74debcb8accc",
       q: "How do NULLs behave in SQL? List 3 gotchas.",
       diff: "mid",
       tags: ["sql"],
@@ -149,6 +158,7 @@ WHERE salary != 50000 OR salary IS NULL;</code></pre>
 <p>Three-valued logic (TRUE / FALSE / UNKNOWN) is the source of many "worked in dev, not in prod" bugs.</p>`
     },
     {
+      id: "4c295db8-589a-4f5f-834f-e6ea56f93d1c",
       q: "Subquery vs. CTE — when to prefer each?",
       diff: "mid",
       tags: ["sql"],
@@ -168,6 +178,7 @@ FROM users u JOIN big_spenders b ON u.id = b.user_id;</code></pre>
 <p>Senior nuance: in some DBs CTEs were optimization fences (Postgres pre-12). Modern engines handle both similarly.</p>`
     },
     {
+      id: "e54be14b-67c6-4620-b66a-b6c412df8a91",
       q: "Detect orders with totals not matching their line items sum.",
       diff: "hard",
       tags: ["sql", "data-integrity"],
@@ -183,6 +194,7 @@ HAVING o.total != SUM(li.price * li.quantity);</code></pre>
 <p>Real production audit query. Catches denormalization drift — order total cached on parent row, updates not atomic with line item changes. Should return zero rows. If not, file a bug.</p>`
     },
     {
+      id: "685956b6-d290-4fb4-b5f5-67b5be1cc711",
       q: "What is a window function? Show one in use.",
       diff: "hard",
       tags: ["sql"],
@@ -205,6 +217,7 @@ FROM orders;</code></pre>
 <p>Common functions: <code>ROW_NUMBER</code>, <code>RANK</code>, <code>DENSE_RANK</code>, <code>LAG</code>, <code>LEAD</code>, <code>SUM</code>/<code>AVG</code> as window. Essential for analytics queries.</p>`
     },
     {
+      id: "e88005b5-4f38-4e39-9462-b8ae510b75fc",
       q: "What's the difference between TRUNCATE, DELETE, and DROP?",
       diff: "easy",
       tags: ["sql"],
@@ -216,6 +229,7 @@ FROM orders;</code></pre>
 <p>For test cleanup: TRUNCATE if you can — fastest. DELETE if you need triggers or WHERE.</p>`
     },
     {
+      id: "42bb367d-1065-45cd-9015-a606295c6bc9",
       q: "What is an n+1 query problem and how do you detect it?",
       diff: "hard",
       tags: ["sql", "performance"],
@@ -231,6 +245,7 @@ const users = await db.users.findMany({ include: { orders: true } });  // 1 quer
 <p><strong>Detect in tests:</strong> count queries during a request. Many ORMs have a query-count assertion or middleware. <code>EXPLAIN</code> on individual queries doesn't catch it — the issue is the count, not any single query.</p>`
     },
     {
+      id: "d34a0d2c-bc47-407b-83af-0371787ec0bd",
       q: "Test that a UNIQUE constraint actually works.",
       diff: "mid",
       tags: ["sql", "data-integrity"],
@@ -253,6 +268,7 @@ test('uniqueness should be case-insensitive', async ({ db }) =&gt; {
 <p>Uniqueness on emails is often case-insensitive in spec but case-sensitive in the DB column. Test the actual behavior, not the assumed one.</p>`
     },
     {
+      id: "77c68bb1-11ca-432f-adf1-d9b56e8fccf8",
       q: "What's the difference between INNER JOIN and CROSS JOIN?",
       diff: "easy",
       tags: ["sql", "joins"],
@@ -267,6 +283,7 @@ CROSS JOIN colors c;</code></pre>
 <p>Practical use: generate all combinations (variants for products, dates × users for reports). Accidental CROSS JOIN (forgotten ON clause) is a common bug — catastrophic for large tables.</p>`
     },
     {
+      id: "4b95a2b8-4ed7-43e1-93d4-aee078945f01",
       q: "How do you write a query to find the top 3 best-selling products per category?",
       diff: "hard",
       tags: ["sql", "queries"],
@@ -289,6 +306,7 @@ WHERE rnk &lt;= 3;</code></pre>
 <p>Senior nuance: <code>ROW_NUMBER</code> assigns unique ranks (1, 2, 3, 4…) — ties broken arbitrarily. <code>DENSE_RANK</code> handles ties (1, 2, 2, 3). <code>RANK</code> skips after ties (1, 2, 2, 4). Choose based on whether ties should fit in the top 3.</p>`
     },
     {
+      id: "ac162a1a-8874-409e-b7ba-563e235d5f42",
       q: "Difference between a clustered and non-clustered index?",
       diff: "mid",
       tags: ["sql", "indexes"],
@@ -299,6 +317,7 @@ WHERE rnk &lt;= 3;</code></pre>
 <p>Trade-off: more non-clustered indexes = faster reads on those columns, slower writes (every INSERT/UPDATE updates all indexes). The covering index pattern (<code>INCLUDE</code> in SQL Server) avoids the lookup step.</p>`
     },
     {
+      id: "95bdcbcf-54f5-4367-972a-895b615fa784",
       q: "Test that a backend correctly enforces a foreign key cascade delete.",
       diff: "mid",
       tags: ["sql", "data-integrity"],
@@ -337,6 +356,7 @@ const frameworkArch: Category = {
   desc: "Designing maintainable test frameworks that scale beyond one project",
   questions: [
     {
+      id: "5e525a1c-fcab-4899-9333-a20ebac69ddd",
       q: "Walk through the folder structure of a senior-grade Playwright + TS framework.",
       diff: "mid",
       tags: ["architecture"],
@@ -364,6 +384,7 @@ const frameworkArch: Category = {
 <p><strong>Senior signals:</strong> separation of UI/API layers, factories not static JSON, composed fixtures, schemas as first-class artifacts.</p>`
     },
     {
+      id: "ddfae3c3-4f5b-4be8-a46b-ded285143a21",
       q: "What is POM and what's a common anti-pattern?",
       diff: "mid",
       tags: ["pom"],
@@ -378,6 +399,7 @@ const frameworkArch: Category = {
 <p>Modern alternative: <strong>Feature Object</strong> — organize by user-facing feature, often better for SPAs.</p>`
     },
     {
+      id: "673a4596-9bc0-40c6-9442-2625e44e9409",
       q: "Fixture composition pattern — why does it matter at scale?",
       diff: "hard",
       tags: ["fixtures", "architecture"],
@@ -396,6 +418,7 @@ export const test = mergeTests(authTest, dataTest);</code></pre>
 <p><strong>Why it matters:</strong> smaller files easier to review, independent ownership across teams, no "god fixture" — single 800-line file destroys scale.</p>`
     },
     {
+      id: "295b004b-204b-4fa9-ad67-1a1fc842bfc8",
       q: "How do you decide between E2E, integration, and unit tests?",
       diff: "hard",
       tags: ["strategy", "pyramid"],
@@ -407,6 +430,7 @@ export const test = mergeTests(authTest, dataTest);</code></pre>
 <p><strong>Senior heuristic:</strong> "what's the cheapest test that gives me confidence?" Don't write E2E for date formatting. Don't write unit test for "the entire checkout flow".</p>`
     },
     {
+      id: "2e3215e7-1c47-4163-8574-960d55e0af13",
       q: "Devs writing tests vs. QA writing tests — what's the difference?",
       diff: "mid",
       tags: ["strategy"],
@@ -421,6 +445,7 @@ export const test = mergeTests(authTest, dataTest);</code></pre>
 <p>Both should write tests. Senior framing: <strong>devs write code, QA owns quality strategy.</strong></p>`
     },
     {
+      id: "3fd71681-525f-40c5-bc9e-6e52f95351e5",
       q: "How do you prevent a test framework from rotting?",
       diff: "hard",
       tags: ["architecture", "process"],
@@ -437,6 +462,7 @@ export const test = mergeTests(authTest, dataTest);</code></pre>
 </ul>`
     },
     {
+      id: "7ceb0045-7b3d-4c62-904b-9bb09af400a1",
       q: "What is Arrange-Act-Assert? Show it in a Playwright test.",
       diff: "easy",
       tags: ["patterns"],
@@ -455,6 +481,7 @@ export const test = mergeTests(authTest, dataTest);</code></pre>
 <p>Three sections separated by blank lines. Reading the test reveals intent. Anti-pattern: interleaving — clicking, asserting, clicking — failures hard to localize.</p>`
     },
     {
+      id: "eaa1b487-b0d7-4e75-b26d-2f4a46652516",
       q: "What are the four planes of a scalable test framework?",
       diff: "hard",
       tags: ["architecture", "scale"],
@@ -467,6 +494,7 @@ export const test = mergeTests(authTest, dataTest);</code></pre>
 <p>Most teams design only execution plane and wonder why their suite collapses at scale. The other three don't auto-emerge.</p>`
     },
     {
+      id: "8b0b81fb-ed13-4c02-a618-f88538d44dd2",
       q: "Architect a test framework shared across 4 product teams.",
       diff: "hard",
       tags: ["architecture", "scale"],
@@ -483,6 +511,7 @@ export const test = mergeTests(authTest, dataTest);</code></pre>
 <p>Hard part isn't technical — it's organizational. Who pages who at 2am when framework breaks?</p>`
     },
     {
+      id: "3d6c91ae-8e1e-4c33-8cae-415debf5f836",
       q: "What are common test data management strategies and their trade-offs?",
       diff: "hard",
       tags: ["data", "architecture"],
@@ -497,6 +526,7 @@ export const test = mergeTests(authTest, dataTest);</code></pre>
 <p><strong>Senior choice:</strong> factories + API-based seeding for most tests. Snapshots only for very expensive setups. Avoid static fixtures beyond simple lookup data.</p>`
     },
     {
+      id: "c12f23aa-4ac5-4dc9-b20e-87e247b8ce1b",
       q: "How do you structure tests for a large monorepo with multiple apps?",
       diff: "hard",
       tags: ["architecture", "monorepo"],
@@ -524,6 +554,7 @@ export const test = mergeTests(authTest, dataTest);</code></pre>
 </ul>`
     },
     {
+      id: "e27d348a-c767-41bd-8d24-c5ca6d7f29a3",
       q: "What is the Builder pattern in test code? When is it useful?",
       diff: "mid",
       tags: ["patterns", "data"],

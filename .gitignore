@@ -11,3 +11,8 @@ dist-ssr
 *.log
 .vercel
 .netlify
+
+# TypeScript / Vite build artifacts
+*.tsbuildinfo
+vite.config.d.ts
+vite.config.js

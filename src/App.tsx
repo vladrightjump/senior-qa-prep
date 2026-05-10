@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CATEGORIES } from "./data/questions";
-import type { DiffFilter, Theme } from "./types";
+import type { DiffFilter, Question, Theme } from "./types";
 import { useLocalStorage } from "./hooks/useLocalStorage";
+import { useQuestionMeta } from "./hooks/useQuestionMeta";
 import { TopBar } from "./components/TopBar";
-import { Sidebar } from "./components/Sidebar";
+import { Sidebar, NEEDS_INVESTIGATION_ID } from "./components/Sidebar";
 import { QuestionCard } from "./components/QuestionCard";
 
-const STORAGE_KEY = "qa-prep-state-v1";
+const STORAGE_KEY = "qa-prep-state-v2";
 
 interface PersistedState {
   activeCategoryId: string;
@@ -22,6 +23,12 @@ const defaultState: PersistedState = {
   theme: "auto",
 };
 
+interface DisplayItem {
+  q: Question;
+  idx: number;
+  categoryLabel: string;
+}
+
 export default function App() {
   const [state, setState] = useLocalStorage<PersistedState>(STORAGE_KEY, defaultState);
   const [search, setSearch] = useState("");
@@ -31,29 +38,44 @@ export default function App() {
   const searchRef = useRef<HTMLInputElement>(null);
   const focusedCardRef = useRef<HTMLDivElement>(null);
 
+  const meta = useQuestionMeta();
+
   // Apply theme
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", state.theme);
   }, [state.theme]);
 
-  // Active category
-  const activeCategory = useMemo(
-    () => CATEGORIES.find((c) => c.id === state.activeCategoryId) ?? CATEGORIES[0]!,
-    [state.activeCategoryId]
-  );
+  const isInvestigationView = state.activeCategoryId === NEEDS_INVESTIGATION_ID;
 
-  // Filtered list of questions in the active category
-  const filtered = useMemo(() => {
+  // Active category (or null in investigation view)
+  const activeCategory = useMemo(() => {
+    if (isInvestigationView) return null;
+    return CATEGORIES.find((c) => c.id === state.activeCategoryId) ?? CATEGORIES[0]!;
+  }, [state.activeCategoryId, isInvestigationView]);
+
+  // Filtered list — handles both regular categories and the virtual "Needs investigation" view
+  const filtered: DisplayItem[] = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return activeCategory.questions
-      .map((q, idx) => ({ q, idx, id: `${activeCategory.id}::${idx}` }))
-      .filter(({ q }) => {
-        if (diffFilter !== "all" && q.diff !== diffFilter) return false;
-        if (!term) return true;
-        const haystack = `${q.q} ${(q.tags ?? []).join(" ")} ${q.answer}`.toLowerCase();
-        return haystack.includes(term);
-      });
-  }, [activeCategory, search, diffFilter]);
+
+    const source: DisplayItem[] = isInvestigationView
+      ? CATEGORIES.flatMap((c) =>
+          c.questions
+            .map((q, idx): DisplayItem => ({ q, idx, categoryLabel: c.label }))
+            .filter(({ q }) => meta.flags.has(q.id)),
+        )
+      : (activeCategory?.questions ?? []).map((q, idx) => ({
+          q,
+          idx,
+          categoryLabel: activeCategory!.label,
+        }));
+
+    return source.filter(({ q }) => {
+      if (diffFilter !== "all" && q.diff !== diffFilter) return false;
+      if (!term) return true;
+      const haystack = `${q.q} ${(q.tags ?? []).join(" ")} ${q.answer}`.toLowerCase();
+      return haystack.includes(term);
+    });
+  }, [activeCategory, search, diffFilter, isInvestigationView, meta.flags]);
 
   // Reset focused card when filters change or category switches
   useEffect(() => {
@@ -158,13 +180,19 @@ export default function App() {
       if (e.key === " " && focusedIdx >= 0) {
         e.preventDefault();
         const item = filtered[focusedIdx];
-        if (item) toggleOpen(item.id);
+        if (item) toggleOpen(item.q.id);
         return;
       }
       if (e.key === "r" && focusedIdx >= 0) {
         e.preventDefault();
         const item = filtered[focusedIdx];
-        if (item) toggleReviewed(item.id);
+        if (item) toggleReviewed(item.q.id);
+        return;
+      }
+      if (e.key === "f" && focusedIdx >= 0) {
+        e.preventDefault();
+        const item = filtered[focusedIdx];
+        if (item) meta.toggleFlag(item.q.id);
         return;
       }
     };
@@ -172,6 +200,11 @@ export default function App() {
     return () => window.removeEventListener("keydown", handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtered, focusedIdx]);
+
+  const headerTitle = isInvestigationView ? "🔎 Needs investigation" : activeCategory!.label;
+  const headerDesc = isInvestigationView
+    ? "Questions you've flagged to revisit. Toggle the magnifier on a card to remove it from this list."
+    : activeCategory!.desc;
 
   return (
     <>
@@ -188,21 +221,31 @@ export default function App() {
           categories={CATEGORIES}
           activeId={state.activeCategoryId}
           reviewedIds={state.reviewedIds}
+          flaggedCount={meta.flags.size}
           onSelect={setActiveCategory}
           open={mobileMenuOpen}
           onCloseMobile={() => setMobileMenuOpen(false)}
         />
         <main className="main">
           <div className="cat-header">
-            <h1>{activeCategory.label}</h1>
-            <p>{activeCategory.desc}</p>
+            <h1>{headerTitle}</h1>
+            <p>{headerDesc}</p>
           </div>
+          {meta.error && (
+            <div className="meta-error">
+              Sync issue: {meta.error}. Changes may not be saved.
+            </div>
+          )}
           <div className="controls">
             <input
               ref={searchRef}
               type="text"
               className="search"
-              placeholder="Search this category…   (press /)"
+              placeholder={
+                isInvestigationView
+                  ? "Search flagged questions…   (press /)"
+                  : "Search this category…   (press /)"
+              }
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -222,22 +265,33 @@ export default function App() {
           </div>
           {filtered.length === 0 ? (
             <div className="empty">
-              No questions match. Try clearing search or changing difficulty.
+              {isInvestigationView
+                ? "Nothing flagged yet. Click 🔎 on any question to add it here."
+                : "No questions match. Try clearing search or changing difficulty."}
             </div>
           ) : (
             <div className="q-list">
               {filtered.map((item, i) => {
                 const isFocused = i === focusedIdx;
+                const qid = item.q.id;
                 return (
-                  <div ref={isFocused ? focusedCardRef : null} key={item.id}>
+                  <div ref={isFocused ? focusedCardRef : null} key={qid}>
+                    {isInvestigationView && (
+                      <div className="q-card-source">{item.categoryLabel}</div>
+                    )}
                     <QuestionCard
                       question={item.q}
                       num={item.idx + 1}
-                      isReviewed={state.reviewedIds.has(item.id)}
-                      isOpen={state.openIds.has(item.id)}
+                      isReviewed={state.reviewedIds.has(qid)}
+                      isOpen={state.openIds.has(qid)}
                       isFocused={isFocused}
-                      onToggleOpen={() => toggleOpen(item.id)}
-                      onToggleReviewed={() => toggleReviewed(item.id)}
+                      isFlagged={meta.flags.has(qid)}
+                      comments={meta.commentsByQuestion.get(qid) ?? []}
+                      onToggleOpen={() => toggleOpen(qid)}
+                      onToggleReviewed={() => toggleReviewed(qid)}
+                      onToggleFlag={() => meta.toggleFlag(qid)}
+                      onAddComment={(body) => meta.addComment(qid, body)}
+                      onDeleteComment={(cid) => meta.deleteComment(cid)}
                     />
                   </div>
                 );
