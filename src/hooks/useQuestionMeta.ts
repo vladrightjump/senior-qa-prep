@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import type { QuestionComment } from "../types";
 
@@ -84,6 +84,41 @@ export function useQuestionMeta(): UseQuestionMetaResult {
   const [commentsByQuestion, setCommentsByQuestion] = useState<
     Map<string, QuestionComment[]>
   >(() => new Map());
+
+  // Mirrors of the state Sets that always reflect the latest value. The
+  // toggle handlers need to read the current membership *synchronously* to
+  // decide between insert and delete — state updater functions run later, so
+  // closing over a side-effect-set variable inside setFlags() doesn't work.
+  const flagsRef = useRef(flags);
+  const reviewedRef = useRef(reviewed);
+  useEffect(() => {
+    flagsRef.current = flags;
+  }, [flags]);
+  useEffect(() => {
+    reviewedRef.current = reviewed;
+  }, [reviewed]);
+
+  // Counts in-flight DB writes so we can warn the user before they refresh
+  // or close the tab while changes haven't been persisted yet.
+  const pendingWrites = useRef(0);
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (pendingWrites.current > 0) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, []);
+  const track = async <T,>(p: PromiseLike<T>): Promise<T> => {
+    pendingWrites.current += 1;
+    try {
+      return await p;
+    } finally {
+      pendingWrites.current -= 1;
+    }
+  };
 
   // Initial load: migrate legacy local state, then fetch everything.
   useEffect(() => {
@@ -180,21 +215,20 @@ export function useQuestionMeta(): UseQuestionMetaResult {
   }, []);
 
   const toggleFlag = useCallback(async (questionId: string) => {
-    let willFlag = false;
+    const willFlag = !flagsRef.current.has(questionId);
     setFlags((prev) => {
       const next = new Set(prev);
-      if (next.has(questionId)) {
-        next.delete(questionId);
-        willFlag = false;
-      } else {
-        next.add(questionId);
-        willFlag = true;
-      }
+      if (willFlag) next.add(questionId);
+      else next.delete(questionId);
       return next;
     });
-    const { error } = willFlag
-      ? await supabase.from("qa_flags").insert({ question_id: questionId })
-      : await supabase.from("qa_flags").delete().eq("question_id", questionId);
+    const { error } = await track(
+      willFlag
+        ? supabase
+            .from("qa_flags")
+            .upsert({ question_id: questionId }, { onConflict: "question_id" })
+        : supabase.from("qa_flags").delete().eq("question_id", questionId),
+    );
     if (error) {
       setError(error.message);
       setFlags((prev) => {
@@ -207,21 +241,20 @@ export function useQuestionMeta(): UseQuestionMetaResult {
   }, []);
 
   const toggleReviewed = useCallback(async (questionId: string) => {
-    let willMark = false;
+    const willMark = !reviewedRef.current.has(questionId);
     setReviewed((prev) => {
       const next = new Set(prev);
-      if (next.has(questionId)) {
-        next.delete(questionId);
-        willMark = false;
-      } else {
-        next.add(questionId);
-        willMark = true;
-      }
+      if (willMark) next.add(questionId);
+      else next.delete(questionId);
       return next;
     });
-    const { error } = willMark
-      ? await supabase.from("qa_reviewed").insert({ question_id: questionId })
-      : await supabase.from("qa_reviewed").delete().eq("question_id", questionId);
+    const { error } = await track(
+      willMark
+        ? supabase
+            .from("qa_reviewed")
+            .upsert({ question_id: questionId }, { onConflict: "question_id" })
+        : supabase.from("qa_reviewed").delete().eq("question_id", questionId),
+    );
     if (error) {
       setError(error.message);
       setReviewed((prev) => {
@@ -236,11 +269,13 @@ export function useQuestionMeta(): UseQuestionMetaResult {
   const addComment = useCallback(async (questionId: string, body: string) => {
     const trimmed = body.trim();
     if (!trimmed) return;
-    const { data, error } = await supabase
-      .from("qa_comments")
-      .insert({ question_id: questionId, body: trimmed })
-      .select()
-      .single();
+    const { data, error } = await track(
+      supabase
+        .from("qa_comments")
+        .insert({ question_id: questionId, body: trimmed })
+        .select()
+        .single(),
+    );
     if (error || !data) {
       setError(error?.message ?? "Add failed");
       return;
@@ -269,7 +304,9 @@ export function useQuestionMeta(): UseQuestionMetaResult {
       }
       return next;
     });
-    const { error } = await supabase.from("qa_comments").delete().eq("id", commentId);
+    const { error } = await track(
+      supabase.from("qa_comments").delete().eq("id", commentId),
+    );
     if (error && removed) {
       setError(error.message);
       const restored = removed;
@@ -286,12 +323,14 @@ export function useQuestionMeta(): UseQuestionMetaResult {
   const editComment = useCallback(async (commentId: string, body: string) => {
     const trimmed = body.trim();
     if (!trimmed) return;
-    const { data, error } = await supabase
-      .from("qa_comments")
-      .update({ body: trimmed, updated_at: new Date().toISOString() })
-      .eq("id", commentId)
-      .select()
-      .single();
+    const { data, error } = await track(
+      supabase
+        .from("qa_comments")
+        .update({ body: trimmed, updated_at: new Date().toISOString() })
+        .eq("id", commentId)
+        .select()
+        .single(),
+    );
     if (error || !data) {
       setError(error?.message ?? "Edit failed");
       return;
