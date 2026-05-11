@@ -1282,6 +1282,325 @@ test.afterEach(async ({ flags }) =&gt; {
   ],
 };
 
+const trickyAssertions: Category = {
+  id: "tricky-assertions",
+  label: "Tricky assertions",
+  desc: "Real test-design traps: sorted columns, transient toasts, floating-point totals, timezone-sensitive dates — and the senior-grade pattern for each.",
+  questions: [
+    {
+      id: "ad8ba591-c99e-49dd-b970-c5d1fe5aefe6",
+      q: "A column has sort capability. How do you assert it's actually sorted?",
+      diff: "mid",
+      tags: ["assertions", "tables"],
+      answer: `<p>Don't just check first vs. last value. Validate the full sequence with the <strong>right comparator for the data type</strong>.</p>
+<pre class="code"><code>function isSorted&lt;T&gt;(arr: T[], cmp: (a: T, b: T) =&gt; number, dir: 'asc' | 'desc' = 'asc') {
+  for (let i = 1; i &lt; arr.length; i++) {
+    const c = cmp(arr[i - 1], arr[i]);
+    if (dir === 'asc' ? c &gt; 0 : c &lt; 0) return false;
+  }
+  return true;
+}
+
+// Click the header, wait for the sort to actually apply (not the click)
+await page.getByRole('columnheader', { name: 'Price' }).click();
+await expect(page.getByTestId('row-loading')).toHaveCount(0);
+
+// Numbers — strip currency symbols, parse, numeric compare
+const prices = (await page.getByTestId('price-cell').allTextContents())
+  .map(s =&gt; parseFloat(s.replace(/[^0-9.-]/g, '')));
+expect(isSorted(prices, (a, b) =&gt; a - b)).toBe(true);
+
+// Strings — locale-aware
+const names = await page.getByTestId('name-cell').allTextContents();
+expect(isSorted(names, (a, b) =&gt; a.localeCompare(b, 'en', { sensitivity: 'base' }))).toBe(true);
+
+// Dates — parse to epoch, compare numerically
+const dates = (await page.getByTestId('date-cell').allTextContents()).map(d =&gt; Date.parse(d));
+expect(isSorted(dates, (a, b) =&gt; a - b)).toBe(true);</code></pre>
+<p><strong>Gotchas:</strong></p>
+<ul>
+<li>Don't compare with <code>[...arr].sort()</code>. JS <code>.sort()</code> defaults to string compare, so numbers sort lexicographically (1, 10, 2).</li>
+<li>Toggle direction: click again, assert <em>reverse</em>-sorted. A test that only checks asc misses broken desc.</li>
+<li>Need 3+ rows for the assertion to mean something. With 0–1 rows it's vacuously true.</li>
+<li>If the sort is server-side: wait on the network response (<code>page.waitForResponse</code>) before reading rows, not just the visual loader.</li>
+</ul>`,
+    },
+    {
+      id: "33c58ff9-cf6c-4e3c-9b96-b28a287383e4",
+      q: "Assert two lists contain the same items regardless of order.",
+      diff: "easy",
+      tags: ["assertions"],
+      answer: `<pre class="code"><code>const expected = ['admin', 'viewer', 'editor'];
+const actual = await page.getByTestId('role-chip').allTextContents();
+
+// ❌ Brittle — order-sensitive
+expect(actual).toEqual(expected);
+
+// ✅ Subset check — but you also need length
+expect(actual).toEqual(expect.arrayContaining(expected));
+expect(actual).toHaveLength(expected.length);
+
+// ✅ Cleanest — symmetric, handles duplicates
+expect([...actual].sort()).toEqual([...expected].sort());</code></pre>
+<p>For object arrays:</p>
+<pre class="code"><code>// Normalize, then compare
+const norm = (o: Order) =&gt; ({ id: o.id, total: o.total });
+expect(actual.map(norm).sort((a, b) =&gt; a.id.localeCompare(b.id)))
+  .toEqual(expected.map(norm).sort((a, b) =&gt; a.id.localeCompare(b.id)));</code></pre>
+<p><strong>Trap:</strong> <code>arrayContaining</code> is a subset check — <code>['a','a']</code> passes against expected <code>['a']</code>. Always pair it with a length assertion.</p>`,
+    },
+    {
+      id: "7111cc0d-89dd-408b-bf5d-4e16574cdeae",
+      q: "Assert a toast appears AND auto-dismisses without flaking.",
+      diff: "mid",
+      tags: ["assertions", "flakiness"],
+      answer: `<p>The trap: by the time <code>expect(toast).toBeVisible()</code> runs, the toast may have already auto-dismissed. The window is narrow.</p>
+<pre class="code"><code>// ❌ Race condition
+await saveBtn.click();
+await expect(toast).toBeVisible();   // may already be gone
+await expect(toast).toBeHidden();
+
+// ✅ Tight timeout on the appearance, generous one on the disappearance
+await saveBtn.click();
+await expect(toast).toBeVisible({ timeout: 1500 });
+await expect(toast).toHaveText(/saved/i);
+await expect(toast).toBeHidden({ timeout: 6000 });
+
+// ✅ Even safer for very short-lived UI — arm the waiter BEFORE the action
+const appeared = toast.waitFor({ state: 'visible' });
+await saveBtn.click();
+await appeared;
+const text = await toast.textContent();
+expect(text).toMatch(/saved/i);</code></pre>
+<p><strong>Pattern:</strong> for any transient UI (toasts, snackbars, flash messages), set up the listener <em>before</em> the trigger.</p>`,
+    },
+    {
+      id: "45f5d74a-40a2-4f69-9692-c00a0a0139ef",
+      q: "Assert that an element does NOT appear — without resorting to sleep().",
+      diff: "mid",
+      tags: ["assertions", "flakiness"],
+      answer: `<pre class="code"><code>// ❌ Anti-pattern: hopeful waiting
+await page.waitForTimeout(3000);
+expect(await errorBanner.isVisible()).toBe(false);
+
+// ❌ Too eager — checks before rendering pipeline runs
+expect(await errorBanner.count()).toBe(0);
+
+// ✅ Web-first negative assertion with an explicit timeout
+await expect(errorBanner).toHaveCount(0, { timeout: 3000 });
+// or
+await expect(errorBanner).toBeHidden({ timeout: 3000 });</code></pre>
+<p>The smarter pattern: wait on the <em>actual signal</em> that "the work is done", then assert.</p>
+<pre class="code"><code>// Wait on the API call, then assert no error showed
+const resp = page.waitForResponse(r =&gt; r.url().includes('/api/save'));
+await saveBtn.click();
+await resp;
+await expect(errorBanner).toBeHidden();</code></pre>
+<p>Why this works: you're tying the negative assertion to a deterministic event (the response landed), not guessing at a duration.</p>`,
+    },
+    {
+      id: "f6ce0d76-d13a-4154-88de-ca85d5a7f180",
+      q: "Assert a calculated price total when the math involves floats.",
+      diff: "mid",
+      tags: ["assertions", "currency"],
+      answer: `<p>Floating-point is not your friend. <code>0.1 + 0.2 === 0.30000000000000004</code>.</p>
+<pre class="code"><code>// ❌ Will randomly fail
+expect(total).toBe(expected);
+
+// ✅ Tolerance
+expect(total).toBeCloseTo(expected, 2);  // 2 decimal places
+
+// ✅ Best: work in integer minor units (cents) and avoid the problem
+expect(Math.round(total * 100)).toBe(Math.round(expected * 100));</code></pre>
+<p>If you're asserting against the UI string (e.g., <code>"€12.34"</code>), the float issue is hidden by formatting — but new traps appear:</p>
+<ul>
+<li>Locale: <code>"12,34"</code> in DE/FR vs <code>"12.34"</code> in EN.</li>
+<li>Currency symbol position: <code>"€12.34"</code> vs <code>"12.34 €"</code>.</li>
+<li>Trailing zeros: <code>"12.30"</code> vs <code>"12.3"</code>.</li>
+</ul>
+<p>Normalize before comparing: strip non-numeric characters, parse, use <code>toBeCloseTo</code>.</p>
+<p><strong>Senior signal:</strong> mention that real-world payment systems should never do float arithmetic — currency must be stored and computed in integer minor units. The bug is often in the system under test, not the assertion.</p>`,
+    },
+    {
+      id: "39e1b565-a3ea-4358-8473-d7e5ecb099de",
+      q: "Tests pass locally but fail in CI on a date assertion. What's wrong?",
+      diff: "hard",
+      tags: ["assertions", "timezones"],
+      answer: `<p>Almost always a timezone mismatch. Your laptop is in Europe/Berlin; CI runs in UTC; the server returns UTC; the UI renders in the browser's local timezone.</p>
+<pre class="code"><code>// ❌ Will pass locally, fail in CI
+expect(dateText).toBe('Mar 5, 2026, 14:30');
+
+// ✅ Pin the browser timezone in Playwright
+test.use({ timezoneId: 'Europe/Berlin' });
+
+// ✅ Or, compare a normalized representation
+const parsed = parseDisplayDate(dateText);   // returns Date
+expect(parsed.toISOString()).toBe('2026-03-05T13:30:00.000Z');</code></pre>
+<p>Other date traps:</p>
+<ul>
+<li><strong>Midnight rollover</strong>: a test that filters "today" fails when run at 23:59 in a timezone that's 00:00 elsewhere.</li>
+<li><strong>DST transitions</strong>: subtracting 24h doesn't always give "yesterday at the same time".</li>
+<li><strong>Locale</strong>: <code>"Mar 5"</code> vs <code>"5 Mar"</code> vs <code>"05/03"</code> vs <code>"03/05"</code>. Pin <code>locale</code> too.</li>
+<li><strong>Server clock skew</strong>: if your test sets <code>createdAt = new Date()</code> and the server records its own clock, the values won't match. Compare with tolerance, or stub the server clock.</li>
+</ul>`,
+    },
+    {
+      id: "0ce7d503-e98a-4897-bf96-fc64ae2887ba",
+      q: "Assert a table row contains specific data across multiple columns.",
+      diff: "mid",
+      tags: ["assertions", "tables"],
+      answer: `<p>Find the row by a <strong>stable cell value</strong>, then assert on its other cells. Never identify rows by position.</p>
+<pre class="code"><code>// ✅ Find by content, assert the rest
+const row = page.getByRole('row', { name: /ord-1234/i });
+await expect(row).toContainText(['ord-1234', 'Maria', '€450.00', 'Shipped']);
+
+// ✅ Exact cell-by-cell if you need it
+await expect(row.getByRole('cell').nth(1)).toHaveText('Maria');
+await expect(row.getByRole('cell', { name: 'Status' })).toHaveText('Shipped');
+
+// ❌ Anti-pattern — row index is fragile (re-sort, filter, pagination)
+await expect(page.locator('tr:nth-child(3)')).toHaveText(/.../);</code></pre>
+<p><strong>Multi-row equality</strong> — when you need to verify the whole visible table:</p>
+<pre class="code"><code>// Read rows as arrays of cell text
+const rows = await page.getByRole('row').evaluateAll(els =&gt;
+  els.map(r =&gt; Array.from(r.querySelectorAll('td')).map(c =&gt; c.textContent?.trim() ?? ''))
+);
+expect(rows).toEqual([
+  ['ord-1234', 'Maria', '€450.00', 'Shipped'],
+  ['ord-1235', 'Tom',   '€90.00',  'Pending'],
+]);</code></pre>`,
+    },
+    {
+      id: "78fb1e00-5689-4347-81e9-f6af86de59f6",
+      q: "Assert URL query params without depending on their order.",
+      diff: "easy",
+      tags: ["assertions", "routing"],
+      answer: `<pre class="code"><code>// ❌ Order-dependent — fails if router emits params in a different order
+expect(page.url()).toBe('https://app/orders?status=open&amp;page=2');
+
+// ✅ Parse and compare key by key
+const url = new URL(page.url());
+expect(url.pathname).toBe('/orders');
+expect(url.searchParams.get('status')).toBe('open');
+expect(url.searchParams.get('page')).toBe('2');
+
+// ✅ With Playwright's toHaveURL + a regex
+await expect(page).toHaveURL(/\\/orders\\?(?=.*status=open)(?=.*page=2)/);</code></pre>
+<p>Bonus traps:</p>
+<ul>
+<li><strong>Encoded values</strong>: <code>%20</code> vs <code>+</code> vs space. Compare decoded.</li>
+<li><strong>Trailing slash</strong>: <code>/orders/</code> vs <code>/orders</code>. <code>URL.pathname</code> preserves it; routers don't always.</li>
+<li><strong>Hash fragments</strong>: <code>#tab=overview</code> isn't in <code>searchParams</code>. Use <code>url.hash</code>.</li>
+</ul>`,
+    },
+    {
+      id: "b2013ac3-0a07-489c-ba0c-9550fb0278c5",
+      q: "Assert that a button triggers a CSV download with the right contents.",
+      diff: "mid",
+      tags: ["assertions", "files"],
+      answer: `<pre class="code"><code>import { readFile } from 'node:fs/promises';
+
+// ✅ Use Playwright's download event
+const downloadPromise = page.waitForEvent('download');
+await page.getByRole('button', { name: 'Export CSV' }).click();
+const download = await downloadPromise;
+
+// Filename pattern
+expect(download.suggestedFilename()).toMatch(/^orders-\\d{4}-\\d{2}-\\d{2}\\.csv$/);
+
+// Content (small files only)
+const path = await download.path();
+const content = await readFile(path!, 'utf-8');
+const [header, ...rows] = content.split(/\\r?\\n/).filter(Boolean);
+expect(header).toBe('order_id,date,total');
+expect(rows).toHaveLength(3);
+expect(rows[0]).toMatch(/^ord-1234,2026-/);</code></pre>
+<p><strong>Gotchas:</strong></p>
+<ul>
+<li>Read from <code>download.path()</code> — a temp location. Don't assume the user's Downloads folder.</li>
+<li>Arm the <code>waitForEvent('download')</code> promise <em>before</em> the click.</li>
+<li>CSV parsing: handle quoted fields containing commas (<code>"$1,234.00"</code>) and CRLF vs LF line endings.</li>
+<li>For Excel <code>.xlsx</code>, use a library (e.g., <code>exceljs</code>) — Playwright only handles the transport.</li>
+</ul>`,
+    },
+    {
+      id: "a87b5a5e-578e-4fcc-a8ea-2d5103591fe1",
+      q: "Assert that a validation error is attached to the right field, not just visible somewhere on the page.",
+      diff: "hard",
+      tags: ["assertions", "a11y"],
+      answer: `<pre class="code"><code>// ❌ Passes even if the error is shown on the wrong field
+await expect(page.getByText('Email is required')).toBeVisible();
+
+// ✅ Assert the linkage between field and error (also validates accessibility)
+const emailField = page.getByLabel('Email');
+await expect(emailField).toHaveAttribute('aria-invalid', 'true');
+
+const errorId = await emailField.getAttribute('aria-describedby');
+expect(errorId, 'email field must reference an error via aria-describedby').toBeTruthy();
+await expect(page.locator(\`#\${errorId}\`)).toHaveText('Email is required');</code></pre>
+<p><strong>Why this matters:</strong></p>
+<ul>
+<li>A test that only checks "the text exists" passes even if the error is misplaced (visually attached to the wrong field, or in an aria-live region screen readers can't link back).</li>
+<li>Asserting via <code>aria-describedby</code> doubles as an accessibility test. If the linkage is missing, screen-reader users have no idea which field is broken.</li>
+<li>Form libraries sometimes render errors in two places (inline + summary). Assert the inline one is the one your assertion grabs.</li>
+</ul>`,
+    },
+    {
+      id: "faf4eb8b-d0cd-4846-b1e3-684b6be12b6d",
+      q: "Assert pagination works end-to-end across pages.",
+      diff: "mid",
+      tags: ["assertions", "pagination"],
+      answer: `<pre class="code"><code>const rows = page.getByTestId('row');
+const counter = page.getByTestId('pagination-counter');
+
+// Page 1
+await expect(rows).toHaveCount(20);
+await expect(counter).toHaveText('1 of 5');
+
+// Capture an identifier to prove the next page shows different data
+const firstId = await rows.first().getAttribute('data-id');
+
+await page.getByRole('button', { name: 'Next' }).click();
+await expect(counter).toHaveText('2 of 5');                       // page indicator advanced
+await expect(rows.first()).not.toHaveAttribute('data-id', firstId!); // data actually changed
+
+// Last page edge case — usually has fewer rows
+await page.getByRole('button', { name: 'Last' }).click();
+await expect(rows.count()).resolves.toBeLessThanOrEqual(20);
+await expect(page.getByRole('button', { name: 'Next' })).toBeDisabled();</code></pre>
+<p><strong>Trap:</strong> tests that only check the page <em>indicator</em> miss the bug where "Next" updates the counter but leaves the table data unchanged. Always assert on both the indicator <em>and</em> the rendered content.</p>
+<p><strong>Other edges to cover:</strong> empty state (0 rows), single page (Next disabled from page 1), URL is updated to <code>?page=2</code> for shareable links.</p>`,
+    },
+    {
+      id: "5b5858df-3be1-4ef0-9dc9-71b88a4e4ee5",
+      q: "Assert that drag-and-drop actually reorders items and the new order is persisted.",
+      diff: "hard",
+      tags: ["assertions", "drag-drop"],
+      answer: `<pre class="code"><code>const items = page.getByTestId('list-item');
+
+// Capture order before
+const before = await items.allTextContents();
+
+// Drag item 0 to position 2
+await items.nth(0).dragTo(items.nth(2));
+
+// 1) Visual order changed correctly
+await expect(items).toHaveText([before[1], before[2], before[0], ...before.slice(3)]);
+
+// 2) Persisted — assert via API or by reloading
+await page.reload();
+await expect(items).toHaveText([before[1], before[2], before[0], ...before.slice(3)]);</code></pre>
+<p><strong>Gotchas:</strong></p>
+<ul>
+<li><strong>HTML5 drag-and-drop is unreliable in headless browsers.</strong> Many apps use mouse events under the hood (react-dnd, dnd-kit). If <code>dragTo</code> doesn't trigger anything, fall back to manual <code>mouse.down() → mouse.move() → mouse.up()</code> with intermediate positions.</li>
+<li><strong>Animations</strong> can lie. The DOM may update before the visual transition finishes. Wait on the underlying state (data-id attribute, persisted API response), not the animation.</li>
+<li><strong>Persistence</strong> is the bug you're really hunting. Visual reorder without an API call = bug. Always verify the server agrees.</li>
+<li><strong>Mobile</strong>: touch events differ from mouse events. If your app supports both, test both.</li>
+</ul>`,
+    },
+  ],
+};
+
 /* ============================================================================
    ASSEMBLE
    ========================================================================= */
@@ -1292,4 +1611,5 @@ export const PART_4_CATEGORIES: Category[] = [
   projectStructure,
   visualRegression,
   featureFlags,
+  trickyAssertions,
 ];
