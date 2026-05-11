@@ -1601,6 +1601,328 @@ await expect(items).toHaveText([before[1], before[2], before[0], ...before.slice
   ],
 };
 
+const programmingFundamentals: Category = {
+  id: "programming-fundamentals",
+  label: "Programming fundamentals",
+  desc: "Classic JS/TS interview questions framed for QA: closures, event loop, debounce, Promise patterns, retries — the algorithms that show up in technical screens.",
+  questions: [
+    {
+      id: "a6d0d243-521f-4c77-8261-bb4be89c08d4",
+      q: "Explain closures with a concrete QA-flavored example.",
+      diff: "mid",
+      tags: ["javascript", "fundamentals"],
+      answer: `<p>A <strong>closure</strong> is a function that retains access to variables from its lexical scope even after that scope has finished executing. The inner function "closes over" outer variables.</p>
+<pre class="code"><code>// QA example: build a retry helper that remembers its config
+function makeRetryer(maxAttempts: number, baseDelayMs: number) {
+  return async function retry&lt;T&gt;(fn: () =&gt; Promise&lt;T&gt;): Promise&lt;T&gt; {
+    // maxAttempts + baseDelayMs are captured from the enclosing scope
+    for (let i = 0; i &lt; maxAttempts; i++) {
+      try { return await fn(); }
+      catch (err) {
+        if (i === maxAttempts - 1) throw err;
+        await new Promise(r =&gt; setTimeout(r, baseDelayMs * 2 ** i));
+      }
+    }
+    throw new Error('unreachable');
+  };
+}
+
+const retryFast = makeRetryer(3, 100);  // closes over (3, 100)
+const retrySlow = makeRetryer(5, 1000); // closes over (5, 1000)
+await retryFast(() =&gt; fetchOrder(id));</code></pre>
+<p><strong>Classic interview trap — the loop closure bug:</strong></p>
+<pre class="code"><code>// ❌ Prints 3, 3, 3 — every closure shares the same i
+for (var i = 0; i &lt; 3; i++) setTimeout(() =&gt; console.log(i), 0);
+
+// ✅ Prints 0, 1, 2 — each iteration has its own i
+for (let i = 0; i &lt; 3; i++) setTimeout(() =&gt; console.log(i), 0);</code></pre>
+<p>Why: <code>var</code> is function-scoped; all three callbacks close over the same binding. <code>let</code> is block-scoped, creating a new binding per iteration.</p>`,
+    },
+    {
+      id: "2daa11d5-8ca3-41e7-8041-7ff0f0626b15",
+      q: "Walk through the event loop. In what order does this code print?",
+      diff: "hard",
+      tags: ["javascript", "async"],
+      answer: `<pre class="code"><code>console.log('1');
+setTimeout(() =&gt; console.log('2'), 0);
+Promise.resolve().then(() =&gt; console.log('3'));
+queueMicrotask(() =&gt; console.log('4'));
+console.log('5');</code></pre>
+<p><strong>Output: 1, 5, 3, 4, 2</strong></p>
+<ol>
+<li><strong>Synchronous code first</strong>: <code>1</code>, <code>5</code> print immediately.</li>
+<li><strong>Microtasks drain next</strong>: <code>3</code> (Promise.then) and <code>4</code> (queueMicrotask) run before any macrotask. They run in order queued.</li>
+<li><strong>Macrotasks (timers, I/O) last</strong>: <code>2</code> prints after the microtask queue is empty.</li>
+</ol>
+<p>Key rules:</p>
+<ul>
+<li>After each macrotask, the engine drains the <em>entire</em> microtask queue before picking the next macrotask.</li>
+<li><code>setTimeout(fn, 0)</code> is not 0ms — it's "as soon as the microtask queue is empty and we're on a fresh tick" (minimum ~4ms in many browsers).</li>
+<li><code>await</code> is sugar for a Promise microtask — code after <code>await</code> runs as a microtask.</li>
+<li>Tests that use <code>setTimeout(0)</code> to "let React render" are racing — use <code>Promise.resolve()</code> or framework-specific <code>act()</code>/<code>flushSync()</code>.</li>
+</ul>`,
+    },
+    {
+      id: "8059a59f-27b3-457b-a94c-df5c0619e4d6",
+      q: "Implement debounce. When would you use throttle instead?",
+      diff: "mid",
+      tags: ["javascript", "async"],
+      answer: `<pre class="code"><code>function debounce&lt;A extends unknown[]&gt;(fn: (...args: A) =&gt; void, ms: number) {
+  let t: ReturnType&lt;typeof setTimeout&gt; | null = null;
+  return (...args: A) =&gt; {
+    if (t) clearTimeout(t);
+    t = setTimeout(() =&gt; { t = null; fn(...args); }, ms);
+  };
+}
+
+// Usage in a search box — fires once after the user stops typing for 300ms
+const onSearch = debounce((query: string) =&gt; doSearch(query), 300);</code></pre>
+<p><strong>Debounce</strong>: collapse a burst of calls into one, fired <em>after</em> the burst ends. Right for: search inputs, autosave, window resize handlers.</p>
+<p><strong>Throttle</strong>: cap the rate, fire at most once per N ms. Right for: scroll handlers, drag handlers, polling.</p>
+<pre class="code"><code>function throttle&lt;A extends unknown[]&gt;(fn: (...args: A) =&gt; void, ms: number) {
+  let last = 0;
+  return (...args: A) =&gt; {
+    const now = Date.now();
+    if (now - last &gt;= ms) { last = now; fn(...args); }
+  };
+}</code></pre>
+<p><strong>QA relevance:</strong> when testing debounced inputs, your test that types "abc" then immediately asserts on the API call will fail — the call doesn't fire until 300ms after the last keypress. Wait on the network response, don't <code>waitForTimeout(300)</code>.</p>`,
+    },
+    {
+      id: "1a0f39c1-27ec-42a9-9b3b-09f9b6d4fbcf",
+      q: "Promise.all vs allSettled vs race vs any — when do you use each?",
+      diff: "mid",
+      tags: ["javascript", "async"],
+      answer: `<table>
+<thead><tr><th>API</th><th>Settles when</th><th>Use when</th></tr></thead>
+<tbody>
+<tr><td><code>Promise.all</code></td><td>All fulfill, or one rejects</td><td>You need every result; one failure should abort.</td></tr>
+<tr><td><code>Promise.allSettled</code></td><td>All settle (fulfilled or rejected)</td><td>You want to see every outcome, even partial failures.</td></tr>
+<tr><td><code>Promise.race</code></td><td>First settles (either way)</td><td>Timeout patterns; "first response wins".</td></tr>
+<tr><td><code>Promise.any</code></td><td>First fulfills (or all reject)</td><td>Failover: try multiple endpoints, take the first success.</td></tr>
+</tbody>
+</table>
+<pre class="code"><code>// Parallel fetches — one failure aborts (lose all data)
+const [user, orders] = await Promise.all([fetchUser(), fetchOrders()]);
+
+// Parallel fetches — see every result, even the failures
+const results = await Promise.allSettled([fetchUser(), fetchOrders()]);
+const failed = results.filter(r =&gt; r.status === 'rejected');
+
+// Timeout pattern
+const data = await Promise.race([
+  fetch('/api/slow'),
+  new Promise((_, reject) =&gt; setTimeout(() =&gt; reject(new Error('timeout')), 5000)),
+]);
+
+// Failover — try primary + replica, use whichever responds first
+const result = await Promise.any([fetch(primaryUrl), fetch(replicaUrl)]);</code></pre>
+<p><strong>Trap with <code>Promise.all</code>:</strong> rejecting doesn't cancel the other promises. They keep running in the background. If that matters (paid API calls, long DB queries), use <code>AbortController</code>.</p>`,
+    },
+    {
+      id: "d7978698-c92e-41ed-8095-f8861f4d3408",
+      q: "Implement retry with exponential backoff and jitter.",
+      diff: "hard",
+      tags: ["javascript", "async", "qa"],
+      answer: `<p>The senior version handles: backoff growth, max retries, jitter (to avoid thundering herds), and a predicate that decides which errors are retryable.</p>
+<pre class="code"><code>interface RetryOpts {
+  attempts?: number;       // default 3
+  baseMs?: number;         // default 200
+  maxMs?: number;          // cap on each delay (default 5000)
+  shouldRetry?: (err: unknown) =&gt; boolean;
+}
+
+async function retry&lt;T&gt;(fn: () =&gt; Promise&lt;T&gt;, opts: RetryOpts = {}): Promise&lt;T&gt; {
+  const { attempts = 3, baseMs = 200, maxMs = 5000, shouldRetry = () =&gt; true } = opts;
+  let lastErr: unknown;
+  for (let i = 0; i &lt; attempts; i++) {
+    try { return await fn(); }
+    catch (err) {
+      lastErr = err;
+      if (i === attempts - 1 || !shouldRetry(err)) break;
+      const exp = Math.min(baseMs * 2 ** i, maxMs);
+      const jitter = Math.random() * exp * 0.3;     // ±30% jitter
+      await new Promise(r =&gt; setTimeout(r, exp + jitter));
+    }
+  }
+  throw lastErr;
+}
+
+// Use it
+const order = await retry(() =&gt; fetchOrder(id), {
+  attempts: 5,
+  shouldRetry: e =&gt; e instanceof NetworkError || (e as any)?.status &gt;= 500,
+});</code></pre>
+<p><strong>Why jitter:</strong> if 1000 clients all retry after a deterministic 1s, they all hit the failing server at once. Jitter spreads the load.</p>
+<p><strong>QA angle:</strong> don't blanket-retry tests. Retrying tests masks flakiness. Retry network operations <em>inside</em> the test (real-world resilience) but assert pass/fail on a single run — that's how you find flakes.</p>`,
+    },
+    {
+      id: "54dc9969-a5ab-4774-b480-78819f14cc4e",
+      q: "How do you deep-clone an object? Compare the approaches.",
+      diff: "mid",
+      tags: ["javascript", "fundamentals"],
+      answer: `<table>
+<thead><tr><th>Approach</th><th>Pros</th><th>Cons</th></tr></thead>
+<tbody>
+<tr><td><code>structuredClone(obj)</code></td><td>Native, fast, handles Date, Map, Set, RegExp, typed arrays, cycles</td><td>Throws on functions, symbols, DOM nodes</td></tr>
+<tr><td><code>JSON.parse(JSON.stringify(obj))</code></td><td>Works everywhere, simple</td><td>Loses Date (→ string), Map/Set (→ {}), undefined values, functions; throws on cycles</td></tr>
+<tr><td><code>_.cloneDeep(obj)</code> (lodash)</td><td>Extensive type support, customizable</td><td>External dependency, slower than native</td></tr>
+<tr><td>Manual recursion</td><td>Full control</td><td>Easy to miss edge cases</td></tr>
+</tbody>
+</table>
+<p><strong>Default:</strong> <code>structuredClone</code> for modern Node 17+ and all current browsers. Falls back to lodash if you need to clone functions or DOM. Avoid <code>JSON.parse(JSON.stringify())</code> unless you're certain the input is pure JSON.</p>
+<pre class="code"><code>// Quick demo of the JSON pitfall
+const original = { date: new Date(), tags: new Set([1, 2]), nested: { x: undefined } };
+const bad = JSON.parse(JSON.stringify(original));
+// bad.date is a string, bad.tags is {}, bad.nested has no x
+
+const good = structuredClone(original);
+// good.date is a Date, good.tags is a Set, good.nested.x is undefined ✓</code></pre>
+<p><strong>QA test fixture trap:</strong> sharing a mutable fixture object across tests causes spooky-action-at-a-distance bugs. Clone the fixture inside the factory, not at module scope.</p>`,
+    },
+    {
+      id: "efdb71e7-0693-4d0b-ab66-3a4f29981464",
+      q: "Group an array of objects by a key. Show three ways.",
+      diff: "easy",
+      tags: ["javascript", "fundamentals"],
+      answer: `<pre class="code"><code>const orders = [
+  { id: 1, status: 'shipped' },
+  { id: 2, status: 'pending' },
+  { id: 3, status: 'shipped' },
+];
+
+// ✅ Native Object.groupBy (Node 21+, modern browsers)
+const byStatus = Object.groupBy(orders, o =&gt; o.status);
+// { shipped: [...], pending: [...] }
+
+// ✅ Reduce — works everywhere
+const byStatusReduce = orders.reduce&lt;Record&lt;string, typeof orders&gt;&gt;((acc, o) =&gt; {
+  (acc[o.status] ??= []).push(o);
+  return acc;
+}, {});
+
+// ✅ Map-based — handles non-string keys, preserves insertion order
+const byStatusMap = orders.reduce((acc, o) =&gt; {
+  const list = acc.get(o.status) ?? [];
+  list.push(o);
+  acc.set(o.status, list);
+  return acc;
+}, new Map&lt;string, typeof orders&gt;());</code></pre>
+<p><strong>When to use which:</strong></p>
+<ul>
+<li><code>Object.groupBy</code>: cleanest, but check your runtime support.</li>
+<li>Reduce-to-object: portable, the standard answer in interviews pre-Node-21.</li>
+<li>Map: when the key isn't a string, or when iteration order matters, or to avoid the <code>__proto__</code> footgun (object keys can collide with prototype properties).</li>
+</ul>`,
+    },
+    {
+      id: "dd1e6322-0508-484b-b171-4dc9f6059538",
+      q: "Find duplicates in an array. Explain the time complexity of each approach.",
+      diff: "mid",
+      tags: ["algorithms", "fundamentals"],
+      answer: `<pre class="code"><code>// ✅ O(n) time, O(n) space — the standard answer
+function duplicates&lt;T&gt;(arr: T[]): T[] {
+  const seen = new Set&lt;T&gt;();
+  const dupes = new Set&lt;T&gt;();
+  for (const x of arr) {
+    if (seen.has(x)) dupes.add(x);
+    else seen.add(x);
+  }
+  return [...dupes];
+}
+
+// ✅ Count-based — gives frequency info for free
+function duplicatesWithCount&lt;T&gt;(arr: T[]): Map&lt;T, number&gt; {
+  const counts = new Map&lt;T, number&gt;();
+  for (const x of arr) counts.set(x, (counts.get(x) ?? 0) + 1);
+  for (const [k, v] of counts) if (v &lt; 2) counts.delete(k);
+  return counts;
+}
+
+// ❌ O(n²) — readable but slow
+const slow = arr.filter((x, i) =&gt; arr.indexOf(x) !== i);</code></pre>
+<p><strong>Senior signal:</strong> mention the trade-off without prompting. "O(n²) is fine for n &lt; 1000; for anything bigger, use a Set."</p>
+<p><strong>Sorted-input trick:</strong> if the array is already sorted (or you can sort it), you can find duplicates in O(n) time with O(1) extra space by comparing adjacent elements.</p>
+<p><strong>For objects:</strong> Sets compare by reference. Use a key extractor (e.g., <code>obj.id</code>) and put the keys in the Set, not the objects.</p>`,
+    },
+    {
+      id: "fc15fd82-e9f2-43c1-9fc8-d241dcd084e8",
+      q: "Predict the value of `this` in each of these contexts.",
+      diff: "hard",
+      tags: ["javascript", "fundamentals"],
+      answer: `<pre class="code"><code>const obj = {
+  name: 'Alice',
+  greet() { return this.name; },
+  greetArrow: () =&gt; this?.name,
+};
+
+// 1. Method call
+obj.greet();                          // 'Alice' — this = obj
+
+// 2. Detached
+const fn = obj.greet;
+fn();                                 // undefined (strict) / global.name (sloppy)
+
+// 3. Arrow function
+obj.greetArrow();                     // undefined — arrow has no own this, uses enclosing
+
+// 4. Explicit binding
+fn.call({ name: 'Bob' });             // 'Bob'
+fn.bind({ name: 'Bob' })();           // 'Bob'
+
+// 5. setTimeout
+setTimeout(obj.greet, 0);             // undefined — detached
+
+// 6. setTimeout with arrow
+setTimeout(() =&gt; obj.greet(), 0);     // 'Alice' — call site is obj.greet()
+
+// 7. Event handler
+button.addEventListener('click', obj.greet);  // 'Alice' if button.name, else the button</code></pre>
+<p><strong>The rules:</strong></p>
+<ol>
+<li><strong>Arrow functions</strong> inherit <code>this</code> from their lexical scope. They have no own <code>this</code>.</li>
+<li><strong>Regular functions</strong> get <code>this</code> from the call site, not the definition site. <code>obj.fn()</code> sets <code>this = obj</code>; <code>const f = obj.fn; f()</code> loses it.</li>
+<li><strong>Explicit binding</strong> (<code>.call</code>, <code>.apply</code>, <code>.bind</code>) wins over implicit.</li>
+<li><strong>Strict mode</strong> matters: in non-strict, detached <code>this</code> is the global object; in strict (which all modules and classes use), it's <code>undefined</code>.</li>
+</ol>
+<p><strong>Common test bug:</strong> passing a class method directly as a callback. <code>page.on('console', obj.handle)</code> loses <code>this</code>. Use <code>obj.handle.bind(obj)</code> or <code>(...args) =&gt; obj.handle(...args)</code>.</p>`,
+    },
+    {
+      id: "0fd28753-484c-469f-b472-49ac51342233",
+      q: "Implement currying. Where is it actually useful in a real codebase?",
+      diff: "mid",
+      tags: ["javascript", "fundamentals"],
+      answer: `<p><strong>Currying</strong>: transform a function that takes <code>(a, b, c)</code> into one that takes <code>(a)(b)(c)</code>. Useful when you want to "pre-bake" some arguments and pass the rest later.</p>
+<pre class="code"><code>// Manual currying for a fixed arity
+const curry3 = &lt;A, B, C, R&gt;(fn: (a: A, b: B, c: C) =&gt; R) =&gt;
+  (a: A) =&gt; (b: B) =&gt; (c: C) =&gt; fn(a, b, c);
+
+// Real-world: test data factories
+const makeOrder = (status: string) =&gt; (userId: string) =&gt; (total: number): Order =&gt; ({
+  id: uuid(), status, userId, total, createdAt: new Date(),
+});
+
+const shippedFor = makeOrder('shipped');
+const aliceShipped = shippedFor('user-alice');
+const orders = [100, 200, 50].map(aliceShipped);
+// 3 shipped orders for Alice with different totals</code></pre>
+<p><strong>More commonly, partial application</strong> (close cousin) using <code>.bind</code> or arrow functions:</p>
+<pre class="code"><code>const log = (level: string, scope: string, msg: string) =&gt; console.log(\`[\${level}][\${scope}]\`, msg);
+const error = log.bind(null, 'ERROR');               // partially applied
+const apiError = error.bind(null, 'api');            // further partial
+apiError('request failed');                          // → [ERROR][api] request failed</code></pre>
+<p><strong>Where it earns its keep:</strong></p>
+<ul>
+<li>Test factories that share a base config.</li>
+<li>Middleware chains (Redux, Koa) where each layer is curried.</li>
+<li>Building reusable HTTP clients with pre-bound base URLs / headers.</li>
+<li>Functional pipelines: <code>pipe(filter(isShipped), map(toSummary))(orders)</code>.</li>
+</ul>
+<p><strong>When NOT to use:</strong> if you're calling the function once with all args, currying just adds noise. Prefer regular calls unless you'll reuse the partially-applied version.</p>`,
+    },
+  ],
+};
+
 /* ============================================================================
    ASSEMBLE
    ========================================================================= */
@@ -1612,4 +1934,5 @@ export const PART_4_CATEGORIES: Category[] = [
   visualRegression,
   featureFlags,
   trickyAssertions,
+  programmingFundamentals,
 ];

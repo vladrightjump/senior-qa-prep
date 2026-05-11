@@ -6,8 +6,10 @@ interface UseQuestionMetaResult {
   loading: boolean;
   error: string | null;
   flags: Set<string>;
+  reviewed: Set<string>;
   commentsByQuestion: Map<string, QuestionComment[]>;
   toggleFlag: (questionId: string) => Promise<void>;
+  toggleReviewed: (questionId: string) => Promise<void>;
   addComment: (questionId: string, body: string) => Promise<void>;
   deleteComment: (commentId: string) => Promise<void>;
   editComment: (commentId: string, body: string) => Promise<void>;
@@ -24,32 +26,91 @@ function groupBy<T, K>(items: T[], key: (item: T) => K): Map<K, T[]> {
   return out;
 }
 
+// One-time migration: push any localStorage reviewed IDs from previous app
+// versions into the DB so progress isn't lost when we switch to server-side
+// tracking. Idempotent — guarded by a flag in localStorage.
+const MIGRATION_FLAG = "qa-reviewed-migrated-v1";
+const LEGACY_KEYS = ["qa-prep-state-v3", "qa-prep-state-v2"];
+
+function readLegacyReviewedIds(): string[] {
+  const ids = new Set<string>();
+  for (const key of LEGACY_KEYS) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      const r = parsed?.reviewedIds;
+      // v2/v3 serialize Sets as { __set__: true, values: [...] }
+      const values: unknown = r?.values ?? r;
+      if (Array.isArray(values)) {
+        for (const v of values) {
+          if (typeof v === "string" && /^[0-9a-f-]{36}$/i.test(v)) ids.add(v);
+        }
+      }
+    } catch {
+      /* ignore — stale or malformed state */
+    }
+  }
+  return [...ids];
+}
+
+async function migrateLocalReviewedIfNeeded(): Promise<string[]> {
+  if (localStorage.getItem(MIGRATION_FLAG)) return [];
+  const legacy = readLegacyReviewedIds();
+  if (legacy.length === 0) {
+    localStorage.setItem(MIGRATION_FLAG, "1");
+    return [];
+  }
+  const { error } = await supabase
+    .from("qa_reviewed")
+    .upsert(
+      legacy.map((id) => ({ question_id: id })),
+      { onConflict: "question_id" },
+    );
+  if (error) {
+    // Don't set the flag — try again on next load.
+    console.warn("Reviewed migration failed:", error.message);
+    return [];
+  }
+  localStorage.setItem(MIGRATION_FLAG, "1");
+  return legacy;
+}
+
 export function useQuestionMeta(): UseQuestionMetaResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [flags, setFlags] = useState<Set<string>>(() => new Set());
+  const [reviewed, setReviewed] = useState<Set<string>>(() => new Set());
   const [commentsByQuestion, setCommentsByQuestion] = useState<
     Map<string, QuestionComment[]>
   >(() => new Map());
 
-  // Initial load: fetch all flags + comments in parallel.
+  // Initial load: migrate legacy local state, then fetch everything.
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [flagsRes, commentsRes] = await Promise.all([
+      await migrateLocalReviewedIfNeeded();
+      const [flagsRes, reviewedRes, commentsRes] = await Promise.all([
         supabase.from("qa_flags").select("question_id"),
+        supabase.from("qa_reviewed").select("question_id"),
         supabase
           .from("qa_comments")
           .select("*")
           .order("created_at", { ascending: true }),
       ]);
       if (cancelled) return;
-      if (flagsRes.error || commentsRes.error) {
-        setError(flagsRes.error?.message ?? commentsRes.error?.message ?? "Load failed");
+      if (flagsRes.error || reviewedRes.error || commentsRes.error) {
+        setError(
+          flagsRes.error?.message ??
+            reviewedRes.error?.message ??
+            commentsRes.error?.message ??
+            "Load failed",
+        );
         setLoading(false);
         return;
       }
       setFlags(new Set((flagsRes.data ?? []).map((r) => r.question_id)));
+      setReviewed(new Set((reviewedRes.data ?? []).map((r) => r.question_id)));
       setCommentsByQuestion(
         groupBy(commentsRes.data as QuestionComment[], (c) => c.question_id),
       );
@@ -60,7 +121,7 @@ export function useQuestionMeta(): UseQuestionMetaResult {
     };
   }, []);
 
-  // Realtime: keep flags + comments in sync across devices.
+  // Realtime: keep flags, reviewed, and comments in sync across devices.
   useEffect(() => {
     const channel = supabase
       .channel("qa-meta")
@@ -69,6 +130,18 @@ export function useQuestionMeta(): UseQuestionMetaResult {
         { event: "*", schema: "public", table: "qa_flags" },
         (payload) => {
           setFlags((prev) => {
+            const next = new Set(prev);
+            if (payload.eventType === "INSERT") next.add(payload.new.question_id);
+            else if (payload.eventType === "DELETE") next.delete(payload.old.question_id);
+            return next;
+          });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "qa_reviewed" },
+        (payload) => {
+          setReviewed((prev) => {
             const next = new Set(prev);
             if (payload.eventType === "INSERT") next.add(payload.new.question_id);
             else if (payload.eventType === "DELETE") next.delete(payload.old.question_id);
@@ -124,10 +197,36 @@ export function useQuestionMeta(): UseQuestionMetaResult {
       : await supabase.from("qa_flags").delete().eq("question_id", questionId);
     if (error) {
       setError(error.message);
-      // Revert optimistic update.
       setFlags((prev) => {
         const next = new Set(prev);
         if (willFlag) next.delete(questionId);
+        else next.add(questionId);
+        return next;
+      });
+    }
+  }, []);
+
+  const toggleReviewed = useCallback(async (questionId: string) => {
+    let willMark = false;
+    setReviewed((prev) => {
+      const next = new Set(prev);
+      if (next.has(questionId)) {
+        next.delete(questionId);
+        willMark = false;
+      } else {
+        next.add(questionId);
+        willMark = true;
+      }
+      return next;
+    });
+    const { error } = willMark
+      ? await supabase.from("qa_reviewed").insert({ question_id: questionId })
+      : await supabase.from("qa_reviewed").delete().eq("question_id", questionId);
+    if (error) {
+      setError(error.message);
+      setReviewed((prev) => {
+        const next = new Set(prev);
+        if (willMark) next.delete(questionId);
         else next.add(questionId);
         return next;
       });
@@ -212,8 +311,10 @@ export function useQuestionMeta(): UseQuestionMetaResult {
     loading,
     error,
     flags,
+    reviewed,
     commentsByQuestion,
     toggleFlag,
+    toggleReviewed,
     addComment,
     deleteComment,
     editComment,

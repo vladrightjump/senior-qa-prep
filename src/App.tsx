@@ -11,7 +11,6 @@ const STORAGE_KEY = "qa-prep-state-v3";
 
 interface PersistedState {
   activeCategoryId: string;
-  reviewedIds: Set<string>;
   openIds: Set<string>;
   commentsOpenIds: Set<string>;
   theme: Theme;
@@ -19,7 +18,6 @@ interface PersistedState {
 
 const defaultState: PersistedState = {
   activeCategoryId: CATEGORIES[0]!.id,
-  reviewedIds: new Set<string>(),
   openIds: new Set<string>(),
   commentsOpenIds: new Set<string>(),
   theme: "auto",
@@ -96,7 +94,7 @@ export default function App() {
     () => CATEGORIES.reduce((s, c) => s + c.questions.length, 0),
     []
   );
-  const totalReviewed = state.reviewedIds.size;
+  const totalReviewed = meta.reviewed.size;
 
   /* ----- Handlers ----- */
   const cycleTheme = () => {
@@ -107,7 +105,11 @@ export default function App() {
   };
 
   const reset = () => {
-    if (confirm("Reset all progress? This clears your reviewed questions and open cards.")) {
+    if (
+      confirm(
+        "Reset local UI state (open cards, theme)? This won't touch your reviewed/flagged questions or notes in the database.",
+      )
+    ) {
       setState({ ...defaultState, theme: state.theme });
     }
   };
@@ -124,15 +126,6 @@ export default function App() {
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return { ...p, openIds: next };
-    });
-  };
-
-  const toggleReviewed = (id: string) => {
-    setState((p) => {
-      const next = new Set(p.reviewedIds);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return { ...p, reviewedIds: next };
     });
   };
 
@@ -197,7 +190,7 @@ export default function App() {
       if (e.key === "r" && focusedIdx >= 0) {
         e.preventDefault();
         const item = filtered[focusedIdx];
-        if (item) toggleReviewed(item.q.id);
+        if (item) meta.toggleReviewed(item.q.id);
         return;
       }
       if (e.key === "f" && focusedIdx >= 0) {
@@ -231,7 +224,7 @@ export default function App() {
         <Sidebar
           categories={CATEGORIES}
           activeId={state.activeCategoryId}
-          reviewedIds={state.reviewedIds}
+          reviewedIds={meta.reviewed}
           flaggedCount={meta.flags.size}
           onSelect={setActiveCategory}
           open={mobileMenuOpen}
@@ -293,14 +286,14 @@ export default function App() {
                     <QuestionCard
                       question={item.q}
                       num={item.idx + 1}
-                      isReviewed={state.reviewedIds.has(qid)}
+                      isReviewed={meta.reviewed.has(qid)}
                       isOpen={state.openIds.has(qid)}
                       isFocused={isFocused}
                       isFlagged={meta.flags.has(qid)}
                       isCommentsOpen={state.commentsOpenIds.has(qid)}
                       comments={meta.commentsByQuestion.get(qid) ?? []}
                       onToggleOpen={() => toggleOpen(qid)}
-                      onToggleReviewed={() => toggleReviewed(qid)}
+                      onToggleReviewed={() => meta.toggleReviewed(qid)}
                       onToggleFlag={() => meta.toggleFlag(qid)}
                       onToggleComments={() => toggleComments(qid)}
                       onAddComment={(body) => meta.addComment(qid, body)}
