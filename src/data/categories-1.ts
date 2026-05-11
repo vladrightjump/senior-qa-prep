@@ -13,6 +13,21 @@ const playwrightTS: Category = {
       q: "What is the difference between page.locator() and page.$()? Which should you use in a senior framework?",
       diff: "mid",
       tags: ["playwright", "locators"],
+      diagram: `flowchart TB
+  subgraph DOLLAR["page.$('.btn')  — eager snapshot"]
+    D1["query DOM<br/>→ ElementHandle"] --> D2["DOM re-renders<br/>(React state change)"]
+    D2 --> D3["handle is STALE<br/>refers to detached node"]
+    D3 --> D4["action throws<br/>or hits ghost node"]
+  end
+  subgraph LOC["page.locator('.btn')  — lazy"]
+    L1["create Locator<br/>(no DOM call yet)"] --> L2["call .click()"]
+    L2 --> L3["re-query DOM<br/>+ auto-wait"]
+    L3 --> L4["click latest matching node"]
+  end
+  classDef bad fill:#e76f51,color:#fff
+  classDef good fill:#2a9d8f,color:#fff
+  class D3,D4 bad
+  class L3,L4 good`,
       answer: `<p><strong>page.$()</strong> is a legacy method returning an <code>ElementHandle</code> — a one-time DOM snapshot. If the element re-renders, the handle is stale.</p>
 <p><strong>page.locator()</strong> is lazy and re-queries the DOM on every action. It's the modern recommended API and survives re-renders.</p>
 <p>Always use <code>locator()</code> in senior framework code. Locators power Playwright's auto-waiting and retry-ability.</p>
@@ -28,6 +43,25 @@ await page.locator('.btn').click();</code></pre>`
       q: "Walk through Playwright's auto-waiting mechanism. What does it actually wait for, and where does it fall short?",
       diff: "hard",
       tags: ["playwright", "flakiness"],
+      diagram: `flowchart TD
+  ACT["await locator.click()"] --> A1{"Attached<br/>to DOM?"}
+  A1 -- no --> WAIT["retry<br/>(every 100ms)"]
+  A1 -- yes --> A2{"Visible?<br/>(non-zero size)"}
+  A2 -- no --> WAIT
+  A2 -- yes --> A3{"Stable?<br/>(not animating)"}
+  A3 -- no --> WAIT
+  A3 -- yes --> A4{"Enabled?<br/>(not disabled)"}
+  A4 -- no --> WAIT
+  A4 -- yes --> A5{"Receives<br/>events?"}
+  A5 -- no --> WAIT
+  A5 -- yes --> GO["perform click ✓"]
+  WAIT --> TO{"Within<br/>timeout?"}
+  TO -- yes --> A1
+  TO -- no --> FAIL["throw TimeoutError<br/>(actionability failed)"]
+  classDef bad fill:#e76f51,color:#fff
+  classDef good fill:#2a9d8f,color:#fff
+  class FAIL bad
+  class GO good`,
       answer: `<p>Before any action like <code>click()</code> or <code>fill()</code>, Playwright runs <strong>actionability checks</strong>: element is attached, visible, stable (not animating), enabled, receives events.</p>
 <p>Web-first assertions like <code>expect(locator).toHaveText()</code> retry until the assertion passes or the timeout expires.</p>
 <p><strong>Where it falls short:</strong></p>
@@ -43,35 +77,45 @@ await page.locator('.btn').click();</code></pre>`
       diff: "mid",
       tags: ["playwright", "typescript", "pom"],
       answer: `<p>Senior-grade POM: locators are private, methods express user intent, no <code>page.*</code> calls leak into tests.</p>
+<div class="code-walk">
 <pre class="code"><code>import { Page, Locator, expect } from '@playwright/test';
 
 export class CheckoutPage {
-  private readonly page: Page;
+  private readonly page: Page;                                              // ①
   private readonly cartItems: Locator;
   private readonly placeOrderBtn: Locator;
   private readonly orderConfirmation: Locator;
 
-  constructor(page: Page) {
+  constructor(page: Page) {                                                 // ②
     this.page = page;
-    this.cartItems = page.getByTestId('cart-item');
+    this.cartItems = page.getByTestId('cart-item');                         // ③
     this.placeOrderBtn = page.getByRole('button', { name: 'Place order' });
     this.orderConfirmation = page.getByRole('heading', { name: /order confirmed/i });
   }
 
-  async goto() {
+  async goto() {                                                            // ④
     await this.page.goto('/checkout');
-    await expect(this.placeOrderBtn).toBeVisible();
+    await expect(this.placeOrderBtn).toBeVisible();                         // ⑤
   }
 
   async getCartItemCount(): Promise<number> {
     return await this.cartItems.count();
   }
 
-  async placeOrder() {
+  async placeOrder() {                                                      // ⑥
     await this.placeOrderBtn.click();
     await expect(this.orderConfirmation).toBeVisible();
   }
 }</code></pre>
+<ol class="code-walk-notes">
+  <li><span class="cw-num">1</span><span><code>private readonly</code> — tests can't reach in and grab a raw locator. They must call methods. This is the encapsulation that distinguishes a POM from a "page of selectors".</span></li>
+  <li><span class="cw-num">2</span><span>All locators built in the constructor. Cheap (lazy) — they don't query the DOM until used.</span></li>
+  <li><span class="cw-num">3</span><span><code>getByRole</code> and <code>getByTestId</code> over CSS classes. Survives styling refactors; matches what users / assistive tech see.</span></li>
+  <li><span class="cw-num">4</span><span>Method name = user intent (<code>goto</code>, <code>placeOrder</code>), not implementation (<code>clickButton</code>).</span></li>
+  <li><span class="cw-num">5</span><span>Wait for a stable post-condition before returning. The next test step can assume the page is ready.</span></li>
+  <li><span class="cw-num">6</span><span>Action method always finishes with an assertion on the resulting state. Caller doesn't have to remember to verify success.</span></li>
+</ol>
+</div>
 <p><strong>Senior signals:</strong> <code>getByRole</code>/<code>getByTestId</code> over CSS, intent-based methods, assertions on preconditions for next steps.</p>`
     },
     {
@@ -79,6 +123,23 @@ export class CheckoutPage {
       q: "Explain Playwright fixtures. Why are they superior to beforeEach hooks for a senior framework?",
       diff: "hard",
       tags: ["playwright", "fixtures", "architecture"],
+      diagram: `graph LR
+  TEST["test('places order')<br/>needs: checkoutPage, apiClient"]
+  CP["checkoutPage"]
+  AC["apiClient"]
+  PAGE["page<br/>(built-in)"]
+  REQ["request<br/>(built-in)"]
+  TEST --> CP
+  TEST --> AC
+  CP --> PAGE
+  AC --> REQ
+  AC -.->|"setup: login()<br/>teardown: cleanup()"| AC
+  classDef builtin fill:#e9c46a,color:#222
+  classDef custom fill:#2a9d8f,color:#fff
+  classDef test fill:#0a3d6e,color:#fff
+  class PAGE,REQ builtin
+  class CP,AC custom
+  class TEST test`,
       answer: `<p>Fixtures provide <strong>dependency injection</strong>: each test declares what it needs, Playwright wires it up. Cleanup is guaranteed even on failure.</p>
 <pre class="code"><code>import { test as base } from '@playwright/test';
 
@@ -111,6 +172,20 @@ export const test = base.extend<Fixtures>({
       q: "How do you reuse authentication state without logging in for every test?",
       diff: "mid",
       tags: ["playwright", "auth", "performance"],
+      diagram: `flowchart LR
+  subgraph SETUP["setup project (runs once)"]
+    L["login via UI<br/>or API"] --> S["storageState({path: 'user.json'})<br/>cookies + localStorage"]
+  end
+  S --> FILE[("user.json")]
+  subgraph TESTS["dependent project (runs N tests)"]
+    FILE --> T1["test 1<br/>(starts logged in)"]
+    FILE --> T2["test 2<br/>(starts logged in)"]
+    FILE --> TN["test N<br/>(starts logged in)"]
+  end
+  classDef setup fill:#0a3d6e,color:#fff
+  classDef good fill:#2a9d8f,color:#fff
+  class L,S setup
+  class T1,T2,TN good`,
       answer: `<p>Use a <strong>setup project</strong> that logs in once and saves <code>storageState</code>.</p>
 <pre class="code"><code>// playwright.config.ts
 projects: [
@@ -149,6 +224,19 @@ await expect(page.locator('.result')).toBeVisible();</code></pre>
       q: "How do you intercept and mock a network request? When is it correct vs. wrong?",
       diff: "mid",
       tags: ["playwright", "mocking", "api"],
+      diagram: `flowchart LR
+  APP["page JS<br/>fetch('/api/payment')"] --> RT["page.route()<br/>interceptor"]
+  RT --> DEC{"matches<br/>pattern?"}
+  DEC -- no --> REAL["pass through to<br/>real server"]
+  DEC -- yes --> ACT{"action?"}
+  ACT -->|"fulfill"| MOCK["return canned response<br/>(status, headers, body)"]
+  ACT -->|"continue"| MOD["modify and forward<br/>(headers, body, URL)"]
+  ACT -->|"abort"| ERR["simulate network failure"]
+  MOCK --> APP
+  MOD --> REAL
+  ERR --> APP
+  classDef mock fill:#2a9d8f,color:#fff
+  class MOCK,MOD,ERR mock`,
       answer: `<pre class="code"><code>await page.route('**/api/payment', async route => {
   await route.fulfill({
     status: 402,
@@ -166,20 +254,39 @@ await expect(page.locator('.result')).toBeVisible();</code></pre>
       tags: ["typescript", "async"],
       answer: `<p>Promises = eventual completion. <code>async/await</code> = syntactic sugar — async function returns a Promise, await pauses execution.</p>
 <p><strong>Why it matters:</strong> a missing <code>await</code> is the #1 cause of "passing tests that don't test anything". The action returns a Promise, the next line runs immediately, the test reports green before the operation completes.</p>
-<pre class="code"><code>// ❌ Bug
-page.getByLabel('Email').fill('test@example.com');
-await expect(page.getByText('Welcome')).toBeVisible();
+<div class="code-walk">
+<pre class="code"><code>// ❌ Bug — missing await
+page.getByLabel('Email').fill('test@example.com');               // ①
+await expect(page.getByText('Welcome')).toBeVisible();           // ②
 
-// ✅ Always await
-await page.getByLabel('Email').fill('test@example.com');
+// ✅ Correct
+await page.getByLabel('Email').fill('test@example.com');         // ③
 await expect(page.getByText('Welcome')).toBeVisible();</code></pre>
-<p>Senior tip: enable <code>@typescript-eslint/no-floating-promises</code>.</p>`
+<ol class="code-walk-notes">
+  <li><span class="cw-num">1</span><span><code>fill()</code> returns a Promise that nothing is awaiting. JS moves on immediately — the field may still be empty when the next line runs.</span></li>
+  <li><span class="cw-num">2</span><span>The Welcome assertion may fire before the form is even filled. The test passes if Welcome happens to be visible for other reasons — false green.</span></li>
+  <li><span class="cw-num">3</span><span>With <code>await</code>, JS pauses here until <code>fill()</code> resolves. The next line sees a fully-filled form. Result is deterministic.</span></li>
+</ol>
+</div>
+<p>Senior tip: enable <code>@typescript-eslint/no-floating-promises</code>. Treat any missing <code>await</code> as a compile error, not a code-review nit.</p>`
     },
     {
       id: "3b30ae11-78b1-4908-b081-a96e3ece1e46",
       q: "What is expect.poll() and when do you use it instead of standard assertions?",
       diff: "hard",
       tags: ["playwright", "flakiness"],
+      diagram: `flowchart TD
+  S["expect.poll(fn).toBe('SHIPPED')"] --> C["call fn()<br/>(e.g. GET /orders/42)"]
+  C --> E{"result ===<br/>'SHIPPED'?"}
+  E -- yes --> PASS["assertion passes ✓"]
+  E -- no --> T{"within<br/>timeout?"}
+  T -- no --> FAIL["fail with last value<br/>+ history"]
+  T -- yes --> W["wait<br/>(intervals: 1s, 2s, 5s...)"]
+  W --> C
+  classDef good fill:#2a9d8f,color:#fff
+  classDef bad fill:#e76f51,color:#fff
+  class PASS good
+  class FAIL bad`,
       answer: `<p><code>expect.poll()</code> repeatedly evaluates a function until it returns the expected value or times out. Use it for non-DOM state — API responses, DB queries, derived state.</p>
 <pre class="code"><code>// Standard — for DOM
 await expect(page.getByText('Order placed')).toBeVisible();
@@ -200,26 +307,36 @@ await expect.poll(async () => {
       q: "Write a TypeScript retry wrapper with exponential backoff that only retries on network errors, not 4xx.",
       diff: "hard",
       tags: ["typescript", "patterns"],
-      answer: `<pre class="code"><code>type RetryOptions = { attempts?: number; baseMs?: number };
+      answer: `<div class="code-walk">
+<pre class="code"><code>type RetryOptions = { attempts?: number; baseMs?: number };
 
-async function retry&lt;T&gt;(
+async function retry&lt;T&gt;(                                              // ①
   fn: () =&gt; Promise&lt;T&gt;,
   { attempts = 3, baseMs = 200 }: RetryOptions = {}
 ): Promise&lt;T&gt; {
-  let lastError: unknown;
+  let lastError: unknown;                                             // ②
   for (let i = 0; i &lt; attempts; i++) {
     try {
-      return await fn();
+      return await fn();                                              // ③
     } catch (err: any) {
       lastError = err;
-      if (err?.status &gt;= 400 &amp;&amp; err?.status &lt; 500) throw err;
+      if (err?.status &gt;= 400 &amp;&amp; err?.status &lt; 500) throw err;        // ④
       if (i &lt; attempts - 1) {
-        await new Promise(r =&gt; setTimeout(r, baseMs * 2 ** i));
+        await new Promise(r =&gt; setTimeout(r, baseMs * 2 ** i));       // ⑤
       }
     }
   }
-  throw lastError;
+  throw lastError;                                                    // ⑥
 }</code></pre>
+<ol class="code-walk-notes">
+  <li><span class="cw-num">1</span><span>Generic <code>&lt;T&gt;</code> — preserves the return type of <code>fn</code>. Callers keep IntelliSense and type safety.</span></li>
+  <li><span class="cw-num">2</span><span><code>unknown</code> over <code>any</code> for <code>lastError</code> — forces narrowing if anyone touches it later.</span></li>
+  <li><span class="cw-num">3</span><span>Happy path returns immediately. Most calls succeed first try; retry overhead is paid only on failure.</span></li>
+  <li><span class="cw-num">4</span><span>4xx = client error = our request is wrong. Retrying won't help and burns budget. Throw without retry.</span></li>
+  <li><span class="cw-num">5</span><span>Exponential backoff: 200, 400, 800ms. Without backoff, retries can DDoS a struggling service. Add jitter (<code>baseMs * 2 ** i + Math.random() * 100</code>) in production.</span></li>
+  <li><span class="cw-num">6</span><span>Preserve and re-throw the <em>last</em> error — gives callers the most recent failure context, not the first one.</span></li>
+</ol>
+</div>
 <p>Senior signals: generic typing, retryable vs non-retryable distinction, exponential backoff, last-error preservation.</p>`
     },
     {
@@ -264,6 +381,24 @@ await page.getByTestId('dropzone').dispatchEvent('drop', {
       q: "How do you debug a Playwright test that fails only in CI?",
       diff: "hard",
       tags: ["playwright", "debugging", "ci"],
+      diagram: `flowchart TD
+  S["fails in CI<br/>passes locally"] --> T["open trace.zip<br/>(80% solved here)"]
+  T --> CLUE{"clear cause?"}
+  CLUE -- yes --> FIX["fix"]
+  CLUE -- no --> H["run locally with<br/>--headless"]
+  H --> H2{"reproduces?"}
+  H2 -- yes --> FIX
+  H2 -- no --> W["set workers: 1<br/>matches CI shard"]
+  W --> W2{"now fails?"}
+  W2 -- yes --> ISO["test data/state<br/>isolation bug"]
+  W2 -- no --> V["pin viewport,<br/>match CI env vars"]
+  V --> V2{"now fails?"}
+  V2 -- yes --> FIX
+  V2 -- no --> PB["check Playwright<br/>+ browser versions"]
+  classDef hot fill:#e76f51,color:#fff
+  classDef good fill:#2a9d8f,color:#fff
+  class T,FIX good
+  class S hot`,
       answer: `<ol>
 <li><strong>Trace viewer</strong> — enable <code>trace: 'on-first-retry'</code>. Download the artifact, run <code>npx playwright show-trace trace.zip</code>.</li>
 <li><strong>Headless vs. headed</strong> — run locally with <code>--headless</code> to match CI.</li>
@@ -370,7 +505,57 @@ export const test = base.extend&lt;{}, WorkerFixtures&gt;({
       q: "How do you isolate test data when 8 parallel workers hit the same backend?",
       diff: "hard",
       tags: ["playwright", "data", "architecture"],
-      answer: `<p><strong>Golden rule: every test owns its data.</strong> Strategies in order of preference:</p>
+      answer: `<div class="illus">
+<svg viewBox="0 0 520 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Parallel workers with namespaced data">
+  <style>
+    .lbl { font: 600 11px ui-sans-serif, system-ui; fill: currentColor; }
+    .sub { font: 11px ui-sans-serif, system-ui; fill: var(--fg-dim); }
+    .ok { fill: #2a9d8f; }
+    .bad { fill: #e76f51; }
+    .warn { fill: #e9c46a; }
+    .stroke { stroke: currentColor; fill: none; }
+  </style>
+  <text x="10" y="18" class="lbl">❌ Shared fixture (collision)</text>
+  <rect x="10" y="28" width="220" height="70" rx="6" class="bad" opacity="0.18" stroke="#e76f51"/>
+  <rect x="22" y="42" width="60" height="22" rx="3" class="bad"/>
+  <text x="52" y="57" text-anchor="middle" class="lbl" fill="#fff">W1</text>
+  <rect x="92" y="42" width="60" height="22" rx="3" class="bad"/>
+  <text x="122" y="57" text-anchor="middle" class="lbl" fill="#fff">W2</text>
+  <rect x="162" y="42" width="60" height="22" rx="3" class="bad"/>
+  <text x="192" y="57" text-anchor="middle" class="lbl" fill="#fff">W3</text>
+  <text x="120" y="84" text-anchor="middle" class="sub">all hit user "test@example.com"</text>
+  <text x="120" y="95" text-anchor="middle" class="sub">→ logouts, conflicts</text>
+  <text x="290" y="18" class="lbl">✓ Namespaced per worker</text>
+  <rect x="290" y="28" width="220" height="70" rx="6" class="ok" opacity="0.18" stroke="#2a9d8f"/>
+  <rect x="302" y="42" width="60" height="22" rx="3" class="ok"/>
+  <text x="332" y="57" text-anchor="middle" class="lbl" fill="#fff">W1 → t1</text>
+  <rect x="372" y="42" width="60" height="22" rx="3" class="ok"/>
+  <text x="402" y="57" text-anchor="middle" class="lbl" fill="#fff">W2 → t2</text>
+  <rect x="442" y="42" width="60" height="22" rx="3" class="ok"/>
+  <text x="472" y="57" text-anchor="middle" class="lbl" fill="#fff">W3 → t3</text>
+  <text x="400" y="84" text-anchor="middle" class="sub">user-\${workerIndex}-\${ts}</text>
+  <text x="400" y="95" text-anchor="middle" class="sub">→ zero collisions</text>
+  <text x="10" y="130" class="lbl">Isolation strategies (preferred → fallback):</text>
+  <rect x="10" y="140" width="120" height="60" rx="4" class="ok" opacity="0.7"/>
+  <text x="70" y="160" text-anchor="middle" class="lbl" fill="#fff">Unique IDs</text>
+  <text x="70" y="176" text-anchor="middle" class="sub" fill="#fff">per test</text>
+  <text x="70" y="190" text-anchor="middle" class="sub" fill="#fff">+ cleanup</text>
+  <rect x="140" y="140" width="120" height="60" rx="4" class="ok" opacity="0.55"/>
+  <text x="200" y="160" text-anchor="middle" class="lbl" fill="#fff">Per-worker</text>
+  <text x="200" y="176" text-anchor="middle" class="sub" fill="#fff">tenant /</text>
+  <text x="200" y="190" text-anchor="middle" class="sub" fill="#fff">namespace</text>
+  <rect x="270" y="140" width="120" height="60" rx="4" class="warn" opacity="0.7"/>
+  <text x="330" y="160" text-anchor="middle" class="lbl" fill="#222">DB tx</text>
+  <text x="330" y="176" text-anchor="middle" class="sub" fill="#222">rollback</text>
+  <text x="330" y="190" text-anchor="middle" class="sub" fill="#222">(rare support)</text>
+  <rect x="400" y="140" width="110" height="60" rx="4" class="bad" opacity="0.55"/>
+  <text x="455" y="160" text-anchor="middle" class="lbl" fill="#fff">Teardown</text>
+  <text x="455" y="176" text-anchor="middle" class="sub" fill="#fff">hooks</text>
+  <text x="455" y="190" text-anchor="middle" class="sub" fill="#fff">(brittle)</text>
+</svg>
+<div class="illus-caption">Hardcoded shared fixtures cause flakes when workers > 1. Namespace everything.</div>
+</div>
+<p><strong>Golden rule: every test owns its data.</strong> Strategies in order of preference:</p>
 <ol>
 <li><strong>Per-test unique IDs</strong> — generate via API in a fixture, prefix with <code>test-\${workerInfo.workerIndex}-\${Date.now()}</code>. Cleanup in teardown.</li>
 <li><strong>Per-worker tenant</strong> — each worker gets its own test tenant.</li>
@@ -384,7 +569,45 @@ export const test = base.extend&lt;{}, WorkerFixtures&gt;({
       q: "Your suite has 800 tests at 40 minutes. How do you bring it under 10?",
       diff: "hard",
       tags: ["playwright", "ci", "performance"],
-      answer: `<ol>
+      answer: `<div class="illus">
+<svg viewBox="0 0 520 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sharding 800 tests across machines">
+  <style>
+    .ax { stroke: currentColor; stroke-width: 1; fill: none; opacity: 0.5; }
+    .ti { font: 600 11px ui-sans-serif, system-ui; fill: currentColor; }
+    .sub { font: 11px ui-sans-serif, system-ui; fill: var(--fg-dim); }
+    .bar1 { fill: #e76f51; }
+    .bar2 { fill: #e9c46a; }
+    .bar3 { fill: #2a9d8f; }
+  </style>
+  <text x="10" y="16" class="ti">Before: 1 machine, 1 worker — 40 min</text>
+  <line x1="10" y1="30" x2="510" y2="30" class="ax"/>
+  <rect x="10" y="22" width="500" height="14" class="bar1"/>
+  <text x="260" y="33" text-anchor="middle" class="ti" fill="#fff">800 tests serial</text>
+  <text x="10" y="62" class="ti">+ API-based auth + workers: 4 — ~12 min</text>
+  <line x1="10" y1="76" x2="510" y2="76" class="ax"/>
+  <rect x="10" y="68" width="150" height="14" class="bar2"/>
+  <text x="85" y="79" text-anchor="middle" class="ti" fill="#222">worker 1</text>
+  <rect x="10" y="84" width="150" height="14" class="bar2"/>
+  <text x="85" y="95" text-anchor="middle" class="ti" fill="#222">worker 2</text>
+  <rect x="10" y="100" width="150" height="14" class="bar2"/>
+  <text x="85" y="111" text-anchor="middle" class="ti" fill="#222">worker 3</text>
+  <rect x="10" y="116" width="150" height="14" class="bar2"/>
+  <text x="85" y="127" text-anchor="middle" class="ti" fill="#222">worker 4</text>
+  <text x="10" y="152" class="ti">+ 4 machines × 4 workers — ~3 min wall (~8 min total)</text>
+  <line x1="10" y1="166" x2="510" y2="166" class="ax"/>
+  <rect x="10" y="158" width="40" height="12" class="bar3"/>
+  <rect x="10" y="172" width="40" height="12" class="bar3"/>
+  <rect x="60" y="158" width="40" height="12" class="bar3"/>
+  <rect x="60" y="172" width="40" height="12" class="bar3"/>
+  <rect x="110" y="158" width="40" height="12" class="bar3"/>
+  <rect x="110" y="172" width="40" height="12" class="bar3"/>
+  <rect x="160" y="158" width="40" height="12" class="bar3"/>
+  <rect x="160" y="172" width="40" height="12" class="bar3"/>
+  <text x="220" y="172" class="sub">↑ shard 1/4   shard 2/4   shard 3/4   shard 4/4</text>
+  <text x="10" y="206" class="sub">Cost rises ~linearly with machines; wall time drops ~linearly with shards.</text>
+</svg>
+</div>
+<ol>
 <li><strong>Profile</strong> — slowest 20 tests likely take 50%+ runtime.</li>
 <li><strong>API for setup</strong> — UI login: 5–15s. API login: 200ms. Use storageState.</li>
 <li><strong>Shard across machines</strong> — 4 machines × <code>--shard=N/4</code> cuts wall time linearly.</li>
@@ -429,7 +652,59 @@ await expect(newPage).toHaveTitle(/Report/);
       q: "What is the Trace Viewer and how do you use it?",
       diff: "mid",
       tags: ["playwright", "debugging"],
-      answer: `<p>The Trace Viewer is Playwright's time-travel debugger. After a failed test with tracing enabled, you get a <code>.zip</code> file showing the full timeline: every action, DOM snapshot, network call, console message.</p>
+      answer: `<div class="illus">
+<svg viewBox="0 0 520 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Anatomy of a Playwright trace">
+  <style>
+    .ti { font: 600 11px ui-sans-serif, system-ui; fill: currentColor; }
+    .sub { font: 10.5px ui-sans-serif, system-ui; fill: var(--fg-dim); }
+    .box { fill: var(--bg); stroke: currentColor; stroke-width: 1; opacity: 0.9; }
+    .acc { fill: #0a3d6e; }
+    .ok { fill: #2a9d8f; }
+    .warn { fill: #e9c46a; }
+    .bad { fill: #e76f51; }
+  </style>
+  <rect x="6" y="6" width="508" height="228" rx="6" class="box"/>
+  <rect x="6" y="6" width="508" height="22" rx="6" class="acc"/>
+  <text x="14" y="22" class="ti" fill="#fff">trace.zip — show-trace</text>
+  <rect x="14" y="36" width="180" height="180" rx="4" class="box"/>
+  <text x="22" y="50" class="ti">Action timeline</text>
+  <rect x="22" y="58" width="160" height="12" class="ok"/>
+  <text x="26" y="68" class="sub" fill="#fff">goto / 320 ms</text>
+  <rect x="22" y="74" width="120" height="12" class="ok"/>
+  <text x="26" y="84" class="sub" fill="#fff">fill email / 80 ms</text>
+  <rect x="22" y="90" width="100" height="12" class="ok"/>
+  <text x="26" y="100" class="sub" fill="#fff">fill password / 80 ms</text>
+  <rect x="22" y="106" width="140" height="12" class="warn"/>
+  <text x="26" y="116" class="sub" fill="#222">click submit / 410 ms</text>
+  <rect x="22" y="122" width="160" height="12" class="bad"/>
+  <text x="26" y="132" class="sub" fill="#fff">expect dashboard ✗ TIMEOUT</text>
+  <text x="22" y="158" class="sub">▸ before / after DOM</text>
+  <text x="22" y="172" class="sub">▸ screenshot per action</text>
+  <text x="22" y="186" class="sub">▸ source code link</text>
+  <rect x="204" y="36" width="150" height="90" rx="4" class="box"/>
+  <text x="212" y="50" class="ti">Network</text>
+  <text x="212" y="66" class="sub">POST /login → 200</text>
+  <text x="212" y="80" class="sub">GET /me → 401  ← root cause</text>
+  <text x="212" y="94" class="sub">GET /assets/* → 200</text>
+  <rect x="204" y="132" width="150" height="84" rx="4" class="box"/>
+  <text x="212" y="146" class="ti">Console</text>
+  <text x="212" y="162" class="sub">[warn] token expired</text>
+  <text x="212" y="176" class="sub">[error] redirect /login</text>
+  <rect x="364" y="36" width="142" height="180" rx="4" class="box"/>
+  <text x="372" y="50" class="ti">DOM snapshot</text>
+  <rect x="372" y="58" width="126" height="58" rx="3" fill="var(--bg-soft)" stroke="currentColor" opacity="0.7"/>
+  <text x="380" y="76" class="sub">[Email]</text>
+  <text x="380" y="90" class="sub">[Password]</text>
+  <text x="380" y="106" class="sub">[Sign in]</text>
+  <text x="372" y="138" class="ti">Source</text>
+  <text x="372" y="152" class="sub">login.spec.ts:42</text>
+  <text x="372" y="166" class="sub">await expect(...)</text>
+  <text x="372" y="194" class="sub">Click any action →</text>
+  <text x="372" y="208" class="sub">DOM travels back.</text>
+</svg>
+<div class="illus-caption">Each action is clickable; the right pane time-travels to that exact DOM state.</div>
+</div>
+<p>The Trace Viewer is Playwright's time-travel debugger. After a failed test with tracing enabled, you get a <code>.zip</code> file showing the full timeline: every action, DOM snapshot, network call, console message.</p>
 <pre class="code"><code>// Enable in config
 use: { trace: 'on-first-retry' }
 
@@ -444,6 +719,22 @@ npx playwright show-trace trace.zip
       q: "Visual regression testing in Playwright — how do you implement it without flakes?",
       diff: "hard",
       tags: ["playwright", "visual"],
+      diagram: `flowchart LR
+  RUN["test run"] --> CAPT["capture screenshot<br/>(mask dynamic regions,<br/>animations off)"]
+  CAPT --> EXIST{"baseline<br/>exists?"}
+  EXIST -- no --> SAVE["save as baseline<br/>(test passes)"]
+  EXIST -- yes --> DIFF["pixel diff<br/>vs baseline"]
+  DIFF --> RATIO{"diffRatio<br/>≤ tolerance?"}
+  RATIO -- yes --> PASS["test passes ✓"]
+  RATIO -- no --> FAIL["fail + emit:<br/>baseline.png,<br/>actual.png,<br/>diff.png"]
+  FAIL --> REV["human reviews diff"]
+  REV --> CHOICE{"intended<br/>change?"}
+  CHOICE -- yes --> UPD["--update-snapshots<br/>locally, commit"]
+  CHOICE -- no --> BUG["file bug"]
+  classDef good fill:#2a9d8f,color:#fff
+  classDef bad fill:#e76f51,color:#fff
+  class PASS,SAVE,UPD good
+  class FAIL,BUG bad`,
       answer: `<pre class="code"><code>await expect(page).toHaveScreenshot('home.png', {
   maxDiffPixelRatio: 0.01,
   mask: [page.getByTestId('timestamp'), page.getByTestId('user-avatar')],
@@ -668,6 +959,18 @@ const apiRest: Category = {
       q: "How do you validate a REST API response beyond status code?",
       diff: "mid",
       tags: ["api", "schema"],
+      diagram: `flowchart TB
+  RES["HTTP response"] --> L1["1. Status code<br/>(exact, not range)"]
+  L1 --> L2["2. Headers<br/>Content-Type, security, caching"]
+  L2 --> L3["3. Schema<br/>JSON Schema / Zod"]
+  L3 --> L4["4. Business invariants<br/>totals = sum(line items)"]
+  L4 --> L5["5. Side effects<br/>GET after POST returns it"]
+  L5 --> L6["6. Performance<br/>P95 within SLA"]
+  L6 --> PASS["all layers ✓"]
+  classDef layer fill:#0a3d6e,color:#fff
+  classDef good fill:#2a9d8f,color:#fff
+  class L1,L2,L3,L4,L5,L6 layer
+  class PASS good`,
       answer: `<p>Layered validation:</p>
 <ol>
 <li><strong>Status code</strong> — exact, not range.</li>
@@ -687,6 +990,20 @@ expect(ajv.validate(orderSchema, body)).toBe(true);</code></pre>`
       q: "Test authorization on a multi-tenant API: user A must not access user B's data.",
       diff: "hard",
       tags: ["security", "api"],
+      diagram: `sequenceDiagram
+  participant A as User A
+  participant API
+  participant DB
+  Note over A: A has token<br/>tenant_id = T1
+  A->>API: GET /orders/B-42<br/>(belongs to tenant T2)
+  API->>API: AuthN — token valid? ✓
+  API->>API: AuthZ — token.tenant == resource.tenant?
+  alt mismatch
+    API-->>A: 403 Forbidden ✓<br/>(or 404 if hiding existence)
+  else 200 returned
+    Note over API: BUG — IDOR<br/>tenant isolation broken
+    API-->>A: 200 + B's data ✗
+  end`,
       answer: `<ol>
 <li><strong>Cross-tenant read</strong> — A's token requesting B's order → 403 or 404, never 200.</li>
 <li><strong>Cross-tenant write</strong> — A trying to PUT/DELETE B's resource → 403.</li>
@@ -704,6 +1021,26 @@ expect(ajv.validate(orderSchema, body)).toBe(true);</code></pre>`
       q: "What is idempotency in HTTP and how do you implement it for a payment endpoint?",
       diff: "hard",
       tags: ["http", "patterns"],
+      diagram: `sequenceDiagram
+  participant C as Client
+  participant API
+  participant Cache as Redis (24h)
+  participant PSP as Payment proc
+  C->>API: POST /payments<br/>Idempotency-Key: K1
+  API->>Cache: GET idem:K1
+  alt no cached result
+    Cache-->>API: nil
+    API->>PSP: charge €50
+    PSP-->>API: 201 charge_id=ch_1
+    API->>Cache: SETEX idem:K1 86400 {ch_1}
+    API-->>C: 201 ch_1
+  else cached result (retry)
+    Note over C,API: Network blip — client retries
+    C->>API: POST /payments<br/>Idempotency-Key: K1
+    API->>Cache: GET idem:K1
+    Cache-->>API: {ch_1}
+    API-->>C: 201 ch_1 (no new charge ✓)
+  end`,
       answer: `<p>Client generates a unique key per logical operation, sends as header. Server caches the response keyed by ID for ~24h. Duplicate requests return the cached response without re-processing.</p>
 <pre class="code"><code>// Client
 POST /payments
@@ -746,7 +1083,33 @@ return result;</code></pre>
       q: "Path parameters vs. query parameters — when do you use each?",
       diff: "easy",
       tags: ["http", "rest"],
-      answer: `<ul>
+      answer: `<div class="illus">
+<svg viewBox="0 0 520 170" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="URL anatomy: path vs query params">
+  <style>
+    .url { font: 600 16px ui-monospace, "SF Mono", Menlo, Consolas, monospace; fill: currentColor; }
+    .lbl { font: 600 11px ui-sans-serif, system-ui; fill: currentColor; }
+    .sub { font: 11px ui-sans-serif, system-ui; fill: var(--fg-dim); }
+    .path { fill: #0a3d6e; }
+    .query { fill: #2a9d8f; }
+    .id { fill: #e9c46a; }
+    .arrow { stroke: currentColor; stroke-width: 1; fill: none; opacity: 0.5; }
+  </style>
+  <text x="20" y="35" class="url">GET /users/<tspan class="lbl" fill="#e9c46a">123</tspan>/orders?<tspan class="lbl" fill="#2a9d8f">status=active</tspan>&amp;<tspan class="lbl" fill="#2a9d8f">sort=name</tspan></text>
+  <line x1="115" y1="42" x2="115" y2="62" class="arrow"/>
+  <line x1="158" y1="42" x2="158" y2="62" class="arrow"/>
+  <rect x="92" y="64" width="92" height="18" rx="3" class="id"/>
+  <text x="138" y="77" text-anchor="middle" class="lbl" fill="#222">PATH PARAM</text>
+  <text x="138" y="100" text-anchor="middle" class="sub">identifies the resource</text>
+  <text x="138" y="112" text-anchor="middle" class="sub">required for the URL to make sense</text>
+  <line x1="260" y1="42" x2="260" y2="124" class="arrow"/>
+  <line x1="430" y1="42" x2="430" y2="124" class="arrow"/>
+  <rect x="240" y="126" width="220" height="18" rx="3" class="query"/>
+  <text x="350" y="139" text-anchor="middle" class="lbl" fill="#fff">QUERY PARAMS</text>
+  <text x="350" y="160" text-anchor="middle" class="sub">filter / sort / paginate · optional · removable</text>
+</svg>
+<div class="illus-caption">Rule: if removing the value points to a different resource → path. If it just relaxes a filter → query.</div>
+</div>
+<ul>
 <li><strong>Path</strong> — identify a specific resource. <code>GET /users/123</code>.</li>
 <li><strong>Query</strong> — filter, sort, paginate. <code>GET /users?status=active&amp;sort=name</code>.</li>
 </ul>
@@ -877,6 +1240,19 @@ expect(recovery.status()).toBe(200);</code></pre>
       q: "What is JSON Schema validation and why is it more reliable than spot-checking fields?",
       diff: "mid",
       tags: ["api", "schema"],
+      diagram: `flowchart LR
+  R["API response"] --> V["JSON Schema validator<br/>(Ajv / Zod)"]
+  V --> M{"matches<br/>schema?"}
+  M -- yes --> P["passes ✓<br/>+ all spot checks subsumed"]
+  M -- no --> F["fails fast with reason:"]
+  F --> F1["missing field"]
+  F --> F2["wrong type<br/>(string vs number)"]
+  F --> F3["enum violation"]
+  F --> F4["extra field<br/>(additionalProperties: false)"]
+  classDef good fill:#2a9d8f,color:#fff
+  classDef bad fill:#e76f51,color:#fff
+  class P good
+  class F,F1,F2,F3,F4 bad`,
       answer: `<p>JSON Schema describes structure, types, and constraints. Tools like Ajv/Zod compile it to a validator.</p>
 <p><strong>Why it beats spot-checking:</strong></p>
 <ul>

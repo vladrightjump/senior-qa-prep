@@ -185,32 +185,40 @@ if (failed.length) console.warn('Teardown incomplete:', failed);
       diff: "mid",
       tags: ["typescript", "patterns"],
       answer: `<p>A type guard is a function returning <code>value is Type</code>. TypeScript narrows the type in the true branch without any cast.</p>
+<div class="code-walk">
 <pre class="code"><code>interface APIError {
   error:    string;
   code:     number;
   details?: string[];
 }
 
-function isAPIError(value: unknown): value is APIError {
+function isAPIError(value: unknown): value is APIError {                  // ①
   return (
-    typeof value === 'object' &amp;&amp;
-    value !== null &amp;&amp;
+    typeof value === 'object' &amp;&amp;                                       // ②
+    value !== null &amp;&amp;                                                  // ③
     'error' in value &amp;&amp;
-    typeof (value as Record&lt;string, unknown&gt;).error === 'string' &amp;&amp;
+    typeof (value as Record&lt;string, unknown&gt;).error === 'string' &amp;&amp;     // ④
     'code' in value &amp;&amp;
     typeof (value as Record&lt;string, unknown&gt;).code === 'number'
   );
 }
 
-// Usage in tests
-const body = await response.json();
+const body = await response.json();                                       // ⑤
 if (isAPIError(body)) {
-  // TypeScript knows body.error and body.code are the right types here
-  expect(body.code).toBe(422);
+  expect(body.code).toBe(422);                                            // ⑥
   expect(body.error).toContain('validation');
 } else {
   throw new Error(\`Expected API error, got: \${JSON.stringify(body)}\`);
 }</code></pre>
+<ol class="code-walk-notes">
+  <li><span class="cw-num">1</span><span><code>value is APIError</code> is the predicate signature. If this returns true, TS treats <code>value</code> as <code>APIError</code> in the true branch — no cast needed.</span></li>
+  <li><span class="cw-num">2</span><span><code>typeof value === 'object'</code> excludes primitives but, crucially, NOT <code>null</code> — see next line.</span></li>
+  <li><span class="cw-num">3</span><span>The classic JS gotcha: <code>typeof null === 'object'</code>. Without this null check, <code>'error' in value</code> on the next line throws.</span></li>
+  <li><span class="cw-num">4</span><span>Each property checked for presence AND type. <code>'error' in value</code> on its own would accept <code>{ error: 123 }</code> — that's not an API error, it's a malformed body.</span></li>
+  <li><span class="cw-num">5</span><span><code>response.json()</code> returns <code>unknown</code> in strict mode (or should — see Zod for runtime validation). The guard is what makes it safe to use.</span></li>
+  <li><span class="cw-num">6</span><span>Inside the <code>if</code> block, <code>body.code</code> is typed as <code>number</code>. No casts, full autocomplete, and refactor-safe.</span></li>
+</ol>
+</div>
 <p>Better than casting (<code>body as APIError</code>) — casting silently accepts wrong shapes. Type guards fail explicitly at runtime with a clear message, and they compose into reusable assertion helpers.</p>`
     },
     {
@@ -218,15 +226,16 @@ if (isAPIError(body)) {
       q: "How do you write a generic, type-safe data factory for test fixtures?",
       diff: "hard",
       tags: ["typescript", "patterns", "data"],
-      answer: `<pre class="code"><code>type Factory&lt;T&gt; = {
+      answer: `<div class="code-walk">
+<pre class="code"><code>type Factory&lt;T&gt; = {                                                    // ①
   build(overrides?: Partial&lt;T&gt;): T;
   buildList(count: number, overrides?: Partial&lt;T&gt;): T[];
 };
 
-function createFactory&lt;T&gt;(defaults: () =&gt; T): Factory&lt;T&gt; {
+function createFactory&lt;T&gt;(defaults: () =&gt; T): Factory&lt;T&gt; {              // ②
   return {
     build(overrides = {}) {
-      return { ...defaults(), ...overrides };
+      return { ...defaults(), ...overrides };                          // ③
     },
     buildList(count, overrides = {}) {
       return Array.from({ length: count }, () =&gt; this.build(overrides));
@@ -234,19 +243,25 @@ function createFactory&lt;T&gt;(defaults: () =&gt; T): Factory&lt;T&gt; {
   };
 }
 
-// Define once per entity
-const userFactory = createFactory&lt;User&gt;(() =&gt; ({
+const userFactory = createFactory&lt;User&gt;(() =&gt; ({                       // ④
   id:       crypto.randomUUID(),
   email:    \`user-\${Date.now()}@test.com\`,
   role:     'viewer',
   verified: true,
 }));
 
-// Usage — Partial&lt;T&gt; ensures only valid fields are overridable
-const admin      = userFactory.build({ role: 'admin' });
+const admin      = userFactory.build({ role: 'admin' });               // ⑤
 const users      = userFactory.buildList(5);
 const unverified = userFactory.build({ verified: false });</code></pre>
-<p><code>() =&gt; T</code> as the defaults function runs fresh on every call — no shared mutable state between tests. <code>Partial&lt;T&gt;</code> enforces at compile time that overrides only contain real fields — typos become compile errors, not silent wrong test data.</p>`
+<ol class="code-walk-notes">
+  <li><span class="cw-num">1</span><span><code>Factory&lt;T&gt;</code> is the public surface — two methods. Generic <code>T</code> means each entity gets its own typed factory.</span></li>
+  <li><span class="cw-num">2</span><span><code>defaults: () =&gt; T</code> is a function, not an object. Critical: see ③.</span></li>
+  <li><span class="cw-num">3</span><span>Calling <code>defaults()</code> on every <code>build()</code> creates fresh defaults. If you passed an object literal instead, all tests would share the same <code>id</code> — collisions when workers > 1.</span></li>
+  <li><span class="cw-num">4</span><span><code>createFactory&lt;User&gt;</code> binds the generic. Now overrides must match the <code>User</code> shape — typos in field names become compile errors.</span></li>
+  <li><span class="cw-num">5</span><span><code>Partial&lt;T&gt;</code> means only valid fields can be overridden. <code>{ admin: true }</code> would fail compilation. The defaults take care of the rest.</span></li>
+</ol>
+</div>
+<p>This pattern beats hand-written test data: type-safe, refactor-safe (rename a field on <code>User</code> → factory still compiles), and produces fresh data per test by construction.</p>`
     },
     {
       id: "180f222d-645a-42a8-a024-8a1ac04d1758",
@@ -401,6 +416,21 @@ const graphqlContracts: Category = {
       q: "How is testing a GraphQL API fundamentally different from testing REST?",
       diff: "mid",
       tags: ["graphql", "api"],
+      diagram: `flowchart LR
+  subgraph REST["REST"]
+    R1["GET /orders/bad"] --> R2["HTTP 404"]
+    R2 --> R3["test: expect(status).toBe(404) ✓"]
+  end
+  subgraph GQL["GraphQL"]
+    G1["POST /graphql<br/>{ order(id: 'bad') }"] --> G2["HTTP 200 🚨"]
+    G2 --> G3{"body.errors?"}
+    G3 -- "✗ skipped" --> WRONG["test passes — bug ships"]
+    G3 -- "✓ asserted" --> RIGHT["test fails as expected"]
+  end
+  classDef good fill:#2a9d8f,color:#fff
+  classDef bad fill:#e76f51,color:#fff
+  class R3,RIGHT good
+  class WRONG bad`,
       answer: `<p>Five key differences every tester must internalise:</p>
 <table style="width:100%; font-size:13px; border-collapse:collapse;">
 <tr><th style="text-align:left;padding:6px;">Aspect</th><th style="text-align:left;padding:6px;">REST</th><th style="text-align:left;padding:6px;">GraphQL</th></tr>
@@ -425,6 +455,21 @@ expect(body.data.order).not.toBeNull();</code></pre>`
       q: "How do you test GraphQL mutations — what makes them different from queries?",
       diff: "mid",
       tags: ["graphql", "api"],
+      diagram: `flowchart TD
+  M["mutation createOrder(...)"] --> SEND["POST /graphql"]
+  SEND --> R["HTTP 200"]
+  R --> A1{"body.errors?"}
+  A1 -- yes --> FAIL["fail test<br/>(validation, authz, server)"]
+  A1 -- no --> A2["assert body.data.createOrder<br/>(id, status, items)"]
+  A2 --> SIDE["⚠ side-effect check"]
+  SIDE --> Q["GET /orders/{id}<br/>(separate query)"]
+  Q --> PERS{"persisted?"}
+  PERS -- yes --> PASS["✓ mutation truly succeeded"]
+  PERS -- no --> BUG["bug: response lied"]
+  classDef good fill:#2a9d8f,color:#fff
+  classDef bad fill:#e76f51,color:#fff
+  class PASS good
+  class FAIL,BUG bad`,
       answer: `<pre class="code"><code>const CREATE_ORDER = \`
   mutation CreateOrder($input: CreateOrderInput!) {
     createOrder(input: $input) {
@@ -621,6 +666,27 @@ it('returns an order by ID', async () =&gt; {
       q: "Why must provider verification run in the provider's CI — not the consumer's?",
       diff: "hard",
       tags: ["contracts", "pact"],
+      diagram: `flowchart LR
+  subgraph CONS["Consumer repo (OrderUI)"]
+    CTEST["consumer test<br/>vs Pact MOCK"]
+    CTEST --> PACT["pact.json<br/>(my wishlist)"]
+  end
+  PACT --> BROKER[(Pact Broker)]
+  subgraph PROV["Provider repo (OrderAPI) ⚡critical"]
+    PCI["provider CI"]
+    PVER["Verifier replays pact<br/>against REAL code + DB"]
+    PCI --> PVER
+  end
+  BROKER --> PVER
+  PVER --> RES{"matches?"}
+  RES -- yes --> OK["✓ deploy allowed"]
+  RES -- no --> BLOCK["✗ provider PR blocked<br/>consumer team notified"]
+  classDef cons fill:#0a3d6e,color:#fff
+  classDef prov fill:#2a9d8f,color:#fff
+  classDef bad fill:#e76f51,color:#fff
+  class CTEST,PACT cons
+  class PCI,PVER,OK prov
+  class BLOCK bad`,
       answer: `<p>This is the organizational rule that makes contract testing work. Without it the whole system is circular and useless.</p>
 <p><strong>Consumer CI:</strong> generates the pact, runs against a mock. Always passes — the mock does whatever you told it to. The pact file is the consumer's wishlist.</p>
 <p><strong>Provider CI:</strong> must verify the pact against the real implementation. This is where the contract earns its value.</p>
@@ -648,6 +714,21 @@ test('verify consumer contracts', async () =&gt; {
       q: "What is an OpenAPI contract and how do you validate API responses against it?",
       diff: "mid",
       tags: ["contracts", "api", "openapi"],
+      diagram: `flowchart LR
+  SPEC["openapi.yaml<br/>(source of truth)"] --> FE["frontend codegen<br/>typed client"]
+  SPEC --> BE["backend validation<br/>request / response"]
+  SPEC --> DOC["docs UI"]
+  SPEC --> TST["test oracle<br/>Ajv / Schemathesis"]
+  TST --> RUN["CI run"]
+  RUN --> R{"response matches?"}
+  R -- yes --> PASS["✓"]
+  R -- no --> FAIL["✗ API drift<br/>caught before consumers"]
+  classDef star fill:#0a3d6e,color:#fff
+  classDef good fill:#2a9d8f,color:#fff
+  classDef bad fill:#e76f51,color:#fff
+  class SPEC star
+  class PASS good
+  class FAIL bad`,
       answer: `<p>An OpenAPI spec is a machine-readable description of your REST API — endpoints, schemas, status codes. It is the source of truth between frontend and backend and a ready-made test oracle.</p>
 <pre class="code"><code># openapi.yaml (excerpt)
 paths:
@@ -949,7 +1030,70 @@ const visualRegression: Category = {
       q: "Compare Playwright screenshots, Percy, and Applitools — when do you choose each?",
       diff: "hard",
       tags: ["visual", "tools"],
-      answer: `<table style="width:100%; font-size:13px; border-collapse:collapse;">
+      answer: `<div class="illus">
+<svg viewBox="0 0 520 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Visual regression tool comparison matrix">
+  <style>
+    .ti { font: 600 12px ui-sans-serif, system-ui; fill: currentColor; }
+    .sub { font: 10.5px ui-sans-serif, system-ui; fill: var(--fg-dim); text-anchor: middle; }
+    .h { font: 600 11px ui-sans-serif, system-ui; fill: currentColor; }
+    .cell { fill: var(--bg); stroke: currentColor; stroke-width: 0.6; opacity: 0.7; }
+    .yes { fill: #2a9d8f; }
+    .partial { fill: #e9c46a; }
+    .no { fill: #e76f51; }
+    .dot { font: 700 13px ui-sans-serif, system-ui; text-anchor: middle; }
+  </style>
+  <text x="200" y="20" class="h">Playwright</text>
+  <text x="320" y="20" class="h">Percy</text>
+  <text x="440" y="20" class="h">Applitools</text>
+  <g>
+    <text x="20" y="48" class="h">Free</text>
+    <rect x="150" y="34" width="100" height="20" class="cell"/>
+    <circle cx="200" cy="44" r="7" class="yes"/><text x="200" y="48" class="dot" fill="#fff">✓</text>
+    <rect x="270" y="34" width="100" height="20" class="cell"/>
+    <circle cx="320" cy="44" r="7" class="no"/><text x="320" y="48" class="dot" fill="#fff">✗</text>
+    <rect x="390" y="34" width="100" height="20" class="cell"/>
+    <circle cx="440" cy="44" r="7" class="no"/><text x="440" y="48" class="dot" fill="#fff">✗</text>
+  </g>
+  <g>
+    <text x="20" y="76" class="h">Consistent env</text>
+    <rect x="150" y="62" width="100" height="20" class="cell"/>
+    <circle cx="200" cy="72" r="7" class="partial"/><text x="200" y="76" class="dot" fill="#222">~</text>
+    <rect x="270" y="62" width="100" height="20" class="cell"/>
+    <circle cx="320" cy="72" r="7" class="yes"/><text x="320" y="76" class="dot" fill="#fff">✓</text>
+    <rect x="390" y="62" width="100" height="20" class="cell"/>
+    <circle cx="440" cy="72" r="7" class="yes"/><text x="440" y="76" class="dot" fill="#fff">✓</text>
+  </g>
+  <g>
+    <text x="20" y="104" class="h">Cross-browser</text>
+    <rect x="150" y="90" width="100" height="20" class="cell"/>
+    <circle cx="200" cy="100" r="7" class="partial"/><text x="200" y="104" class="dot" fill="#222">~</text>
+    <rect x="270" y="90" width="100" height="20" class="cell"/>
+    <circle cx="320" cy="100" r="7" class="yes"/><text x="320" y="104" class="dot" fill="#fff">✓</text>
+    <rect x="390" y="90" width="100" height="20" class="cell"/>
+    <circle cx="440" cy="100" r="7" class="yes"/><text x="440" y="104" class="dot" fill="#fff">✓</text>
+  </g>
+  <g>
+    <text x="20" y="132" class="h">AI false-positive filter</text>
+    <rect x="150" y="118" width="100" height="20" class="cell"/>
+    <circle cx="200" cy="128" r="7" class="no"/><text x="200" y="132" class="dot" fill="#fff">✗</text>
+    <rect x="270" y="118" width="100" height="20" class="cell"/>
+    <circle cx="320" cy="128" r="7" class="partial"/><text x="320" y="132" class="dot" fill="#222">~</text>
+    <rect x="390" y="118" width="100" height="20" class="cell"/>
+    <circle cx="440" cy="128" r="7" class="yes"/><text x="440" y="132" class="dot" fill="#fff">✓</text>
+  </g>
+  <g>
+    <text x="20" y="160" class="h">Visual review UI</text>
+    <rect x="150" y="146" width="100" height="20" class="cell"/>
+    <circle cx="200" cy="156" r="7" class="partial"/><text x="200" y="160" class="dot" fill="#222">~</text>
+    <rect x="270" y="146" width="100" height="20" class="cell"/>
+    <circle cx="320" cy="156" r="7" class="yes"/><text x="320" y="160" class="dot" fill="#fff">✓</text>
+    <rect x="390" y="146" width="100" height="20" class="cell"/>
+    <circle cx="440" cy="156" r="7" class="yes"/><text x="440" y="160" class="dot" fill="#fff">✓</text>
+  </g>
+  <text x="260" y="190" class="sub">Start with Playwright. Move up when false positives or cross-browser matter more than license cost.</text>
+</svg>
+</div>
+<table style="width:100%; font-size:13px; border-collapse:collapse;">
 <tr><th style="padding:6px;">Tool</th><th style="padding:6px;">Approach</th><th style="padding:6px;">Pro</th><th style="padding:6px;">Con</th></tr>
 <tr><td style="padding:6px;"><strong>Playwright built-in</strong></td><td style="padding:6px;">Pixel diff, baselines in repo</td><td style="padding:6px;">Free, zero infra, version-controlled</td><td style="padding:6px;">OS/font-rendering sensitive, manual review</td></tr>
 <tr><td style="padding:6px;"><strong>Percy</strong></td><td style="padding:6px;">Cloud rendering, cross-browser</td><td style="padding:6px;">Consistent environment, visual review UI, GitHub integration</td><td style="padding:6px;">Paid, network dependency per run</td></tr>
@@ -1089,6 +1233,19 @@ on:
       q: "How do you use Storybook for visual regression testing?",
       diff: "mid",
       tags: ["visual", "storybook"],
+      diagram: `flowchart LR
+  STORIES["Button.stories.ts<br/>Primary · Disabled · Loading"] --> SB["Storybook build<br/>(static site)"]
+  SB --> OPT{"integration"}
+  OPT -->|"Chromatic"| CR["cloud render<br/>diff in PR UI<br/>$ paid"]
+  OPT -->|"test-runner"| TR["jest-style runner<br/>+ Playwright screenshots"]
+  OPT -->|"manual"| PW["Playwright<br/>goto iframe.html?id=..."]
+  CR --> BASE[(baselines<br/>+ approval flow)]
+  TR --> BASE
+  PW --> BASE
+  classDef opt fill:#0a3d6e,color:#fff
+  classDef store fill:#2a9d8f,color:#fff
+  class STORIES,SB store
+  class CR,TR,PW opt`,
       answer: `<p>Storybook renders components in isolation — ideal for component-level visual regression because there is no page-level noise.</p>
 <pre class="code"><code>// Button.stories.ts — each story = a state to screenshot
 export const Primary:  Story = { args: { label: 'Submit', variant: 'primary' } };

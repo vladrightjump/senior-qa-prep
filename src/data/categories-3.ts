@@ -10,6 +10,22 @@ const ciFlakiness: Category = {
       q: "Set up GitHub Actions to run Playwright tests with sharding.",
       diff: "mid",
       tags: ["ci", "github-actions"],
+      diagram: `flowchart LR
+  PR["PR pushed"] --> M["matrix.shard:<br/>[1/4, 2/4, 3/4, 4/4]"]
+  M --> J1["job 1 (1/4)<br/>runner ubuntu-latest"]
+  M --> J2["job 2 (2/4)"]
+  M --> J3["job 3 (3/4)"]
+  M --> J4["job 4 (4/4)"]
+  J1 --> R1["playwright-report-1"]
+  J2 --> R2["playwright-report-2"]
+  J3 --> R3["playwright-report-3"]
+  J4 --> R4["playwright-report-4"]
+  R1 --> MERGE["merge-reports job<br/>(needs: [test])"]
+  R2 --> MERGE
+  R3 --> MERGE
+  R4 --> MERGE
+  classDef job fill:#0a3d6e,color:#fff
+  class J1,J2,J3,J4 job`,
       answer: `<pre class="code"><code>jobs:
   test:
     runs-on: ubuntu-latest
@@ -98,6 +114,24 @@ const ciFlakiness: Category = {
       q: "Why is 'just add retries' the wrong default fix for flakiness?",
       diff: "hard",
       tags: ["flakiness"],
+      diagram: `flowchart TD
+  T["test runs"] --> R1{"pass?"}
+  R1 -- yes --> GREEN["✓ green"]
+  R1 -- no --> R2{"retries: 2"}
+  R2 --> T2["retry 1"]
+  T2 --> R3{"pass?"}
+  R3 -- yes --> HIDE["✓ green (flake-masked)<br/>real bug hides here"]
+  R3 -- no --> T3["retry 2"]
+  T3 --> R4{"pass?"}
+  R4 -- yes --> HIDE
+  R4 -- no --> FAIL["fail"]
+  HIDE -.->|"weeks later"| PROD["bug reaches prod<br/>real cost: hours + trust"]
+  classDef good fill:#2a9d8f,color:#fff
+  classDef bad fill:#e76f51,color:#fff
+  classDef warn fill:#e9c46a,color:#222
+  class GREEN good
+  class HIDE warn
+  class FAIL,PROD bad`,
       answer: `<p>Retries hide problems instead of fixing them:</p>
 <ul>
 <li><strong>Hidden race conditions</strong> — your test catches a real bug 1% of the time. Retries make it invisible. Bug ships.</li>
@@ -112,7 +146,53 @@ const ciFlakiness: Category = {
       q: "Top 5 causes of flakiness in Playwright tests.",
       diff: "mid",
       tags: ["flakiness"],
-      answer: `<ol>
+      answer: `<div class="illus">
+<svg viewBox="0 0 520 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Top 5 flakiness causes">
+  <style>
+    .ti { font: 600 11px ui-sans-serif, system-ui; fill: currentColor; }
+    .sub { font: 10.5px ui-sans-serif, system-ui; fill: var(--fg-dim); text-anchor: middle; }
+    .icon { font: 700 28px ui-sans-serif, system-ui; text-anchor: middle; fill: #fff; }
+    .b1 { fill: #e76f51; }
+    .b2 { fill: #f4a261; }
+    .b3 { fill: #e9c46a; }
+    .b4 { fill: #2a9d8f; }
+    .b5 { fill: #264653; }
+    .lbl { font: 600 10.5px ui-sans-serif, system-ui; text-anchor: middle; fill: currentColor; }
+  </style>
+  <g transform="translate(20, 20)">
+    <rect x="0" y="0" width="90" height="90" rx="8" class="b1"/>
+    <text x="45" y="48" class="icon">⏲</text>
+    <text x="45" y="106" class="lbl">Hard waits</text>
+    <text x="45" y="120" class="sub" fill="var(--fg-dim)">waitForTimeout(2000)</text>
+  </g>
+  <g transform="translate(120, 20)">
+    <rect x="0" y="0" width="90" height="90" rx="8" class="b2"/>
+    <text x="45" y="48" class="icon">⌖</text>
+    <text x="45" y="106" class="lbl">Brittle selectors</text>
+    <text x="45" y="120" class="sub" fill="var(--fg-dim)">CSS / XPath drift</text>
+  </g>
+  <g transform="translate(220, 20)">
+    <rect x="0" y="0" width="90" height="90" rx="8" class="b3"/>
+    <text x="45" y="48" class="icon" fill="#222">⚙</text>
+    <text x="45" y="106" class="lbl">State leakage</text>
+    <text x="45" y="120" class="sub" fill="var(--fg-dim)">shared DB / users</text>
+  </g>
+  <g transform="translate(320, 20)">
+    <rect x="0" y="0" width="90" height="90" rx="8" class="b4"/>
+    <text x="45" y="48" class="icon">↻</text>
+    <text x="45" y="106" class="lbl">Async races</text>
+    <text x="45" y="120" class="sub" fill="var(--fg-dim)">click → API not done</text>
+  </g>
+  <g transform="translate(420, 20)">
+    <rect x="0" y="0" width="90" height="90" rx="8" class="b5"/>
+    <text x="45" y="48" class="icon">⌧</text>
+    <text x="45" y="106" class="lbl">3rd-party I/O</text>
+    <text x="45" y="120" class="sub" fill="var(--fg-dim)">slow nets, eventually-consistent</text>
+  </g>
+  <text x="260" y="160" class="sub">Honorable mention: unseeded faker producing "O'Brien" once a month and breaking CSV export.</text>
+</svg>
+</div>
+<ol>
 <li><strong>Hard waits (<code>waitForTimeout</code>)</strong> — magic numbers, work locally, fail in CI.</li>
 <li><strong>Brittle selectors</strong> — CSS/XPath that change with UI tweaks. Fix: <code>getByRole</code>, <code>getByTestId</code>.</li>
 <li><strong>Test isolation failures</strong> — shared DB rows, leftover state, hardcoded user IDs.</li>
@@ -140,6 +220,19 @@ const ciFlakiness: Category = {
       q: "Set up auth once and reuse across all tests in CI.",
       diff: "mid",
       tags: ["ci", "auth"],
+      diagram: `flowchart TD
+  CI["CI run starts"] --> SETUP["setup project<br/>(auth.setup.ts)"]
+  SETUP --> LOGIN["login UI or API<br/>(once)"]
+  LOGIN --> SAVE["context.storageState({<br/>  path: 'user.json' })"]
+  SAVE --> FILE[(user.json<br/>cookies + localStorage)]
+  FILE --> P["chromium project<br/>use: { storageState: 'user.json' }"]
+  P --> T1["test 1<br/>starts authed"]
+  P --> T2["test 2"]
+  P --> TN["test N"]
+  classDef setup fill:#0a3d6e,color:#fff
+  classDef test fill:#2a9d8f,color:#fff
+  class SETUP,LOGIN,SAVE setup
+  class T1,T2,TN test`,
       answer: `<pre class="code"><code>// playwright.config.ts
 projects: [
   { name: 'setup', testMatch: /.*\\.setup\\.ts/ },
@@ -250,7 +343,28 @@ setup('authenticate', async ({ page }) =&gt; {
       q: "What's the difference between a smoke test suite and a critical-path suite?",
       diff: "mid",
       tags: ["strategy"],
-      answer: `<ul>
+      answer: `<div class="illus">
+<svg viewBox="0 0 520 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Smoke vs critical-path vs regression subsets">
+  <style>
+    .ti { font: 600 11.5px ui-sans-serif, system-ui; fill: currentColor; }
+    .sub { font: 10.5px ui-sans-serif, system-ui; fill: var(--fg-dim); }
+    .smoke { fill: #e76f51; opacity: 0.85; }
+    .crit { fill: #e9c46a; opacity: 0.65; }
+    .reg { fill: #2a9d8f; opacity: 0.25; stroke: #2a9d8f; stroke-width: 1.5; }
+  </style>
+  <ellipse cx="260" cy="100" rx="240" ry="75" class="reg"/>
+  <text x="430" y="100" class="ti" fill="#2a9d8f">Regression suite</text>
+  <text x="430" y="116" class="sub">~800 tests · 30–60 min · nightly</text>
+  <ellipse cx="260" cy="100" rx="130" ry="55" class="crit"/>
+  <text x="260" y="60" text-anchor="middle" class="ti" fill="#222">Critical-path</text>
+  <text x="260" y="74" text-anchor="middle" class="sub" fill="#222">~30 tests · 15–30 min · pre-release</text>
+  <ellipse cx="260" cy="110" rx="60" ry="28" class="smoke"/>
+  <text x="260" y="108" text-anchor="middle" class="ti" fill="#fff">Smoke</text>
+  <text x="260" y="122" text-anchor="middle" class="sub" fill="#fff">~5 · &lt;5 min · every commit</text>
+  <text x="10" y="195" class="sub">Smoke ⊂ Critical-path ⊂ Regression. Each is a subset of the next, run at a different gate.</text>
+</svg>
+</div>
+<ul>
 <li><strong>Smoke</strong> — proves the build is alive. Login works, homepage loads, can navigate. Fast (5min). Run on every commit. Failure = revert or block.</li>
 <li><strong>Critical-path</strong> — proves the most important user journeys complete end-to-end. Login → checkout → confirmation. Slower (15–30min). Run on merge to main or pre-release. Failure = release blocker.</li>
 </ul>
@@ -321,6 +435,19 @@ reporter: [
       q: "How do you set up Docker for Playwright tests in CI?",
       diff: "mid",
       tags: ["ci", "docker"],
+      diagram: `flowchart LR
+  subgraph BASE["mcr.microsoft.com/playwright:v1.49.0-jammy"]
+    UBUNTU["Ubuntu 22.04 (jammy)"]
+    NODE["Node.js"]
+    BR["Chromium · Firefox · WebKit<br/>+ system deps"]
+  end
+  BASE --> APP["your image<br/>COPY . . · npm ci"]
+  APP --> LOCAL["devs run locally<br/>same image"]
+  APP --> CI["CI runs<br/>same image"]
+  LOCAL -.-> SAME["✓ same browser, same fonts,<br/>same locale, same TZ"]
+  CI -.-> SAME
+  classDef good fill:#2a9d8f,color:#fff
+  class SAME good`,
       answer: `<p>Use Microsoft's official Playwright Docker image — guarantees identical browser versions across local and CI.</p>
 <pre class="code"><code># Dockerfile
 FROM mcr.microsoft.com/playwright:v1.49.0-jammy
@@ -382,7 +509,49 @@ const testingTheory: Category = {
       q: "Verification vs. validation — give a concrete example.",
       diff: "easy",
       tags: ["fundamentals"],
-      answer: `<ul>
+      answer: `<div class="illus">
+<svg viewBox="0 0 520 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="V-model verification vs validation">
+  <style>
+    .ti { font: 600 11.5px ui-sans-serif, system-ui; fill: currentColor; }
+    .sub { font: 10.5px ui-sans-serif, system-ui; fill: var(--fg-dim); }
+    .left { fill: #0a3d6e; }
+    .right { fill: #2a9d8f; }
+    .center { fill: #e9c46a; }
+    .line { stroke: currentColor; stroke-width: 1; fill: none; opacity: 0.5; }
+    .ver { stroke: #0a3d6e; stroke-width: 1.2; stroke-dasharray: 4 3; fill: none; }
+    .val { stroke: #2a9d8f; stroke-width: 1.2; stroke-dasharray: 4 3; fill: none; }
+  </style>
+  <g>
+    <rect x="20"  y="20"  width="140" height="22" rx="3" class="left"/>
+    <text x="90"  y="35" text-anchor="middle" class="ti" fill="#fff">User requirements</text>
+    <rect x="50"  y="55"  width="130" height="22" rx="3" class="left" opacity="0.85"/>
+    <text x="115" y="70" text-anchor="middle" class="ti" fill="#fff">System spec</text>
+    <rect x="80"  y="90"  width="130" height="22" rx="3" class="left" opacity="0.7"/>
+    <text x="145" y="105" text-anchor="middle" class="ti" fill="#fff">Component design</text>
+  </g>
+  <rect x="210" y="125" width="100" height="22" rx="3" class="center"/>
+  <text x="260" y="140" text-anchor="middle" class="ti" fill="#222">Implementation</text>
+  <g>
+    <rect x="340" y="90"  width="130" height="22" rx="3" class="right" opacity="0.7"/>
+    <text x="405" y="105" text-anchor="middle" class="ti" fill="#fff">Component test</text>
+    <rect x="370" y="55"  width="130" height="22" rx="3" class="right" opacity="0.85"/>
+    <text x="435" y="70" text-anchor="middle" class="ti" fill="#fff">System test</text>
+    <rect x="400" y="20"  width="100" height="22" rx="3" class="right"/>
+    <text x="450" y="35" text-anchor="middle" class="ti" fill="#fff">Acceptance / UAT</text>
+  </g>
+  <path d="M 90 42 L 260 125 L 450 42" class="line"/>
+  <path d="M 115 77 L 260 125 L 435 77" class="line"/>
+  <path d="M 145 112 L 260 125 L 405 112" class="line"/>
+  <path d="M 145 112 L 405 112" class="ver"/>
+  <path d="M 90 42 L 450 42" class="val"/>
+  <text x="270" y="105" class="sub" fill="#0a3d6e">verification — built it right</text>
+  <text x="270" y="14" class="sub" fill="#2a9d8f">validation — built the right thing</text>
+  <text x="10" y="175" class="sub">Example: password reset feature</text>
+  <text x="10" y="190" class="sub">▸ Verification: code matches spec — form submits, email sends.</text>
+  <text x="10" y="204" class="sub">▸ Validation: spec was right — user understands, email reaches inbox, flow recovers from edge cases.</text>
+</svg>
+</div>
+<ul>
 <li><strong>Verification</strong> — "are we building the product right?" Static checks: code review, requirement review.</li>
 <li><strong>Validation</strong> — "are we building the right product?" Dynamic checks: UAT, exploratory testing, beta.</li>
 </ul>
@@ -419,7 +588,47 @@ const testingTheory: Category = {
       q: "Boundary value analysis and equivalence partitioning — concrete example.",
       diff: "easy",
       tags: ["technique"],
-      answer: `<p>For a price field 0.01 to 9999.99:</p>
+      answer: `<div class="illus">
+<svg viewBox="0 0 520 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Boundary value analysis on a number line">
+  <style>
+    .ti { font: 600 11.5px ui-sans-serif, system-ui; fill: currentColor; }
+    .sub { font: 10.5px ui-sans-serif, system-ui; fill: var(--fg-dim); }
+    .invalid { fill: #e76f51; opacity: 0.5; }
+    .valid { fill: #2a9d8f; opacity: 0.5; }
+    .axis { stroke: currentColor; stroke-width: 1.2; fill: none; }
+    .marker { fill: currentColor; }
+    .bad { fill: #e76f51; }
+    .ok { fill: #2a9d8f; }
+    .tk { stroke: currentColor; stroke-width: 1; }
+  </style>
+  <text x="260" y="20" text-anchor="middle" class="ti">Price field: 0.01 to 9999.99</text>
+  <rect x="20" y="60" width="100" height="40" class="invalid"/>
+  <rect x="120" y="60" width="300" height="40" class="valid"/>
+  <rect x="420" y="60" width="80" height="40" class="invalid"/>
+  <text x="70" y="84" text-anchor="middle" class="ti" fill="#fff">INVALID</text>
+  <text x="270" y="84" text-anchor="middle" class="ti" fill="#fff">VALID partition</text>
+  <text x="460" y="84" text-anchor="middle" class="ti" fill="#fff">INVALID</text>
+  <line x1="20" y1="120" x2="500" y2="120" class="axis"/>
+  <g><line x1="120" y1="115" x2="120" y2="125" class="tk"/><text x="120" y="140" text-anchor="middle" class="sub">0.01</text></g>
+  <g><line x1="420" y1="115" x2="420" y2="125" class="tk"/><text x="420" y="140" text-anchor="middle" class="sub">9999.99</text></g>
+  <circle cx="100" cy="120" r="5" class="bad"/>
+  <text x="100" y="160" text-anchor="middle" class="sub">0.00</text>
+  <circle cx="118" cy="120" r="5" class="bad"/>
+  <text x="118" y="175" text-anchor="middle" class="sub">just below</text>
+  <circle cx="122" cy="120" r="5" class="ok"/>
+  <text x="122" y="160" text-anchor="middle" class="sub">on edge</text>
+  <circle cx="270" cy="120" r="5" class="ok"/>
+  <text x="270" y="160" text-anchor="middle" class="sub">typical</text>
+  <circle cx="418" cy="120" r="5" class="ok"/>
+  <text x="418" y="175" text-anchor="middle" class="sub">on edge</text>
+  <circle cx="422" cy="120" r="5" class="bad"/>
+  <text x="422" y="160" text-anchor="middle" class="sub">just above</text>
+  <circle cx="455" cy="120" r="5" class="bad"/>
+  <text x="455" y="175" text-anchor="middle" class="sub">far above</text>
+  <text x="20" y="195" class="sub">Bugs cluster at boundaries. One value per class + boundaries = high coverage, minimal cases.</text>
+</svg>
+</div>
+<p>For a price field 0.01 to 9999.99:</p>
 <p><strong>Equivalence classes:</strong></p>
 <ul>
 <li>Valid: 0.01 ≤ x ≤ 9999.99</li>
@@ -463,6 +672,19 @@ const testingTheory: Category = {
       q: "Smoke vs. sanity vs. regression vs. exploratory.",
       diff: "easy",
       tags: ["fundamentals"],
+      diagram: `flowchart TD
+  TYPE["Testing types by intent"] --> S["Smoke<br/>build is alive?<br/>5 min · every PR"]
+  TYPE --> SAN["Sanity<br/>did my fix work?<br/>narrow, focused"]
+  TYPE --> REG["Regression<br/>still works?<br/>hours · nightly / pre-release"]
+  TYPE --> EXP["Exploratory<br/>what haven't we tested?<br/>charter, time-boxed"]
+  classDef smk fill:#e76f51,color:#fff
+  classDef san fill:#e9c46a,color:#222
+  classDef reg fill:#2a9d8f,color:#fff
+  classDef exp fill:#0a3d6e,color:#fff
+  class S smk
+  class SAN san
+  class REG reg
+  class EXP exp`,
       answer: `<ul>
 <li><strong>Smoke</strong> — does the build start? Critical paths E2E. Every PR. 5 min.</li>
 <li><strong>Sanity</strong> — narrow check after specific fix. "Did my fix work without breaking adjacent things?"</li>
@@ -476,6 +698,19 @@ const testingTheory: Category = {
       q: "What is test coverage and why isn't 100% the goal?",
       diff: "mid",
       tags: ["metrics"],
+      diagram: `flowchart LR
+  CODE["100 lines of code"] --> COV["100% line coverage"]
+  COV --> A["assertions weak?"]
+  A -- yes --> FALSE["coverage 100%<br/>escape rate 30% 🔥"]
+  A -- no --> REAL["coverage 100%<br/>escape rate 1% ✓"]
+  CODE --> MUT["mutation testing"]
+  MUT --> KILLED["% mutants killed<br/>= real assertion strength"]
+  classDef bad fill:#e76f51,color:#fff
+  classDef good fill:#2a9d8f,color:#fff
+  classDef star fill:#0a3d6e,color:#fff
+  class FALSE bad
+  class REAL good
+  class KILLED star`,
       answer: `<p>Coverage measures what code your tests <em>execute</em>:</p>
 <ul>
 <li><strong>Line</strong> — % lines hit. Misleading.</li>
@@ -511,6 +746,21 @@ const testingTheory: Category = {
       q: "Mutation testing — why is it more meaningful than line coverage?",
       diff: "hard",
       tags: ["technique", "metrics"],
+      diagram: `flowchart LR
+  SRC["original code<br/>sum + i.price * i.quantity"] --> MUT["mutate operator<br/>+ → -, * → /, true → false"]
+  MUT --> M1["mutant A:<br/>sum - i.price * i.quantity"]
+  MUT --> M2["mutant B:<br/>sum + i.price / i.quantity"]
+  MUT --> M3["mutant C:<br/>baseline removed"]
+  M1 --> TST["run test suite"]
+  M2 --> TST
+  M3 --> TST
+  TST --> R{"any test fails?"}
+  R -- yes --> KILL["✓ mutant KILLED<br/>(your assertions caught it)"]
+  R -- no --> SUR["✗ mutant SURVIVED<br/>(weak/missing assertion)"]
+  classDef good fill:#2a9d8f,color:#fff
+  classDef bad fill:#e76f51,color:#fff
+  class KILL good
+  class SUR bad`,
       answer: `<p>Mutation testing introduces small code changes (mutate <code>==</code> to <code>!=</code>, <code>true</code> to <code>false</code>, remove <code>+1</code>). Re-runs your tests. If they still pass, your assertions are weak.</p>
 <pre class="code"><code>function calculateTotal(items: Item[]) {
   return items.reduce((sum, i) =&gt; sum + i.price * i.quantity, 0);
@@ -827,7 +1077,58 @@ locked          tick(&gt; lockout)    anonymous</code></pre>
       q: "What is pairwise (combinatorial) testing? When is it worth using?",
       diff: "mid",
       tags: ["istqb", "technique"],
-      answer: `<p>For a feature with N inputs that each have multiple values, testing every combination is exponential. Pairwise testing covers every <em>pair</em> of values across all inputs — empirically catches 60–90% of multi-parameter bugs with a fraction of the cases.</p>
+      answer: `<div class="illus">
+<svg viewBox="0 0 520 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Pairwise testing reduction">
+  <style>
+    .ti { font: 600 12px ui-sans-serif, system-ui; fill: currentColor; }
+    .sub { font: 10.5px ui-sans-serif, system-ui; fill: var(--fg-dim); }
+    .mono { font: 11px ui-monospace, "SF Mono", Menlo, Consolas, monospace; fill: currentColor; }
+    .full { fill: #e76f51; }
+    .pair { fill: #2a9d8f; }
+    .cell { fill: var(--bg); stroke: currentColor; stroke-width: 0.4; opacity: 0.55; }
+  </style>
+  <text x="120" y="16" text-anchor="middle" class="ti">Full combinatorial</text>
+  <text x="120" y="32" text-anchor="middle" class="sub">3⁴ = 81 cases</text>
+  <g transform="translate(20, 40)">
+    <g>
+      <rect x="0" y="0" width="200" height="120" class="full" opacity="0.15"/>
+      <g>
+        <rect x="2" y="2" width="20" height="14" class="cell"/>
+        <rect x="24" y="2" width="20" height="14" class="cell"/>
+        <rect x="46" y="2" width="20" height="14" class="cell"/>
+        <rect x="68" y="2" width="20" height="14" class="cell"/>
+        <rect x="90" y="2" width="20" height="14" class="cell"/>
+        <rect x="112" y="2" width="20" height="14" class="cell"/>
+        <rect x="134" y="2" width="20" height="14" class="cell"/>
+        <rect x="156" y="2" width="20" height="14" class="cell"/>
+        <rect x="178" y="2" width="20" height="14" class="cell"/>
+      </g>
+      <g transform="translate(0, 16)"><rect x="0" y="0" width="200" height="14" fill="var(--bg-soft)"/></g>
+      <g transform="translate(0, 32)"><rect x="0" y="0" width="200" height="14" fill="var(--bg-soft)"/></g>
+      <g transform="translate(0, 48)"><rect x="0" y="0" width="200" height="14" fill="var(--bg-soft)"/></g>
+      <g transform="translate(0, 64)"><rect x="0" y="0" width="200" height="14" fill="var(--bg-soft)"/></g>
+      <g transform="translate(0, 80)"><rect x="0" y="0" width="200" height="14" fill="var(--bg-soft)"/></g>
+      <g transform="translate(0, 96)"><rect x="0" y="0" width="200" height="14" fill="var(--bg-soft)"/></g>
+    </g>
+  </g>
+  <text x="120" y="190" text-anchor="middle" class="sub">expensive · impractical at scale</text>
+  <text x="400" y="16" text-anchor="middle" class="ti">Pairwise — 9 cases</text>
+  <text x="400" y="32" text-anchor="middle" class="sub">covers every pair of values</text>
+  <g transform="translate(280, 40)">
+    <rect x="0" y="0" width="240" height="120" class="pair" opacity="0.15"/>
+    <text x="6" y="14" class="mono">OS  Browser  Pay  Cur</text>
+    <text x="6" y="30" class="mono">Mac Chrome Card USD</text>
+    <text x="6" y="44" class="mono">Mac Safari PayPal EUR</text>
+    <text x="6" y="58" class="mono">Mac Firefox Apple GBP</text>
+    <text x="6" y="72" class="mono">Win Chrome PayPal GBP</text>
+    <text x="6" y="86" class="mono">Win Safari Apple USD</text>
+    <text x="6" y="100" class="mono">Win Firefox Card EUR</text>
+    <text x="6" y="114" class="mono">… 3 more …</text>
+  </g>
+  <text x="400" y="190" text-anchor="middle" class="sub">catches 60–90% of multi-param bugs</text>
+</svg>
+</div>
+<p>For a feature with N inputs that each have multiple values, testing every combination is exponential. Pairwise testing covers every <em>pair</em> of values across all inputs — empirically catches 60–90% of multi-parameter bugs with a fraction of the cases.</p>
 <p><strong>Example:</strong> a checkout with 4 parameters, 3 values each → 81 full combinations, but only ~9 cases for pairwise coverage:</p>
 <table>
 <thead><tr><th>OS</th><th>Browser</th><th>Payment</th><th>Currency</th></tr></thead>
@@ -877,7 +1178,73 @@ locked          tick(&gt; lockout)    anonymous</code></pre>
       q: "Name the ISO 25010 quality characteristics. Which do most teams under-test?",
       diff: "mid",
       tags: ["istqb", "non-functional"],
-      answer: `<p>Eight top-level characteristics, each with sub-characteristics:</p>
+      answer: `<div class="illus">
+<svg viewBox="0 0 520 260" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ISO 25010 quality characteristics wheel">
+  <style>
+    .ti { font: 600 11px ui-sans-serif, system-ui; fill: currentColor; }
+    .sub { font: 10.5px ui-sans-serif, system-ui; fill: var(--fg-dim); }
+    .lbl { font: 600 10.5px ui-sans-serif, system-ui; text-anchor: middle; fill: #fff; }
+    .ctr { font: 600 12px ui-sans-serif, system-ui; text-anchor: middle; fill: currentColor; }
+    .ok { fill: #2a9d8f; opacity: 0.85; }
+    .warn { fill: #e9c46a; opacity: 0.85; }
+    .gap { fill: #e76f51; opacity: 0.85; }
+  </style>
+  <g transform="translate(160, 130)">
+    <circle cx="0" cy="0" r="50" fill="var(--bg-soft)" stroke="currentColor"/>
+    <text x="0" y="-3" class="ctr">ISO</text>
+    <text x="0" y="14" class="ctr">25010</text>
+    <g transform="rotate(-90)">
+      <g transform="rotate(0)">
+        <path d="M 0 -55 L 0 -100 A 100 100 0 0 1 70.7 -70.7 L 38.9 -38.9 A 55 55 0 0 0 0 -55 Z" class="ok"/>
+        <text transform="rotate(22.5) translate(0,-78)" class="lbl">Functional</text>
+      </g>
+      <g transform="rotate(45)">
+        <path d="M 0 -55 L 0 -100 A 100 100 0 0 1 70.7 -70.7 L 38.9 -38.9 A 55 55 0 0 0 0 -55 Z" class="ok"/>
+        <text transform="rotate(22.5) translate(0,-78)" class="lbl">Performance</text>
+      </g>
+      <g transform="rotate(90)">
+        <path d="M 0 -55 L 0 -100 A 100 100 0 0 1 70.7 -70.7 L 38.9 -38.9 A 55 55 0 0 0 0 -55 Z" class="warn"/>
+        <text transform="rotate(22.5) translate(0,-78)" class="lbl" fill="#222">Compatibility</text>
+      </g>
+      <g transform="rotate(135)">
+        <path d="M 0 -55 L 0 -100 A 100 100 0 0 1 70.7 -70.7 L 38.9 -38.9 A 55 55 0 0 0 0 -55 Z" class="gap"/>
+        <text transform="rotate(22.5) translate(0,-78)" class="lbl">Usability</text>
+      </g>
+      <g transform="rotate(180)">
+        <path d="M 0 -55 L 0 -100 A 100 100 0 0 1 70.7 -70.7 L 38.9 -38.9 A 55 55 0 0 0 0 -55 Z" class="gap"/>
+        <text transform="rotate(22.5) translate(0,-78)" class="lbl">Reliability</text>
+      </g>
+      <g transform="rotate(225)">
+        <path d="M 0 -55 L 0 -100 A 100 100 0 0 1 70.7 -70.7 L 38.9 -38.9 A 55 55 0 0 0 0 -55 Z" class="gap"/>
+        <text transform="rotate(22.5) translate(0,-78)" class="lbl">Security</text>
+      </g>
+      <g transform="rotate(270)">
+        <path d="M 0 -55 L 0 -100 A 100 100 0 0 1 70.7 -70.7 L 38.9 -38.9 A 55 55 0 0 0 0 -55 Z" class="warn"/>
+        <text transform="rotate(22.5) translate(0,-78)" class="lbl" fill="#222">Maintainability</text>
+      </g>
+      <g transform="rotate(315)">
+        <path d="M 0 -55 L 0 -100 A 100 100 0 0 1 70.7 -70.7 L 38.9 -38.9 A 55 55 0 0 0 0 -55 Z" class="warn"/>
+        <text transform="rotate(22.5) translate(0,-78)" class="lbl" fill="#222">Portability</text>
+      </g>
+    </g>
+  </g>
+  <g transform="translate(330, 60)">
+    <rect x="0" y="0" width="14" height="14" class="ok"/>
+    <text x="22" y="11" class="sub">Usually tested well</text>
+    <rect x="0" y="22" width="14" height="14" class="warn"/>
+    <text x="22" y="33" class="sub">Partially tested</text>
+    <rect x="0" y="44" width="14" height="14" class="gap"/>
+    <text x="22" y="55" class="sub">Under-tested in most teams</text>
+  </g>
+  <text x="330" y="100" class="ti">Most-skipped corners:</text>
+  <text x="330" y="118" class="sub">▸ Reliability — chaos, dep failure, slow nets</text>
+  <text x="330" y="134" class="sub">▸ Usability — a11y, contrast, keyboard nav</text>
+  <text x="330" y="150" class="sub">▸ Security — IDOR, CSRF, SSRF beyond auth</text>
+  <text x="330" y="166" class="sub">▸ Maintainability — testability of the code</text>
+  <text x="260" y="248" text-anchor="middle" class="sub">Treat each segment as a question, not a check-box.</text>
+</svg>
+</div>
+<p>Eight top-level characteristics, each with sub-characteristics:</p>
 <ol>
 <li><strong>Functional suitability</strong> — completeness, correctness, appropriateness.</li>
 <li><strong>Performance efficiency</strong> — time behavior, resource use, capacity.</li>

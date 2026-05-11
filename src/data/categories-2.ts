@@ -10,21 +10,63 @@ const sql: Category = {
       q: "Explain INNER, LEFT, RIGHT, and FULL OUTER JOIN. When does QA use each?",
       diff: "easy",
       tags: ["sql", "joins"],
-      diagram: `graph TB
-  subgraph INNER["INNER JOIN — only matches"]
-    I1((A)) --- I2((B))
-  end
-  subgraph LEFT["LEFT JOIN — all A + matches"]
-    L1((A all)) --- L2((B match))
-  end
-  subgraph RIGHT["RIGHT JOIN — all B + matches"]
-    R1((A match)) --- R2((B all))
-  end
-  subgraph FULL["FULL OUTER — everything"]
-    F1((A all)) --- F2((B all))
-  end
-  INNER --> LEFT --> RIGHT --> FULL`,
-      answer: `<ul>
+      answer: `<div class="illus">
+<svg viewBox="0 0 520 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="JOIN types as Venn diagrams">
+  <style>
+    .ti { font: 600 12px ui-sans-serif, system-ui; fill: currentColor; }
+    .ax { font: 600 11px ui-sans-serif, system-ui; fill: currentColor; }
+    .sub { font: 10.5px ui-sans-serif, system-ui; fill: var(--fg-dim); }
+    .ring { fill: none; stroke: currentColor; stroke-width: 1.5; }
+    .sel { fill: #2a9d8f; opacity: 0.55; }
+  </style>
+  <g transform="translate(10,30)">
+    <text x="60" y="-12" text-anchor="middle" class="ti">INNER JOIN</text>
+    <defs>
+      <clipPath id="cA1"><circle cx="45" cy="55" r="32"/></clipPath>
+      <clipPath id="cB1"><circle cx="75" cy="55" r="32"/></clipPath>
+    </defs>
+    <circle cx="45" cy="55" r="32" class="ring"/>
+    <circle cx="75" cy="55" r="32" class="ring"/>
+    <circle cx="45" cy="55" r="32" class="sel" clip-path="url(#cB1)"/>
+    <text x="30" y="59" class="ax">A</text>
+    <text x="86" y="59" class="ax">B</text>
+    <text x="60" y="110" text-anchor="middle" class="sub">only matches</text>
+  </g>
+  <g transform="translate(140,30)">
+    <text x="60" y="-12" text-anchor="middle" class="ti">LEFT JOIN</text>
+    <defs>
+      <clipPath id="cA2"><circle cx="45" cy="55" r="32"/></clipPath>
+    </defs>
+    <circle cx="45" cy="55" r="32" class="sel"/>
+    <circle cx="45" cy="55" r="32" class="ring"/>
+    <circle cx="75" cy="55" r="32" class="ring"/>
+    <text x="30" y="59" class="ax">A</text>
+    <text x="86" y="59" class="ax">B</text>
+    <text x="60" y="110" text-anchor="middle" class="sub">all A + matches</text>
+  </g>
+  <g transform="translate(270,30)">
+    <text x="60" y="-12" text-anchor="middle" class="ti">RIGHT JOIN</text>
+    <circle cx="45" cy="55" r="32" class="ring"/>
+    <circle cx="75" cy="55" r="32" class="sel"/>
+    <circle cx="75" cy="55" r="32" class="ring"/>
+    <text x="30" y="59" class="ax">A</text>
+    <text x="86" y="59" class="ax">B</text>
+    <text x="60" y="110" text-anchor="middle" class="sub">all B + matches</text>
+  </g>
+  <g transform="translate(400,30)">
+    <text x="60" y="-12" text-anchor="middle" class="ti">FULL OUTER</text>
+    <circle cx="45" cy="55" r="32" class="sel"/>
+    <circle cx="75" cy="55" r="32" class="sel"/>
+    <circle cx="45" cy="55" r="32" class="ring"/>
+    <circle cx="75" cy="55" r="32" class="ring"/>
+    <text x="30" y="59" class="ax">A</text>
+    <text x="86" y="59" class="ax">B</text>
+    <text x="60" y="110" text-anchor="middle" class="sub">everything</text>
+  </g>
+  <text x="260" y="180" text-anchor="middle" class="sub">LEFT JOIN + WHERE right.id IS NULL = canonical "find orphans" pattern</text>
+</svg>
+</div>
+<ul>
 <li><strong>INNER JOIN</strong> — only rows with matches in both tables.</li>
 <li><strong>LEFT JOIN</strong> — all from left, matches from right (NULL otherwise).</li>
 <li><strong>RIGHT JOIN</strong> — mirror of LEFT.</li>
@@ -47,7 +89,52 @@ WHERE o.id IS NULL;</code></pre>
       q: "Primary key vs. foreign key vs. unique constraint?",
       diff: "easy",
       tags: ["sql", "schema"],
-      answer: `<ul>
+      answer: `<div class="illus">
+<svg viewBox="0 0 520 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Tables showing PK, FK, UNIQUE constraints">
+  <style>
+    .ti { font: 600 12px ui-sans-serif, system-ui; fill: currentColor; }
+    .col { font: 11.5px ui-monospace, "SF Mono", Menlo, Consolas, monospace; fill: currentColor; }
+    .sub { font: 10.5px ui-sans-serif, system-ui; fill: var(--fg-dim); }
+    .pk { fill: #e9c46a; }
+    .fk { fill: #0a3d6e; }
+    .uq { fill: #2a9d8f; }
+    .row { fill: var(--bg); stroke: currentColor; stroke-width: 1; opacity: 0.95; }
+    .arrow { stroke: #0a3d6e; stroke-width: 1.5; fill: none; }
+  </style>
+  <text x="80" y="20" text-anchor="middle" class="ti">users</text>
+  <rect x="20" y="28" width="180" height="120" rx="4" class="row"/>
+  <rect x="20" y="28" width="180" height="22" rx="4" class="pk"/>
+  <text x="30" y="44" class="col" fill="#222">🔑 id (PK)</text>
+  <rect x="20" y="50" width="180" height="22" rx="0" class="uq" opacity="0.4"/>
+  <text x="30" y="66" class="col">⊙ email (UNIQUE)</text>
+  <text x="30" y="88" class="col">  name</text>
+  <text x="30" y="108" class="col">  created_at</text>
+  <text x="380" y="20" text-anchor="middle" class="ti">orders</text>
+  <rect x="320" y="28" width="180" height="120" rx="4" class="row"/>
+  <rect x="320" y="28" width="180" height="22" rx="4" class="pk"/>
+  <text x="330" y="44" class="col" fill="#222">🔑 id (PK)</text>
+  <rect x="320" y="50" width="180" height="22" rx="0" class="fk" opacity="0.45"/>
+  <text x="330" y="66" class="col">→ user_id (FK)</text>
+  <text x="330" y="88" class="col">  total</text>
+  <text x="330" y="108" class="col">  status</text>
+  <path d="M 200 60 Q 260 60 320 60" class="arrow"/>
+  <text x="260" y="54" text-anchor="middle" class="sub">references users.id</text>
+  <g transform="translate(20, 170)">
+    <rect x="0" y="0" width="14" height="14" class="pk"/>
+    <text x="20" y="11" class="sub">PRIMARY KEY — NOT NULL + UNIQUE, one per table</text>
+  </g>
+  <g transform="translate(20, 190)">
+    <rect x="0" y="0" width="14" height="14" class="uq" opacity="0.6"/>
+    <text x="20" y="11" class="sub">UNIQUE — column(s) unique, nullable, many per table</text>
+  </g>
+  <g transform="translate(290, 180)">
+    <rect x="0" y="0" width="14" height="14" class="fk" opacity="0.6"/>
+    <text x="20" y="11" class="sub">FOREIGN KEY — referential integrity</text>
+    <text x="20" y="25" class="sub">ON DELETE: RESTRICT | CASCADE | SET NULL</text>
+  </g>
+</svg>
+</div>
+<ul>
 <li><strong>PRIMARY KEY</strong> — unique row identifier. NOT NULL + UNIQUE. One per table. Backed by clustered index.</li>
 <li><strong>FOREIGN KEY</strong> — references PK of another table. Enforces referential integrity.</li>
 <li><strong>UNIQUE</strong> — column(s) must be unique, can be nullable, multiple per table.</li>
@@ -79,7 +166,65 @@ SELECT salary FROM (
       q: "What is an index? When does it help, when does it hurt?",
       diff: "mid",
       tags: ["sql", "performance"],
-      answer: `<p>B-tree (typically) data structure that lets the DB find rows without a full scan.</p>
+      answer: `<div class="illus">
+<svg viewBox="0 0 520 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Index lookup vs full scan">
+  <style>
+    .ti { font: 600 12px ui-sans-serif, system-ui; fill: currentColor; }
+    .sub { font: 10.5px ui-sans-serif, system-ui; fill: var(--fg-dim); }
+    .row { fill: var(--bg); stroke: currentColor; stroke-width: 0.6; opacity: 0.5; }
+    .hit { fill: #2a9d8f; }
+    .miss { fill: #e76f51; opacity: 0.4; }
+    .node { fill: #0a3d6e; }
+    .link { stroke: currentColor; stroke-width: 1; fill: none; opacity: 0.6; }
+  </style>
+  <text x="115" y="16" text-anchor="middle" class="ti">❌ Full table scan</text>
+  <text x="115" y="32" text-anchor="middle" class="sub">WHERE email = 'kate@x.com' on un-indexed column</text>
+  <g transform="translate(20, 40)">
+    <rect x="0" y="0" width="190" height="140" rx="3" class="row"/>
+    <g>
+      <rect x="2" y="2" width="186" height="12" class="miss"/>
+      <rect x="2" y="14" width="186" height="12" class="miss"/>
+      <rect x="2" y="26" width="186" height="12" class="miss"/>
+      <rect x="2" y="38" width="186" height="12" class="miss"/>
+      <rect x="2" y="50" width="186" height="12" class="miss"/>
+      <rect x="2" y="62" width="186" height="12" class="hit"/>
+      <rect x="2" y="74" width="186" height="12" class="miss"/>
+      <rect x="2" y="86" width="186" height="12" class="miss"/>
+      <rect x="2" y="98" width="186" height="12" class="miss"/>
+      <rect x="2" y="110" width="186" height="12" class="miss"/>
+      <rect x="2" y="122" width="186" height="12" class="miss"/>
+    </g>
+  </g>
+  <text x="115" y="195" text-anchor="middle" class="sub">read every row → O(n)</text>
+  <text x="395" y="16" text-anchor="middle" class="ti">✓ Index seek (B-tree)</text>
+  <text x="395" y="32" text-anchor="middle" class="sub">CREATE INDEX idx_email ON users(email)</text>
+  <g transform="translate(290, 50)">
+    <rect x="80" y="0" width="50" height="22" rx="3" class="node"/>
+    <text x="105" y="14" text-anchor="middle" class="sub" fill="#fff">root</text>
+    <line x1="105" y1="22" x2="50" y2="45" class="link"/>
+    <line x1="105" y1="22" x2="105" y2="45" class="link"/>
+    <line x1="105" y1="22" x2="160" y2="45" class="link"/>
+    <rect x="25" y="45" width="50" height="22" rx="3" class="node" opacity="0.7"/>
+    <text x="50" y="59" text-anchor="middle" class="sub" fill="#fff">a–h</text>
+    <rect x="80" y="45" width="50" height="22" rx="3" class="hit"/>
+    <text x="105" y="59" text-anchor="middle" class="sub" fill="#fff">i–p</text>
+    <rect x="135" y="45" width="50" height="22" rx="3" class="node" opacity="0.7"/>
+    <text x="160" y="59" text-anchor="middle" class="sub" fill="#fff">q–z</text>
+    <line x1="105" y1="67" x2="80" y2="90" class="link"/>
+    <line x1="105" y1="67" x2="130" y2="90" class="link"/>
+    <rect x="55" y="90" width="50" height="22" rx="3" class="node" opacity="0.7"/>
+    <text x="80" y="104" text-anchor="middle" class="sub" fill="#fff">i–k</text>
+    <rect x="105" y="90" width="50" height="22" rx="3" class="hit"/>
+    <text x="130" y="104" text-anchor="middle" class="sub" fill="#fff">kate</text>
+    <line x1="130" y1="112" x2="130" y2="130" class="link"/>
+    <rect x="105" y="130" width="50" height="14" class="hit"/>
+    <text x="130" y="141" text-anchor="middle" class="sub" fill="#fff">→ row ptr</text>
+  </g>
+  <text x="395" y="180" text-anchor="middle" class="sub">log₂ steps → O(log n)</text>
+</svg>
+<div class="illus-caption">Index trades write speed + storage for read speed. Wrong on low-cardinality, low-read columns.</div>
+</div>
+<p>B-tree (typically) data structure that lets the DB find rows without a full scan.</p>
 <p><strong>Helps:</strong> WHERE on indexed columns, JOIN conditions, ORDER BY matching index, covering indexes (no table lookup).</p>
 <p><strong>Hurts:</strong></p>
 <ul>
@@ -96,21 +241,48 @@ SELECT salary FROM (
       diff: "hard",
       tags: ["sql", "performance"],
       answer: `<p><code>EXPLAIN</code> shows the planner's strategy: indexes used, join algorithms, estimated row counts.</p>
-<ol>
-<li><code>EXPLAIN ANALYZE</code> (Postgres) or <code>EXPLAIN FORMAT=JSON</code> (MySQL) for actual times.</li>
-<li>Look for <strong>Seq Scan / Full Table Scan</strong> on big tables — should be Index Scan.</li>
-<li>Estimated vs actual rows. Big mismatch = stale stats; run <code>ANALYZE</code>.</li>
-<li><strong>Nested loop joins on large tables</strong> usually want hash join.</li>
-<li>Sort operations spilling to disk = slow.</li>
-<li>Filter selectivity — is index actually useful?</li>
+<div class="code-walk">
+<pre class="code"><code>EXPLAIN ANALYZE
+SELECT u.email, COUNT(o.id) FROM users u
+LEFT JOIN orders o ON o.user_id = u.id
+WHERE u.country = 'RO' GROUP BY u.email;
+
+Limit (cost=12483.00..12500.00 rows=10 width=40) (actual time=842.1..843.0)
+  -&gt; HashAggregate (cost=...) (actual rows=14201)
+       -&gt; Hash Right Join (cost=...) (actual time=120..720)              ─ ①
+            Hash Cond: (o.user_id = u.id)
+            -&gt; Seq Scan on orders o (cost=0..9000) (actual rows=2_000_000) ─ ②
+            -&gt; Hash (rows=14201)
+                 -&gt; Seq Scan on users u                                    ─ ③
+                      Filter: (country = 'RO')
+                      Rows Removed by Filter: 985_799                       ─ ④
+Planning Time: 0.5 ms
+Execution Time: 843.1 ms                                                    ─ ⑤</code></pre>
+<ol class="code-walk-notes">
+  <li><span class="cw-num">1</span><span>Hash join — good for large unsorted sets. If you saw a Nested Loop here on millions of rows, that would be the smoking gun.</span></li>
+  <li><span class="cw-num">2</span><span>Seq Scan on 2M-row <code>orders</code>. The JOIN forces it; <code>orders.user_id</code> needs an index to convert this to an Index Scan.</span></li>
+  <li><span class="cw-num">3</span><span>Seq Scan on users too — <code>country</code> is unindexed.</span></li>
+  <li><span class="cw-num">4</span><span>"Rows Removed by Filter: 985_799" — the planner read 1M rows to keep 14K. A partial index on <code>(country) WHERE country='RO'</code> or a B-tree on <code>country</code> would slash this.</span></li>
+  <li><span class="cw-num">5</span><span>Actual time matters more than cost. Cost is a unit-less estimate; <code>ANALYZE</code> gives the real wall clock.</span></li>
 </ol>
-<p>Common fix: composite index matching WHERE/ORDER BY columns in correct order.</p>`
+</div>
+<p>Common fix here: <code>CREATE INDEX idx_orders_user_id ON orders(user_id)</code> and <code>CREATE INDEX idx_users_country ON users(country)</code>. Re-run EXPLAIN ANALYZE to confirm Index Scans replaced Seq Scans.</p>`
     },
     {
       id: "17c828de-0a58-4e7e-809a-d231cb2cdff0",
       q: "WHERE vs. HAVING?",
       diff: "easy",
       tags: ["sql"],
+      diagram: `flowchart LR
+  FROM["FROM orders"] --> WHERE["WHERE created_at &gt;= '2026-01-01'<br/>(filter ROWS before grouping)"]
+  WHERE --> GROUP["GROUP BY customer_id"]
+  GROUP --> HAVING["HAVING COUNT(*) &gt; 5<br/>(filter GROUPS after aggregation)"]
+  HAVING --> SELECT["SELECT customer_id, COUNT(*)"]
+  SELECT --> ORDER["ORDER BY count DESC"]
+  classDef early fill:#2a9d8f,color:#fff
+  classDef late fill:#e9c46a,color:#222
+  class WHERE early
+  class HAVING late`,
       answer: `<ul>
 <li><strong>WHERE</strong> filters rows <em>before</em> aggregation.</li>
 <li><strong>HAVING</strong> filters groups <em>after</em> aggregation.</li>
@@ -167,6 +339,20 @@ SELECT id, email FROM (
       q: "How do NULLs behave in SQL? List 3 gotchas.",
       diff: "mid",
       tags: ["sql"],
+      diagram: `flowchart TB
+  E1["NULL = NULL"] --> R1["UNKNOWN<br/>(not TRUE!)"]
+  E2["NULL != 'x'"] --> R1
+  E3["5 + NULL"] --> R2["NULL"]
+  E4["WHERE col = NULL"] --> R3["returns 0 rows<br/>(use IS NULL)"]
+  E5["COUNT(*)"] --> R4["counts NULLs ✓"]
+  E6["COUNT(col)"] --> R5["skips NULLs"]
+  E7["WHERE col != 'x'"] --> R6["excludes col IS NULL too<br/>(add OR col IS NULL)"]
+  classDef bad fill:#e76f51,color:#fff
+  classDef good fill:#2a9d8f,color:#fff
+  classDef warn fill:#e9c46a,color:#222
+  class R1,R2,R3,R6 warn
+  class R4 good
+  class R5 bad`,
       answer: `<ol>
 <li><strong>NULL is not equal to anything, even itself.</strong> <code>WHERE col = NULL</code> returns nothing. Use <code>IS NULL</code>.</li>
 <li><strong>NULL in arithmetic = NULL.</strong> <code>5 + NULL = NULL</code>. Use <code>COALESCE(col, 0)</code>.</li>
@@ -221,7 +407,46 @@ HAVING o.total != SUM(li.price * li.quantity);</code></pre>
       q: "What is a window function? Show one in use.",
       diff: "hard",
       tags: ["sql"],
-      answer: `<p>Window functions compute a value for each row using a "window" of related rows — without collapsing rows like GROUP BY does.</p>
+      answer: `<div class="illus">
+<svg viewBox="0 0 520 230" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Window function vs GROUP BY">
+  <style>
+    .ti { font: 600 11px ui-sans-serif, system-ui; fill: currentColor; }
+    .sub { font: 10.5px ui-sans-serif, system-ui; fill: var(--fg-dim); }
+    .mono { font: 11.5px ui-monospace, "SF Mono", Menlo, Consolas, monospace; fill: currentColor; }
+    .row { fill: var(--bg); stroke: currentColor; stroke-width: 0.6; }
+    .part1 { fill: #2a9d8f; opacity: 0.18; stroke: #2a9d8f; }
+    .part2 { fill: #e9c46a; opacity: 0.25; stroke: #e9c46a; }
+    .out { fill: #0a3d6e; }
+  </style>
+  <text x="10" y="16" class="ti">GROUP BY — collapses rows</text>
+  <rect x="10" y="22" width="200" height="80" class="row"/>
+  <text x="20" y="38" class="mono">cust  total</text>
+  <text x="20" y="54" class="mono">A     30</text>
+  <text x="20" y="68" class="mono">A     50  → sum 80</text>
+  <text x="20" y="82" class="mono">B     20  → sum 20</text>
+  <text x="100" y="100" class="sub">2 output rows</text>
+  <text x="260" y="16" class="ti">Window — preserves rows</text>
+  <rect x="260" y="22" width="250" height="80" class="row"/>
+  <text x="270" y="38" class="mono">cust  total  SUM() OVER (...)</text>
+  <text x="270" y="54" class="mono">A     30     30</text>
+  <text x="270" y="68" class="mono">A     50     80</text>
+  <text x="270" y="82" class="mono">B     20     20</text>
+  <text x="360" y="100" class="sub">3 output rows (running total)</text>
+  <text x="10" y="130" class="ti">PARTITION BY customer_id — windows isolate per partition</text>
+  <g transform="translate(10, 140)">
+    <rect x="0" y="0" width="240" height="60" class="part1"/>
+    <text x="120" y="14" text-anchor="middle" class="ti" fill="#2a9d8f">partition: customer A</text>
+    <text x="10" y="32" class="mono">ord1 30  rank=1</text>
+    <text x="10" y="48" class="mono">ord2 50  rank=2</text>
+    <rect x="260" y="0" width="240" height="60" class="part2"/>
+    <text x="380" y="14" text-anchor="middle" class="ti" fill="#b8860b">partition: customer B</text>
+    <text x="270" y="32" class="mono">ord3 20  rank=1</text>
+    <text x="270" y="48" class="mono">ord4 10  rank=2</text>
+  </g>
+  <text x="10" y="220" class="sub">Rank restarts inside each partition. Same idea for SUM, LAG, LEAD, ROW_NUMBER, etc.</text>
+</svg>
+</div>
+<p>Window functions compute a value for each row using a "window" of related rows — without collapsing rows like GROUP BY does.</p>
 <pre class="code"><code>-- Running total per customer
 SELECT
   customer_id,
@@ -326,29 +551,85 @@ CROSS JOIN colors c;</code></pre>
       diff: "hard",
       tags: ["sql", "queries"],
       answer: `<p>Classic "top N per group" — window function is the cleanest.</p>
+<div class="code-walk">
 <pre class="code"><code>SELECT category_id, product_id, total_sold
 FROM (
   SELECT
     p.category_id,
     p.id AS product_id,
-    SUM(oi.quantity) AS total_sold,
-    ROW_NUMBER() OVER (
-      PARTITION BY p.category_id
-      ORDER BY SUM(oi.quantity) DESC
+    SUM(oi.quantity) AS total_sold,                                  -- ①
+    ROW_NUMBER() OVER (                                              -- ②
+      PARTITION BY p.category_id                                     -- ③
+      ORDER BY SUM(oi.quantity) DESC                                 -- ④
     ) AS rnk
   FROM products p
   JOIN order_items oi ON oi.product_id = p.id
-  GROUP BY p.category_id, p.id
+  GROUP BY p.category_id, p.id                                       -- ⑤
 ) ranked
-WHERE rnk &lt;= 3;</code></pre>
-<p>Senior nuance: <code>ROW_NUMBER</code> assigns unique ranks (1, 2, 3, 4…) — ties broken arbitrarily. <code>DENSE_RANK</code> handles ties (1, 2, 2, 3). <code>RANK</code> skips after ties (1, 2, 2, 4). Choose based on whether ties should fit in the top 3.</p>`
+WHERE rnk &lt;= 3;                                                      -- ⑥</code></pre>
+<ol class="code-walk-notes">
+  <li><span class="cw-num">1</span><span>Aggregate first: total sold per product. The window will rank these aggregates.</span></li>
+  <li><span class="cw-num">2</span><span><code>ROW_NUMBER</code> assigns 1, 2, 3, 4… with ties broken arbitrarily. Pick <code>DENSE_RANK</code> if ties should both fit in the top 3.</span></li>
+  <li><span class="cw-num">3</span><span><code>PARTITION BY</code> restarts numbering inside each category — so each category gets its own 1..N ranking.</span></li>
+  <li><span class="cw-num">4</span><span>Window's <code>ORDER BY</code> defines the ranking direction. Highest sold = rank 1.</span></li>
+  <li><span class="cw-num">5</span><span>Both <code>category_id</code> and <code>p.id</code> in <code>GROUP BY</code> — required since we aggregate but want one row per product.</span></li>
+  <li><span class="cw-num">6</span><span>Filter on <code>rnk</code> must be outside the window — you can't reference a window alias in the same SELECT's WHERE. That's why this is a subquery.</span></li>
+</ol>
+</div>
+<p>Senior nuance: <code>ROW_NUMBER</code> vs <code>DENSE_RANK</code> vs <code>RANK</code> — picks the policy on ties. Ties (1, 2, 2, 3) vs ties + skip (1, 2, 2, 4) vs no ties (1, 2, 3, 4).</p>`
     },
     {
       id: "ac162a1a-8874-409e-b7ba-563e235d5f42",
       q: "Difference between a clustered and non-clustered index?",
       diff: "mid",
       tags: ["sql", "indexes"],
-      answer: `<ul>
+      answer: `<div class="illus">
+<svg viewBox="0 0 520 210" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Clustered vs non-clustered index storage layout">
+  <style>
+    .ti { font: 600 12px ui-sans-serif, system-ui; fill: currentColor; }
+    .sub { font: 10.5px ui-sans-serif, system-ui; fill: var(--fg-dim); }
+    .mono { font: 11px ui-monospace, "SF Mono", Menlo, Consolas, monospace; fill: currentColor; }
+    .frame { fill: var(--bg); stroke: currentColor; stroke-width: 1; }
+    .data { fill: #0a3d6e; }
+    .idx { fill: #2a9d8f; }
+    .arrow { stroke: currentColor; stroke-width: 1; fill: none; opacity: 0.6; }
+  </style>
+  <text x="130" y="14" text-anchor="middle" class="ti">Clustered (PK on id)</text>
+  <text x="130" y="28" text-anchor="middle" class="sub">data PHYSICALLY ordered by id</text>
+  <rect x="20" y="36" width="220" height="120" rx="3" class="frame"/>
+  <rect x="20" y="36" width="220" height="20" class="data"/>
+  <text x="130" y="50" text-anchor="middle" class="mono" fill="#fff">id   | email | name | …</text>
+  <text x="30" y="70" class="mono">1   alice@   Alice</text>
+  <text x="30" y="86" class="mono">2   bob@     Bob</text>
+  <text x="30" y="102" class="mono">3   carol@   Carol</text>
+  <text x="30" y="118" class="mono">4   dan@     Dan</text>
+  <text x="30" y="134" class="mono">5   eve@     Eve</text>
+  <text x="130" y="150" text-anchor="middle" class="sub">one per table · lookup by id = O(log n) + zero hops</text>
+  <text x="390" y="14" text-anchor="middle" class="ti">Non-clustered (idx on email)</text>
+  <text x="390" y="28" text-anchor="middle" class="sub">separate structure + row pointer</text>
+  <rect x="290" y="36" width="100" height="120" rx="3" class="frame"/>
+  <rect x="290" y="36" width="100" height="20" class="idx"/>
+  <text x="340" y="50" text-anchor="middle" class="mono" fill="#fff">email → ptr</text>
+  <text x="300" y="70" class="mono">alice@ →</text>
+  <text x="300" y="86" class="mono">bob@   →</text>
+  <text x="300" y="102" class="mono">carol@ →</text>
+  <text x="300" y="118" class="mono">dan@   →</text>
+  <text x="300" y="134" class="mono">eve@   →</text>
+  <rect x="430" y="36" width="80" height="120" rx="3" class="frame"/>
+  <rect x="430" y="36" width="80" height="20" class="data"/>
+  <text x="470" y="50" text-anchor="middle" class="mono" fill="#fff">table</text>
+  <text x="438" y="70" class="mono">1 alice</text>
+  <text x="438" y="86" class="mono">2 bob</text>
+  <text x="438" y="102" class="mono">3 carol</text>
+  <text x="438" y="118" class="mono">4 dan</text>
+  <text x="438" y="134" class="mono">5 eve</text>
+  <path d="M 390 75 Q 410 75 430 75" class="arrow" marker-end="url(#a)"/>
+  <defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="currentColor" opacity="0.6"/></marker></defs>
+  <text x="390" y="170" text-anchor="middle" class="sub">many per table · extra "key lookup" unless covering</text>
+  <text x="260" y="200" text-anchor="middle" class="sub">More non-clustered indexes ⇒ faster reads on those columns, slower writes (all indexes update).</text>
+</svg>
+</div>
+<ul>
 <li><strong>Clustered index</strong> — defines the physical storage order of the table. One per table (typically the primary key). Lookups by clustered key are fastest because data is right there.</li>
 <li><strong>Non-clustered index</strong> — separate structure with pointers to the table rows. Many per table. Lookups require an extra "key lookup" step to fetch full row data, unless the index is "covering" (includes all needed columns).</li>
 </ul>
@@ -439,14 +720,46 @@ const frameworkArch: Category = {
       diff: "mid",
       tags: ["pom"],
       answer: `<p>POM encapsulates UI interaction in classes — one per page or major component.</p>
-<p><strong>Anti-patterns:</strong></p>
-<ul>
-<li><strong>Methods mirroring selectors</strong> — <code>clickSubmitButton()</code> bad, <code>placeOrder()</code> good.</li>
-<li><strong>Returning Locators from public methods</strong> — leaks internals, breaks encapsulation.</li>
-<li><strong>Assertions in POM</strong> — controversial. Playwright team says assertions belong in tests; precondition assertions in POM are defensible.</li>
-<li><strong>Inheritance 5 levels deep</strong> — composition over inheritance. BasePage is fine; AbstractFooBarBasePage is not.</li>
-</ul>
-<p>Modern alternative: <strong>Feature Object</strong> — organize by user-facing feature, often better for SPAs.</p>`
+<div class="code-walk">
+<pre class="code"><code>// ❌ Anti-pattern POM
+export class CheckoutPage {
+  page: Page;                                                       // ①
+  submitButton: Locator;                                            // ②
+  constructor(page: Page) {
+    this.page = page;
+    this.submitButton = page.locator('button.btn-primary');         // ③
+  }
+  async clickSubmitButton() { await this.submitButton.click(); }    // ④
+  getCartItem(idx: number) {                                        // ⑤
+    return this.page.locator('.cart-item').nth(idx);
+  }
+}
+
+// ✓ Senior POM
+export class CheckoutPage {
+  private readonly page: Page;
+  private readonly placeOrderBtn: Locator;
+  private readonly confirmation: Locator;
+  constructor(page: Page) {
+    this.page = page;
+    this.placeOrderBtn = page.getByRole('button', { name: 'Place order' });
+    this.confirmation = page.getByRole('heading', { name: /order confirmed/i });
+  }
+  async placeOrder() {                                              // ⑥
+    await this.placeOrderBtn.click();
+    await expect(this.confirmation).toBeVisible();
+  }
+}</code></pre>
+<ol class="code-walk-notes">
+  <li><span class="cw-num">1</span><span><code>page</code> is public — tests can reach in and bypass the POM entirely. Encapsulation broken.</span></li>
+  <li><span class="cw-num">2</span><span>Locator is public — tests can grab it, build their own chains, and the POM no longer controls behavior.</span></li>
+  <li><span class="cw-num">3</span><span>CSS-class selector breaks on the next style refactor. Use <code>getByRole</code>/<code>getByTestId</code>.</span></li>
+  <li><span class="cw-num">4</span><span>Method name leaks implementation. The test reads <code>clickSubmitButton</code> instead of <code>placeOrder</code> — intent is lost.</span></li>
+  <li><span class="cw-num">5</span><span>Returning a Locator from a public method invites tests to grow brittle chains outside the POM.</span></li>
+  <li><span class="cw-num">6</span><span>Intent-named, fully private internals, asserts its own post-condition. Tests just call <code>placeOrder()</code> and trust the outcome.</span></li>
+</ol>
+</div>
+<p>Other anti-patterns: assertions sprawled into POM (precondition checks are OK; outcome assertions belong in the test), inheritance 5 levels deep (prefer composition). Modern alternative: <strong>Feature Object</strong> — organize by user-facing feature instead of page, often better for SPAs.</p>`
     },
     {
       id: "673a4596-9bc0-40c6-9442-2625e44e9409",
@@ -575,6 +888,32 @@ export const test = mergeTests(authTest, dataTest);</code></pre>
       q: "Architect a test framework shared across 4 product teams.",
       diff: "hard",
       tags: ["architecture", "scale"],
+      diagram: `graph TB
+  subgraph PLAT["Platform team (owns core)"]
+    CORE["@org/test-core<br/>npm package, semver"]
+    TPL["shared CI templates<br/>GH Actions reusable workflows"]
+    DOC["docs site<br/>+ RFCs for breaking changes"]
+  end
+  subgraph TEAMS["Product teams (own tests)"]
+    T1["Team A<br/>repo: app-a-tests"]
+    T2["Team B<br/>repo: app-b-tests"]
+    T3["Team C<br/>repo: app-c-tests"]
+    T4["Team D<br/>repo: app-d-tests"]
+  end
+  CORE --> T1
+  CORE --> T2
+  CORE --> T3
+  CORE --> T4
+  TPL -.-> T1
+  TPL -.-> T2
+  TPL -.-> T3
+  TPL -.-> T4
+  T1 -. RFC / PR .-> CORE
+  T2 -. office hours .-> PLAT
+  classDef plat fill:#0a3d6e,color:#fff
+  classDef team fill:#2a9d8f,color:#fff
+  class CORE,TPL,DOC plat
+  class T1,T2,T3,T4 team`,
       answer: `<p>Treat the framework as an internal product:</p>
 <ul>
 <li><strong>Core library as npm package</strong> — versioned, semver, changelog.</li>
