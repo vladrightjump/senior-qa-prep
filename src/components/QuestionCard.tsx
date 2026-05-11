@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Question, QuestionComment } from "../types";
+import { Diagram } from "./Diagram";
 
 interface QuestionCardProps {
   question: Question;
@@ -115,7 +116,10 @@ export function QuestionCard({
         <span className="q-chevron">›</span>
       </button>
       {isOpen && (
-        <div className="q-detail" dangerouslySetInnerHTML={{ __html: question.answer }} />
+        <div className="q-detail">
+          {question.diagram && <Diagram source={question.diagram} />}
+          <div dangerouslySetInnerHTML={{ __html: question.answer }} />
+        </div>
       )}
       {isCommentsOpen && (
         <div className="q-comments">

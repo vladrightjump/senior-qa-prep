@@ -49,6 +49,20 @@ const ciFlakiness: Category = {
       q: "Walk through your investigation process for a flaky test.",
       diff: "hard",
       tags: ["flakiness", "debugging"],
+      diagram: `flowchart TD
+  R["Reproduce<br/>(--repeat-each=20)"] --> T["Trace viewer<br/>inspect failure"]
+  T --> CAT{"Categorize"}
+  CAT --> AW[Auto-wait gap]
+  CAT --> RC[Race condition]
+  CAT --> ISO[Test isolation]
+  CAT --> ANIM[Animation]
+  CAT --> NET[Network / 3rd party]
+  CAT --> SEL[Selector ambiguity]
+  AW & RC & ISO & ANIM & NET & SEL --> FIX["Fix root cause<br/>(never just sleep)"]
+  FIX --> V["Verify<br/>(--repeat-each=50, 100%)"]
+  V --> Q{"Still flaky?"}
+  Q -->|yes| QUAR["Quarantine + ticket"]
+  Q -->|no| DONE[Ship]`,
       answer: `<ol>
 <li><strong>Reproduce</strong> — <code>--repeat-each=20</code> locally and in CI. Confirm flake rate.</li>
 <li><strong>Trace viewer</strong> — capture <code>trace: 'on'</code>, run until fail, inspect.</li>
@@ -146,6 +160,15 @@ setup('authenticate', async ({ page }) =&gt; {
       q: "Design a CI strategy: PR vs. nightly vs. on-demand.",
       diff: "mid",
       tags: ["ci", "strategy"],
+      diagram: `flowchart LR
+  PR["PR opened"] --> Q1["Lint + unit<br/>+ smoke E2E<br/><10 min"]
+  Q1 -->|"pass"| MERGE["Merge to main"]
+  MERGE --> Q2["Affected tests<br/>+ integration"]
+  Q2 -->|"pass"| ART["Build artifact"]
+  ART --> PRED["Pre-deploy smoke"]
+  PRED -->|"green"| DEPLOY["Deploy"]
+  NIGHT["Nightly cron"] --> FULL["Full regression<br/>against staging"]
+  ONDEM["On-demand"] --> PERF["Performance / load<br/>exploratory"]`,
       answer: `<table style="width:100%; font-size:13px; border-collapse: collapse;">
 <tr><th style="text-align:left; padding:6px;">Trigger</th><th style="text-align:left; padding:6px;">Runs</th><th style="text-align:left; padding:6px;">Goal</th></tr>
 <tr><td style="padding:6px;">PR</td><td>Lint + unit + smoke E2E</td><td>&lt;10 min</td></tr>
@@ -528,6 +551,14 @@ Open questions: behavior when 3DS times out?</code></pre>
       q: "What is the testing pyramid? When does it not apply?",
       diff: "mid",
       tags: ["strategy", "pyramid"],
+      diagram: `graph TD
+  E2E["E2E&nbsp;tests<br/>(slow, brittle, few)"]:::top
+  INT["Integration / API<br/>(medium speed, some)"]:::mid
+  UNIT["Unit tests<br/>(fast, isolated, many)"]:::base
+  E2E --> INT --> UNIT
+  classDef top fill:#f4a261,stroke:#333,color:#222
+  classDef mid fill:#e9c46a,stroke:#333,color:#222
+  classDef base fill:#2a9d8f,stroke:#333,color:#fff`,
       answer: `<p>Pyramid: many unit tests at the base, fewer integration in the middle, fewest E2E at the top. Optimizes for speed and reliability.</p>
 <p><strong>When it doesn't fit:</strong></p>
 <ul>
@@ -584,6 +615,20 @@ Notes:
       q: "Walk through the four test levels. What belongs at each — and what doesn't?",
       diff: "mid",
       tags: ["istqb", "test-levels"],
+      diagram: `graph TB
+  L4["Acceptance<br/>Product + users — does it meet needs?"]
+  L3["System<br/>QA — end-to-end behaviour"]
+  L2["Integration<br/>Devs + QA — interfaces, contracts"]
+  L1["Component / Unit<br/>Developers — logic in isolation"]
+  L4 --> L3 --> L2 --> L1
+  classDef accept fill:#2a9d8f,color:#fff
+  classDef system fill:#e9c46a,color:#222
+  classDef integ fill:#f4a261,color:#222
+  classDef unit fill:#264653,color:#fff
+  class L4 accept
+  class L3 system
+  class L2 integ
+  class L1 unit`,
       answer: `<table>
 <thead><tr><th>Level</th><th>Tests</th><th>Owned by</th><th>Belongs</th></tr></thead>
 <tbody>
@@ -678,6 +723,21 @@ Notes:
       q: "Walk through the defect lifecycle. Who owns each state?",
       diff: "mid",
       tags: ["istqb", "defects"],
+      diagram: `stateDiagram-v2
+  [*] --> New: tester files
+  New --> Triaged: triage / PM
+  New --> Rejected: not a bug
+  New --> Duplicate
+  Triaged --> InProgress: dev assigned
+  Triaged --> Deferred
+  InProgress --> Fixed: code merged
+  Fixed --> Verified: tester confirms
+  Fixed --> Reopened: still broken
+  Reopened --> InProgress
+  Verified --> [*]
+  Rejected --> [*]
+  Duplicate --> [*]
+  Deferred --> [*]`,
       answer: `<ol>
 <li><strong>New</strong> — tester filed it. Owner: <em>tester</em> (until triaged).</li>
 <li><strong>Triaged / Open</strong> — confirmed, prioritized, assigned. Owner: <em>triage lead / PM</em>.</li>
@@ -696,6 +756,17 @@ Notes:
       q: "Design state transition tests for a session-token system.",
       diff: "hard",
       tags: ["istqb", "technique"],
+      diagram: `stateDiagram-v2
+  [*] --> anonymous
+  anonymous --> authenticated: login(valid)
+  anonymous --> locked: login invalid x5
+  authenticated --> anonymous: logout
+  authenticated --> expired: tick > ttl
+  authenticated --> revoked: admin-revoke
+  expired --> authenticated: refresh(valid)
+  expired --> anonymous: refresh(invalid)
+  locked --> anonymous: tick > lockout
+  revoked --> [*]`,
       answer: `<p>State transition testing models the system as states + transitions + events, then designs tests to cover them.</p>
 <p><strong>States</strong>: <code>anonymous</code>, <code>authenticated</code>, <code>expired</code>, <code>revoked</code>, <code>locked</code>.</p>
 <p><strong>Events</strong>: <code>login</code>, <code>logout</code>, <code>tick</code> (time passes), <code>admin-revoke</code>, <code>5 failed logins</code>.</p>

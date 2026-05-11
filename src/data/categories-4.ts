@@ -559,6 +559,20 @@ test('orderStatus returns typed enum value', async () => {
       q: "Walk through a complete Pact consumer test — what does it actually produce?",
       diff: "hard",
       tags: ["contracts", "pact", "api"],
+      diagram: `sequenceDiagram
+  participant T as Consumer test
+  participant M as Pact mock server
+  participant F as pacts/*.json
+  participant B as Pact Broker
+  participant P as Provider CI
+  T->>M: describe expected req/res
+  T->>M: actual API call
+  M-->>T: stubbed response
+  M->>F: write contract file
+  F->>B: publish (on green)
+  B->>P: pull latest contracts
+  P->>P: replay against real code
+  P->>B: verification result`,
       answer: `<p>Pact records your consumer's expectations as a contract file. The provider verifies those expectations against their real implementation. No shared test environment needed.</p>
 <pre class="code"><code>// consumer.spec.ts — Order UI consuming Order API
 import { PactV3, MatchersV3 } from '@pact-foundation/pact';
@@ -1643,6 +1657,11 @@ for (let i = 0; i &lt; 3; i++) setTimeout(() =&gt; console.log(i), 0);</code></p
       q: "Walk through the event loop. In what order does this code print?",
       diff: "hard",
       tags: ["javascript", "async"],
+      diagram: `graph LR
+  STACK["Call stack<br/>(sync code)"] -->|"empty"| MICRO["Microtask queue<br/>Promise.then, queueMicrotask, await"]
+  MICRO -->|"drain ALL<br/>before next macro"| MACRO["Macrotask queue<br/>setTimeout, setInterval, I/O"]
+  MACRO -->|"pick one"| STACK
+  RENDER["Browser render<br/>(between macrotasks)"] -.-> MACRO`,
       answer: `<pre class="code"><code>console.log('1');
 setTimeout(() =&gt; console.log('2'), 0);
 Promise.resolve().then(() =&gt; console.log('3'));
@@ -1693,6 +1712,13 @@ const onSearch = debounce((query: string) =&gt; doSearch(query), 300);</code></p
       q: "Promise.all vs allSettled vs race vs any — when do you use each?",
       diff: "mid",
       tags: ["javascript", "async"],
+      diagram: `graph TB
+  ALL["Promise.all<br/>resolve: all fulfill<br/>reject: first reject<br/>→ aborts on failure"]
+  SETTLED["Promise.allSettled<br/>resolve: ALL settle<br/>never rejects<br/>→ see every outcome"]
+  RACE["Promise.race<br/>resolve/reject:<br/>FIRST to settle<br/>→ timeout pattern"]
+  ANY["Promise.any<br/>resolve: first FULFILL<br/>reject: all reject<br/>→ failover pattern"]
+  ALL ~~~ SETTLED
+  RACE ~~~ ANY`,
       answer: `<table>
 <thead><tr><th>API</th><th>Settles when</th><th>Use when</th></tr></thead>
 <tbody>
@@ -1724,6 +1750,15 @@ const result = await Promise.any([fetch(primaryUrl), fetch(replicaUrl)]);</code>
       q: "Implement retry with exponential backoff and jitter.",
       diff: "hard",
       tags: ["javascript", "async", "qa"],
+      diagram: `flowchart TD
+  START["Call fn()"] --> TRY{"Success?"}
+  TRY -->|yes| OK["return result"]
+  TRY -->|no| RETRYABLE{"Retryable error?<br/>(network / 5xx, NOT 4xx)"}
+  RETRYABLE -->|no| FAIL["throw immediately"]
+  RETRYABLE -->|yes| MAX{"attempts left?"}
+  MAX -->|no| FAIL
+  MAX -->|yes| WAIT["wait: base * 2^n<br/>+ random jitter"]
+  WAIT --> START`,
       answer: `<p>The senior version handles: backoff growth, max retries, jitter (to avoid thundering herds), and a predicate that decides which errors are retryable.</p>
 <pre class="code"><code>interface RetryOpts {
   attempts?: number;       // default 3

@@ -6,6 +6,9 @@ export interface Question {
   diff: Difficulty;
   tags?: string[];
   answer: string;
+  // Optional Mermaid diagram source (e.g. `graph TD; A-->B`). Rendered above
+  // the answer body when present.
+  diagram?: string;
 }
 
 export interface QuestionComment {

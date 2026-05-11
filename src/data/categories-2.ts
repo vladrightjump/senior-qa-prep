@@ -10,6 +10,20 @@ const sql: Category = {
       q: "Explain INNER, LEFT, RIGHT, and FULL OUTER JOIN. When does QA use each?",
       diff: "easy",
       tags: ["sql", "joins"],
+      diagram: `graph TB
+  subgraph INNER["INNER JOIN — only matches"]
+    I1((A)) --- I2((B))
+  end
+  subgraph LEFT["LEFT JOIN — all A + matches"]
+    L1((A all)) --- L2((B match))
+  end
+  subgraph RIGHT["RIGHT JOIN — all B + matches"]
+    R1((A match)) --- R2((B all))
+  end
+  subgraph FULL["FULL OUTER — everything"]
+    F1((A all)) --- F2((B all))
+  end
+  INNER --> LEFT --> RIGHT --> FULL`,
       answer: `<ul>
 <li><strong>INNER JOIN</strong> — only rows with matches in both tables.</li>
 <li><strong>LEFT JOIN</strong> — all from left, matches from right (NULL otherwise).</li>
@@ -360,6 +374,18 @@ const frameworkArch: Category = {
       q: "Walk through the folder structure of a senior-grade Playwright + TS framework.",
       diff: "mid",
       tags: ["architecture"],
+      diagram: `graph TD
+  ROOT["project-root/"] --> TESTS["tests/<br/>specs only"]
+  ROOT --> PAGES["pages/<br/>POMs (UI)"]
+  ROOT --> API["api/<br/>REST wrappers"]
+  ROOT --> FIX["fixtures/<br/>composed test export"]
+  ROOT --> DATA["data/<br/>factories"]
+  ROOT --> UTILS["utils/"]
+  ROOT --> SCHEMAS["schemas/<br/>JSON Schemas"]
+  ROOT --> CFG["config/<br/>per-env"]
+  TESTS --> CHK[checkout/]
+  TESTS --> AUTH[auth/]
+  TESTS --> APIT[api/]`,
       answer: `<pre class="code"><code>project-root/
 ├── tests/                  # Test specs only — no logic
 │   ├── checkout/
@@ -422,6 +448,15 @@ export const test = mergeTests(authTest, dataTest);</code></pre>
       q: "How do you decide between E2E, integration, and unit tests?",
       diff: "hard",
       tags: ["strategy", "pyramid"],
+      diagram: `flowchart TD
+  Q{"What am I testing?"}
+  Q -->|"Pure logic, no I/O"| UNIT["Unit test<br/>(ms, isolated)"]
+  Q -->|"Module / API + DB"| INT["Integration test<br/>(seconds)"]
+  Q -->|"Critical user journey"| E2E["E2E<br/>(minutes, full stack)"]
+  Q -->|"Other"| ASK{"Cheapest test<br/>that gives confidence?"}
+  ASK --> UNIT
+  ASK --> INT
+  ASK --> E2E`,
       answer: `<ul>
 <li><strong>Unit</strong> — pure logic. Cart math, formatters, validators. Fast, deterministic, no I/O.</li>
 <li><strong>Integration / component</strong> — module interaction. UI form with validation, API + DB.</li>

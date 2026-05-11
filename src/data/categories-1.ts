@@ -751,6 +751,12 @@ expect(recovery.status()).toBe(200);</code></pre>
       q: "What is contract testing? When do you introduce it?",
       diff: "hard",
       tags: ["api", "architecture"],
+      diagram: `graph LR
+  C["Consumer team<br/>(frontend)"] -->|"writes Pact tests<br/>(expected req/res)"| PACT[(Pact Broker)]
+  PACT -->|"contracts"| P["Provider team<br/>(API service)"]
+  P -->|"verification results"| PACT
+  P -->|"can I deploy?"| PACT
+  PACT -->|"yes / no — compatibility"| P`,
       answer: `<p>Contract tests (Pact) verify the consumer's expectations match the provider's API, without full E2E. Consumer defines expected requests/responses; provider replays them in their CI.</p>
 <p><strong>Introduce when:</strong></p>
 <ul>
@@ -765,6 +771,21 @@ expect(recovery.status()).toBe(200);</code></pre>
       q: "How do you test a race condition like two users buying the last seat?",
       diff: "hard",
       tags: ["api", "concurrency"],
+      diagram: `sequenceDiagram
+  participant A as User A
+  participant B as User B
+  participant API as API
+  participant DB as DB (1 seat left)
+  par concurrent
+    A->>API: POST /seats/42/claim
+    B->>API: POST /seats/42/claim
+  end
+  API->>DB: SELECT...FOR UPDATE (row lock)
+  DB-->>API: lock acquired (A wins)
+  API-->>A: 200 OK
+  API->>DB: SELECT...FOR UPDATE (B waits)
+  DB-->>API: seat already claimed
+  API-->>B: 409 Conflict`,
       answer: `<pre class="code"><code>test('only one user can claim the last seat', async ({ request }) =&gt; {
   const seatId = await seedAvailableSeat();
 
@@ -786,6 +807,23 @@ expect(recovery.status()).toBe(200);</code></pre>
       q: "Walk through testing a webhook: signature, retries, idempotency.",
       diff: "hard",
       tags: ["api", "webhooks"],
+      diagram: `sequenceDiagram
+  participant S as Sender
+  participant R as Receiver (test fixture)
+  S->>R: POST /hook (event, X-Signature)
+  R->>R: recompute HMAC, compare
+  alt 5xx response
+    R-->>S: 500
+    S->>S: backoff 1m, 5m, 30m...
+    S->>R: retry
+  else timeout (>30s)
+    R-->>S: (no response)
+    S->>R: retry
+  else duplicate event
+    S->>R: same event_id again
+    R->>R: dedupe, side effect once
+    R-->>S: 200
+  end`,
       answer: `<ol>
 <li><strong>Local receiver</strong> — Express server in fixture, records calls.</li>
 <li><strong>Trigger event</strong> — make system fire webhook.</li>
@@ -912,6 +950,13 @@ GET /users?id=1;%20WAITFOR%20DELAY%20'00:00:05'</code></pre>
       q: "Explain JWT structure and what to test about it.",
       diff: "mid",
       tags: ["security", "auth"],
+      diagram: `graph LR
+  T["xxxxx.yyyyy.zzzzz"] --> H["Header<br/>alg, typ"]
+  T --> P["Payload<br/>sub, exp, role, iat"]
+  T --> S["Signature<br/>HMAC(header+payload, secret)"]
+  H -.base64.-> T
+  P -.base64.-> T
+  S -.verifies.-> P`,
       answer: `<p>JWT = three base64-encoded parts joined by dots: <code>header.payload.signature</code></p>
 <pre class="code"><code>// Header: { "alg": "HS256", "typ": "JWT" }
 // Payload: { "sub": "user123", "exp": 1736000000, "role": "admin" }
@@ -931,6 +976,20 @@ GET /users?id=1;%20WAITFOR%20DELAY%20'00:00:05'</code></pre>
       q: "What is OAuth 2.0 and how do you test an OAuth flow?",
       diff: "hard",
       tags: ["security", "auth"],
+      diagram: `sequenceDiagram
+  participant U as User
+  participant A as App (client)
+  participant AS as Auth Server
+  participant API as Resource API
+  U->>A: Click "Log in"
+  A->>AS: /authorize (client_id, code_challenge, scopes)
+  AS->>U: Login + consent
+  U->>AS: Approve
+  AS-->>A: redirect with auth code
+  A->>AS: /token (code + code_verifier)
+  AS-->>A: access_token + refresh_token
+  A->>API: GET /me  (Bearer access_token)
+  API-->>A: 200 user data`,
       answer: `<p>OAuth 2.0 is an authorization framework. The user authorizes an app to access resources on their behalf without sharing credentials. Most common flow: <strong>Authorization Code with PKCE</strong>.</p>
 <ol>
 <li>App redirects user to authorization server.</li>
