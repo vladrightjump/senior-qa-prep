@@ -88,6 +88,19 @@ type MaybeArray&lt;T&gt; = T | T[];</code></pre>
       q: "What is a discriminated union and how do you use one in a test framework?",
       diff: "hard",
       tags: ["typescript", "patterns"],
+      diagram: `graph TB
+  UNION["APIResult&lt;T&gt;<br/>(discriminated by 'status')"]
+  UNION --> OK["status: 'ok'<br/>data: T"]
+  UNION --> ERR["status: 'error'<br/>message: string<br/>code: number"]
+  UNION --> LOAD["status: 'loading'<br/>(no extra fields)"]
+  CHECK["if (result.status === 'ok')"] -.narrows.-> OK
+  CHECK2["if (result.status === 'error')"] -.narrows.-> ERR
+  classDef ok fill:#2a9d8f,color:#fff
+  classDef err fill:#e76f51,color:#fff
+  classDef load fill:#e9c46a,color:#222
+  class OK ok
+  class ERR err
+  class LOAD load`,
       answer: `<p>A discriminated union is a union of types sharing a common literal field (the discriminant). TypeScript narrows the type based on that field — no casts needed.</p>
 <pre class="code"><code>type APIResult&lt;T&gt; =
   | { status: 'ok';      data: T             }
@@ -1111,6 +1124,24 @@ const featureFlags: Category = {
       q: "How do you structure tests when a feature has three states: off, on, and 10% rollout?",
       diff: "hard",
       tags: ["feature-flags", "strategy"],
+      diagram: `stateDiagram-v2
+  [*] --> OFF
+  OFF --> ON: enable for everyone
+  OFF --> PARTIAL: 10% rollout
+  PARTIAL --> ON: ramp to 100%
+  PARTIAL --> OFF: kill switch
+  ON --> OFF: revert
+  state OFF {
+    [*] --> legacy_path
+  }
+  state ON {
+    [*] --> new_path
+  }
+  state PARTIAL {
+    [*] --> sampled
+    sampled --> bucket_A: hash(user) < 10%
+    sampled --> bucket_B: else
+  }`,
       answer: `<p>Model all three states explicitly. Never depend on the rollout sampling — you cannot control which bucket your test lands in.</p>
 <pre class="code"><code>// Fixture: force-set flags per test, reset on teardown
 const test = base.extend&lt;{ flags: FlagClient }&gt;({
@@ -1625,6 +1656,21 @@ const programmingFundamentals: Category = {
       q: "Explain closures with a concrete QA-flavored example.",
       diff: "mid",
       tags: ["javascript", "fundamentals"],
+      diagram: `graph TB
+  subgraph GLOBAL["Global scope"]
+    G["const retryFast = makeRetryer(3, 100)"]
+  end
+  subgraph OUTER["makeRetryer scope (finished)"]
+    A["maxAttempts = 3"]
+    B["baseDelayMs = 100"]
+  end
+  subgraph INNER["Returned retry() function"]
+    F["uses maxAttempts<br/>uses baseDelayMs"]
+  end
+  G --> INNER
+  INNER -.closes over.-> A
+  INNER -.closes over.-> B
+  NOTE["⚡ outer scope finished,<br/>but variables stay alive<br/>because inner refs them"] -.-> OUTER`,
       answer: `<p>A <strong>closure</strong> is a function that retains access to variables from its lexical scope even after that scope has finished executing. The inner function "closes over" outer variables.</p>
 <pre class="code"><code>// QA example: build a retry helper that remembers its config
 function makeRetryer(maxAttempts: number, baseDelayMs: number) {
@@ -1686,6 +1732,21 @@ console.log('5');</code></pre>
       q: "Implement debounce. When would you use throttle instead?",
       diff: "mid",
       tags: ["javascript", "async"],
+      diagram: `graph TB
+  subgraph RAW["User input — every keystroke"]
+    R1["k k k k k"]
+    R2["          k k k"]
+  end
+  subgraph DEB["Debounce(300ms) — fires after burst ends"]
+    D1["................🔥"]
+    D2["                  ......🔥"]
+  end
+  subgraph THR["Throttle(300ms) — fires at most every 300ms"]
+    T1["🔥..🔥..🔥..🔥"]
+    T2["       🔥..🔥..🔥"]
+  end
+  RAW --> DEB
+  RAW --> THR`,
       answer: `<pre class="code"><code>function debounce&lt;A extends unknown[]&gt;(fn: (...args: A) =&gt; void, ms: number) {
   let t: ReturnType&lt;typeof setTimeout&gt; | null = null;
   return (...args: A) =&gt; {

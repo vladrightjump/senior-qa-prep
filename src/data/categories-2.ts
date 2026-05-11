@@ -127,6 +127,15 @@ HAVING COUNT(*) &gt; 5;  -- after grouping</code></pre>
       q: "What is a transaction? Explain ACID.",
       diff: "mid",
       tags: ["sql", "transactions"],
+      diagram: `graph TB
+  TXN["BEGIN TRANSACTION"] --> OPS["multiple writes / reads"]
+  OPS --> END{"COMMIT or ROLLBACK?"}
+  END -->|"commit"| DONE["state persisted"]
+  END -->|"rollback / crash"| UNDO["all changes undone"]
+  A["A — Atomicity<br/>all-or-nothing"] -.-> END
+  C["C — Consistency<br/>constraints hold"] -.-> OPS
+  I["I — Isolation<br/>RU → RC → RR → Serializable"] -.-> OPS
+  D["D — Durability<br/>survives crashes"] -.-> DONE`,
       answer: `<ul>
 <li><strong>Atomicity</strong> — all-or-nothing. Failure rolls back everything.</li>
 <li><strong>Consistency</strong> — moves from valid state to valid state. Constraints hold.</li>
@@ -247,6 +256,21 @@ FROM orders;</code></pre>
       q: "What is an n+1 query problem and how do you detect it?",
       diff: "hard",
       tags: ["sql", "performance"],
+      diagram: `sequenceDiagram
+  participant App as App
+  participant DB as DB
+  Note over App,DB: N+1 — bad
+  App->>DB: SELECT * FROM users  (1 query, 100 rows)
+  DB-->>App: 100 users
+  loop for each user
+    App->>DB: SELECT * FROM orders WHERE user_id=?
+    DB-->>App: orders (×100)
+  end
+  Note over App,DB: 101 queries 🔥
+  Note over App,DB: Fix — eager load
+  App->>DB: SELECT u.*, o.* FROM users u<br/>LEFT JOIN orders o ON o.user_id=u.id
+  DB-->>App: rows
+  Note over App,DB: 1 query ✓`,
       answer: `<p>An ORM bug: fetching N parent rows, then issuing 1 query per parent for related data. 100 parents = 101 queries instead of 1 with a JOIN.</p>
 <pre class="code"><code>// Pseudocode causing N+1
 const users = await db.users.findMany();  // 1 query
@@ -429,6 +453,16 @@ const frameworkArch: Category = {
       q: "Fixture composition pattern — why does it matter at scale?",
       diff: "hard",
       tags: ["fixtures", "architecture"],
+      diagram: `graph TD
+  BASE["@playwright/test base"] --> AUTH["auth.fixture.ts<br/>{ authedPage }"]
+  BASE --> DATA["data.fixture.ts<br/>{ testUser }"]
+  BASE --> API["api.fixture.ts<br/>{ apiClient }"]
+  BASE --> CART["cart.fixture.ts<br/>{ seededCart }"]
+  AUTH --> MERGE["fixtures/index.ts<br/>mergeTests(...)"]
+  DATA --> MERGE
+  API --> MERGE
+  CART --> MERGE
+  MERGE --> TESTS["tests/*.spec.ts<br/>import { test } from '@/fixtures'"]`,
       answer: `<pre class="code"><code>// auth.fixture.ts
 export const test = base.extend&lt;{ authedPage: Page }&gt;({ ... });
 
@@ -520,6 +554,14 @@ export const test = mergeTests(authTest, dataTest);</code></pre>
       q: "What are the four planes of a scalable test framework?",
       diff: "hard",
       tags: ["architecture", "scale"],
+      diagram: `graph TB
+  EXEC["1. Execution plane<br/>workers, sharding, parallelism<br/><i>how fast tests run</i>"]
+  AUTH["2. Authoring plane<br/>POMs, fixtures, factories<br/><i>how tests are written</i>"]
+  DATA["3. Data plane<br/>test data, seeding, isolation<br/><i>what tests run against</i>"]
+  OBS["4. Observability plane<br/>reports, traces, dashboards<br/><i>what tests tell us</i>"]
+  EXEC --- AUTH
+  AUTH --- DATA
+  DATA --- OBS`,
       answer: `<ol>
 <li><strong>Execution plane</strong> — workers, sharding, parallelism. How fast tests run.</li>
 <li><strong>State plane</strong> — test data isolation, DB state. Without this, parallelism causes flakiness.</li>

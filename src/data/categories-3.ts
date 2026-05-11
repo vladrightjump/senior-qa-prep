@@ -37,6 +37,18 @@ const ciFlakiness: Category = {
       q: "Sharding vs. parallelism in Playwright?",
       diff: "mid",
       tags: ["ci"],
+      diagram: `graph TB
+  subgraph PAR["Parallelism (vertical)"]
+    M1["1 machine<br/>workers: 4"] --> P1[w1] & P2[w2] & P3[w3] & P4[w4]
+  end
+  subgraph SHARD["Sharding (horizontal)"]
+    SUITE["test suite"] --> S1[shard 1/4] & S2[shard 2/4] & S3[shard 3/4] & S4[shard 4/4]
+    S1 --> MA[machine A]
+    S2 --> MB[machine B]
+    S3 --> MC[machine C]
+    S4 --> MD[machine D]
+  end
+  PAR --- COMBINE["Combine: 4 machines × 4 workers = 16×"] --- SHARD`,
       answer: `<ul>
 <li><strong>Parallelism</strong> — workers within one machine. <code>workers: 4</code>. Limited by machine resources.</li>
 <li><strong>Sharding</strong> — split suite across machines. <code>--shard=2/4</code>. Limited by CI budget.</li>
@@ -382,6 +394,16 @@ const testingTheory: Category = {
       q: "What is shift-left testing? Apply it to a real sprint.",
       diff: "mid",
       tags: ["process"],
+      diagram: `graph LR
+  REF["Refinement<br/>review AC, ask 'how to verify?'"]
+  KICK["Story kickoff<br/>Gherkin before code"]
+  PAIR["Pair on testability<br/>test-ids, debug hooks"]
+  CONTRACT["API contract<br/>schema first"]
+  PARALLEL["Parallel test dev<br/>tests while dev codes"]
+  E2E["Traditional E2E<br/>after dev complete"]
+  REF --> KICK --> PAIR --> CONTRACT --> PARALLEL --> E2E
+  COST["Bug cost: $1"] -.- REF
+  COST2["Bug cost: $100+"] -.- E2E`,
       answer: `<p>Move quality activities earlier. Sprint application:</p>
 <ul>
 <li><strong>Refinement</strong> — review AC, ask "how will I verify?", flag ambiguity.</li>
@@ -689,6 +711,19 @@ Notes:
       q: "Walk through the ISTQB test process. What does each phase actually produce?",
       diff: "mid",
       tags: ["istqb", "process"],
+      diagram: `flowchart TD
+  PLAN["1. Planning<br/>→ test plan"] --> ANA["3. Analysis<br/>→ test conditions"]
+  ANA --> DES["4. Design<br/>→ test cases + data"]
+  DES --> IMP["5. Implementation<br/>→ scripts + env"]
+  IMP --> EXE["6. Execution<br/>→ results + defects"]
+  EXE --> CLO["7. Completion<br/>→ summary + lessons"]
+  MON["2. Monitoring &amp; control<br/>(continuous)"]
+  MON -.-> PLAN
+  MON -.-> ANA
+  MON -.-> DES
+  MON -.-> IMP
+  MON -.-> EXE
+  MON -.-> CLO`,
       answer: `<ol>
 <li><strong>Test planning</strong> — scope, risk assessment, approach, schedule, resources, exit criteria. <em>Output: test plan.</em></li>
 <li><strong>Test monitoring &amp; control</strong> — ongoing comparison of progress to plan; adjust scope/effort. <em>Output: status reports, control decisions.</em></li>

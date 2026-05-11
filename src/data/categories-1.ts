@@ -624,6 +624,17 @@ const apiRest: Category = {
       q: "Explain the difference between PUT, PATCH, and POST. Which are idempotent?",
       diff: "easy",
       tags: ["http", "rest"],
+      diagram: `graph TB
+  POST["POST /orders<br/>create new resource<br/><b>NOT idempotent</b><br/>5 calls → 5 orders"]
+  PUT["PUT /orders/42<br/>replace whole resource<br/><b>Idempotent</b><br/>5 calls → same state"]
+  PATCH["PATCH /orders/42<br/>partial update<br/><b>Usually idempotent</b><br/>(NOT if increment)"]
+  POST ~~~ PUT ~~~ PATCH
+  classDef no fill:#e76f51,color:#fff
+  classDef yes fill:#2a9d8f,color:#fff
+  classDef maybe fill:#e9c46a,color:#222
+  class POST no
+  class PUT yes
+  class PATCH maybe`,
       answer: `<ul>
 <li><strong>POST</strong> — create. <strong>Not idempotent</strong>: 5 POSTs create 5 resources.</li>
 <li><strong>PUT</strong> — replace entirely. <strong>Idempotent</strong>: 5 PUTs leave the same final state.</li>
@@ -636,6 +647,15 @@ const apiRest: Category = {
       q: "What's the difference between 401 and 403? If you get 500 instead, what does that mean?",
       diff: "easy",
       tags: ["http"],
+      diagram: `flowchart TD
+  REQ["Request arrives"] --> AUTHN{"Do I know<br/>who you are?"}
+  AUTHN -->|"no token / bad token"| C401["401 Unauthorized<br/>(authentication failed)"]
+  AUTHN -->|"yes"| AUTHZ{"Can you access<br/>this resource?"}
+  AUTHZ -->|"no"| C403["403 Forbidden<br/>(authorization failed)"]
+  AUTHZ -->|"yes"| EXISTS{"Does resource<br/>exist?"}
+  EXISTS -->|"no"| C404["404 Not Found"]
+  EXISTS -->|"yes"| OK["200 OK"]
+  ERR["500 Internal Error"] -.->|"means auth middleware<br/>crashed — bug!"| AUTHN`,
       answer: `<ul>
 <li><strong>401 Unauthorized</strong> — "I don't know who you are." Token missing/expired/invalid.</li>
 <li><strong>403 Forbidden</strong> — "I know you, but you can't access this." Auth fine, authz fails.</li>
@@ -703,6 +723,15 @@ return result;</code></pre>
       q: "How do you test pagination on a REST API? List 5 bugs to look for.",
       diff: "mid",
       tags: ["api"],
+      diagram: `graph TB
+  subgraph OFFSET["Offset-based: ?page=2&size=10"]
+    O1["page 1 — items 1-10"] --> O2["page 2 — items 11-20"]
+    O2 --> ODRIFT["⚠ insert at row 5<br/>row 10 reappears on page 2"]
+  end
+  subgraph CURSOR["Cursor-based: ?after=ord_99"]
+    C1["fetch 10 after start"] --> C2["next: ?after=ord_109"]
+    C2 --> CSTABLE["✓ stable under inserts<br/>cursor is opaque key"]
+  end`,
       answer: `<ol>
 <li><strong>Off-by-one total count</strong> — server says 100, you fetch all pages, get 99 or 101.</li>
 <li><strong>Duplicates across pages</strong> — unstable sort key, ties cause repeats.</li>
@@ -729,6 +758,16 @@ return result;</code></pre>
       q: "How do you test rate limiting without hammering production?",
       diff: "hard",
       tags: ["api", "performance"],
+      diagram: `graph LR
+  T0["t=0<br/>req 1"] -->|"200"| OK1
+  T1["t=1<br/>req 2-9"] -->|"200"| OK2
+  T2["t=2<br/>req 10"] -->|"200<br/>(at limit)"| OK3
+  T3["t=2<br/>req 11"] -->|"429 Too Many Requests<br/>Retry-After: 8"| BLOCK
+  T4["t=10<br/>(window slides)"] -->|"200"| OK4
+  classDef ok fill:#2a9d8f,color:#fff
+  classDef bad fill:#e76f51,color:#fff
+  class OK1,OK2,OK3,OK4 ok
+  class BLOCK bad`,
       answer: `<pre class="code"><code>// Dedicated test environment
 const limit = 10;
 const responses = await Promise.all(
@@ -914,6 +953,19 @@ expect(recovery.status()).toBe(200);</code></pre>
       q: "What is CORS and how do you test it?",
       diff: "mid",
       tags: ["api", "security"],
+      diagram: `sequenceDiagram
+  participant B as Browser (app.example.com)
+  participant API as api.example.com
+  Note over B,API: Non-simple request (POST + JSON / Auth header)
+  B->>API: OPTIONS /data<br/>Origin: app.example.com<br/>Access-Control-Request-Method: POST
+  API-->>B: 200<br/>Access-Control-Allow-Origin: app.example.com<br/>Allow-Methods: GET, POST<br/>Allow-Headers: Content-Type
+  Note over B: Browser checks: allowed?
+  alt allowed
+    B->>API: POST /data (real request)
+    API-->>B: 200 data
+  else not allowed
+    B-->>B: blocked by browser<br/>(server never called)
+  end`,
       answer: `<p>Cross-Origin Resource Sharing. Browsers block JS from one origin calling APIs on another origin unless the server explicitly allows it via headers.</p>
 <pre class="code"><code>// Preflight request from browser
 OPTIONS /api/data
