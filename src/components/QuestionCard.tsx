@@ -1,7 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Question, QuestionComment } from "../types";
 import { Diagram } from "./Diagram";
 import { MediaBlock } from "./MediaBlock";
+
+// Keep the detail content mounted for a beat after collapse so the
+// grid-row close transition has something to animate against. Matches
+// --dur-med in global.css.
+const COLLAPSE_LINGER_MS = 240;
 
 interface QuestionCardProps {
   question: Question;
@@ -50,6 +55,16 @@ export function QuestionCard({
   onDeleteComment,
 }: QuestionCardProps) {
   const [draft, setDraft] = useState("");
+  const [contentMounted, setContentMounted] = useState(isOpen);
+
+  useEffect(() => {
+    if (isOpen) {
+      setContentMounted(true);
+      return;
+    }
+    const t = setTimeout(() => setContentMounted(false), COLLAPSE_LINGER_MS);
+    return () => clearTimeout(t);
+  }, [isOpen]);
 
   const submit = () => {
     if (!draft.trim()) return;
@@ -76,7 +91,9 @@ export function QuestionCard({
           tabIndex={-1}
           title="Reviewed"
         >
-          {isReviewed && "✓"}
+          <svg className="q-check-svg" viewBox="0 0 12 12" aria-hidden>
+            <path d="M2.5 6.2 L5 8.7 L9.5 3.5" />
+          </svg>
         </span>
         <span
           className={`q-checkbox q-checkbox-investigate ${isFlagged ? "checked" : ""}`}
@@ -90,7 +107,7 @@ export function QuestionCard({
           tabIndex={-1}
           title="Investigate later"
         >
-          {isFlagged && "?"}
+          <span className="q-flag-mark" aria-hidden>?</span>
         </span>
         <span className="q-num">#{num}</span>
         <span className="q-text">{question.q}</span>
@@ -116,15 +133,19 @@ export function QuestionCard({
         </span>
         <span className="q-chevron">›</span>
       </button>
-      {isOpen && (
+      <div className="q-detail-wrap" aria-hidden={!isOpen}>
         <div className="q-detail">
-          {question.diagram && <Diagram source={question.diagram} />}
-          {question.media && question.media.length > 0 && (
-            <MediaBlock media={question.media} />
+          {contentMounted && (
+            <>
+              {question.diagram && <Diagram source={question.diagram} />}
+              {question.media && question.media.length > 0 && (
+                <MediaBlock media={question.media} />
+              )}
+              <div dangerouslySetInnerHTML={{ __html: question.answer }} />
+            </>
           )}
-          <div dangerouslySetInnerHTML={{ __html: question.answer }} />
         </div>
-      )}
+      </div>
       {isCommentsOpen && (
         <div className="q-comments">
           <div className="q-comments-title">Notes</div>

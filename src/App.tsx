@@ -324,7 +324,18 @@ export default function App() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
-                <div className="pills" role="tablist" aria-label="Difficulty filter">
+                <div
+                  className="pills"
+                  role="tablist"
+                  aria-label="Difficulty filter"
+                  style={
+                    {
+                      "--pill-active": ["all", "easy", "mid", "hard"].indexOf(
+                        diffFilter,
+                      ),
+                    } as React.CSSProperties
+                  }
+                >
                   {(["all", "easy", "mid", "hard"] as const).map((d) => (
                     <button
                       key={d}
@@ -349,8 +360,17 @@ export default function App() {
                   {filtered.map((item, i) => {
                     const isFocused = i === focusedIdx;
                     const qid = item.q.id;
+                    // Cap the stagger so a list of 100 doesn't take 2.4s to
+                    // settle — first ~14 items get the staircase, the rest land
+                    // together.
+                    const staggerIdx = Math.min(i, 14);
                     return (
-                      <div ref={isFocused ? focusedCardRef : null} key={qid}>
+                      <div
+                        ref={isFocused ? focusedCardRef : null}
+                        key={qid}
+                        className="q-list-item"
+                        style={{ "--i": staggerIdx } as React.CSSProperties}
+                      >
                         {isInvestigationView && (
                           <div className="q-card-source">{item.categoryLabel}</div>
                         )}

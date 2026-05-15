@@ -27,6 +27,17 @@
   --shadow: 0 1px 2px rgba(20,20,20,.03), 0 4px 12px rgba(20,20,20,.025);
   --radius: 6px;
 
+  /* Motion design tokens — keep durations short and easings consistent.
+     ease-out feels responsive; ease-spring adds a touch of overshoot for
+     active/CTA states only. */
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --ease-in-out: cubic-bezier(.65, 0, .35, 1);
+  --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
+  --dur-fast: 120ms;
+  --dur-med: 220ms;
+  --dur-slow: 360ms;
+  --stagger-step: 24ms;
+
   font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
   font-size: 14.5px;
   line-height: 1.55;
@@ -182,12 +193,12 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 
 .nav-item {
-  display: block;
+  position: relative;
   width: 100%;
   text-align: left;
   background: transparent;
   border: 0;
-  padding: 8px 10px;
+  padding: 8px 10px 8px 14px;
   border-radius: var(--radius);
   color: var(--fg-muted);
   margin-bottom: 1px;
@@ -195,13 +206,32 @@ button { font: inherit; color: inherit; cursor: pointer; }
   display: flex;
   flex-direction: column;
   gap: 2px;
-  transition: background .12s, color .12s;
+  transition: background var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out);
+}
+.nav-item::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  width: 3px;
+  height: 0;
+  background: var(--accent);
+  border-radius: 2px;
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: height var(--dur-med) var(--ease-spring),
+              opacity var(--dur-med) var(--ease-out);
 }
 .nav-item:hover { background: var(--bg-soft); color: var(--fg); }
 .nav-item.active {
   background: var(--accent-soft);
   color: var(--accent);
   font-weight: 500;
+}
+.nav-item.active::before {
+  height: 60%;
+  opacity: 1;
 }
 .nav-item-meta {
   font-size: 11px;
@@ -263,13 +293,34 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .search::placeholder { color: var(--fg-dim); }
 
 .pills {
+  position: relative;
   display: flex;
-  gap: 2px;
+  gap: 0;
   background: var(--bg-soft);
   padding: 2px;
   border-radius: var(--radius);
+  --pill-count: 4;
+  --pill-active: 0;
+}
+.pills::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: calc((100% - 4px) / var(--pill-count));
+  background: var(--bg-elev);
+  border-radius: 4px;
+  box-shadow: var(--shadow);
+  transform: translateX(calc(var(--pill-active) * 100%));
+  transition: transform var(--dur-med) var(--ease-out);
+  z-index: 0;
 }
 .pill {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-width: 56px;
   padding: 4px 12px;
   border: 0;
   background: transparent;
@@ -277,20 +328,33 @@ button { font: inherit; color: inherit; cursor: pointer; }
   font-size: 12.5px;
   border-radius: 4px;
   font-weight: 500;
-  transition: background .12s, color .12s;
+  transition: color var(--dur-fast) var(--ease-out);
 }
 .pill:hover { color: var(--fg); }
-.pill.active { background: var(--bg-elev); color: var(--fg); box-shadow: var(--shadow); }
+.pill.active { color: var(--fg); }
 
 /* ----- Question card ----- */
 .q-list { display: flex; flex-direction: column; gap: 6px; }
+
+/* Stagger fade-in on category switch. The wrapping div in App.tsx gets
+   --i set inline so each item delays slightly relative to the first. */
+.q-list-item {
+  animation: q-list-in var(--dur-slow) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * var(--stagger-step));
+}
+@keyframes q-list-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
 
 .q-card {
   border: 1px solid var(--border-soft);
   background: var(--bg-elev);
   border-radius: var(--radius);
   overflow: hidden;
-  transition: border-color .15s, box-shadow .2s;
+  transition: border-color var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-med) var(--ease-out),
+              opacity var(--dur-med) var(--ease-out);
 }
 .q-card:hover { border-color: var(--border); }
 .q-card.open { box-shadow: var(--shadow); }
@@ -324,12 +388,47 @@ button { font: inherit; color: inherit; cursor: pointer; }
   color: transparent;
   font-size: 11px;
   font-weight: 700;
-  transition: background .12s, border-color .12s, color .12s;
+  transition: background var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-spring);
 }
+.q-checkbox:hover { border-color: var(--fg-dim); }
+.q-checkbox:active { transform: scale(0.92); }
 .q-checkbox.checked {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-text);
+}
+
+/* SVG check inside the reviewed checkbox — animates with stroke-dasharray
+   so the tick "draws" on, "erases" on uncheck. */
+.q-check-svg {
+  width: 11px;
+  height: 11px;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+.q-check-svg path {
+  stroke-dasharray: 16;
+  stroke-dashoffset: 16;
+  transition: stroke-dashoffset var(--dur-med) var(--ease-out);
+}
+.q-checkbox.checked .q-check-svg path {
+  stroke-dashoffset: 0;
+}
+
+/* Question mark for the investigate checkbox — scales in/out. */
+.q-flag-mark {
+  display: inline-block;
+  transform: scale(0);
+  transition: transform var(--dur-med) var(--ease-spring);
+}
+.q-checkbox.checked .q-flag-mark {
+  transform: scale(1);
 }
 .q-num {
   color: var(--fg-dim);
@@ -388,7 +487,25 @@ button { font: inherit; color: inherit; cursor: pointer; }
   font-weight: 500;
 }
 
-/* ----- Expanded answer ----- */
+/* ----- Expanded answer -----
+   Wrap collapses by animating grid-template-rows 0fr → 1fr. The inner div
+   needs min-height:0 + overflow:hidden so its intrinsic height isn't
+   measured against the collapsed track. */
+.q-detail-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-med) var(--ease-out),
+              opacity var(--dur-fast) var(--ease-out);
+  opacity: 0;
+}
+.q-card.open .q-detail-wrap {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.q-detail-wrap > .q-detail {
+  min-height: 0;
+  overflow: hidden;
+}
 .q-detail {
   padding: 6px 24px 22px 56px;
   font-size: 13.5px;
@@ -396,7 +513,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
   color: var(--fg-muted);
   border-top: 1px solid var(--border-soft);
   background: var(--bg);
-  animation: q-fade-in .18s ease;
 }
 @keyframes q-fade-in {
   from { opacity: 0; transform: translateY(-2px); }
@@ -908,14 +1024,12 @@ kbd {
   position: fixed;
   inset: 0;
   background: rgba(8, 10, 18, 0.55);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
   z-index: 100;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
-  animation: fadeIn .18s ease-out;
+  animation: backdrop-in var(--dur-slow) var(--ease-out);
 }
 .modal {
   position: relative;
@@ -923,12 +1037,13 @@ kbd {
   color: var(--fg);
   border: 1px solid var(--border);
   border-radius: 14px;
-  box-shadow: 0 20px 60px rgba(0,0,0,.35);
+  box-shadow: 0 24px 70px rgba(0,0,0,.42), 0 2px 8px rgba(0,0,0,.1);
   width: min(720px, 100%);
   max-height: 90vh;
   overflow-y: auto;
   padding: 28px 28px 24px;
-  animation: popIn .22s cubic-bezier(.2,.9,.3,1.2);
+  animation: modal-in var(--dur-slow) var(--ease-spring);
+  transform-origin: center 60%;
 }
 .modal-close {
   position: absolute;
@@ -1020,6 +1135,37 @@ kbd {
 @keyframes popIn {
   from { opacity: 0; transform: translateY(8px) scale(.97); }
   to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0);
+    -webkit-backdrop-filter: blur(0);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+}
+.modal-backdrop {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+@keyframes modal-in {
+  0%   { opacity: 0; transform: translateY(12px) scale(.94); }
+  60%  { opacity: 1; }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Respect user motion preferences — collapse all transitions/animations
+   to near-instant for vestibular safety. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* ----- Media block in question detail ----- */
