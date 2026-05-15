@@ -12,9 +12,15 @@ function initials(email: string): string {
   return local.slice(0, 2).toUpperCase() || "?";
 }
 
+const DELETE_CONFIRM_PHRASE = "delete my account";
+
 export function UserMenu({ onSignInClick }: UserMenuProps) {
-  const { status, user, signOut } = useAuth();
+  const { status, user, signOut, deleteAccount } = useAuth();
   const [open, setOpen] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleteInput, setDeleteInput] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
   // Close menu on outside click or Escape
@@ -92,6 +98,84 @@ export function UserMenu({ onSignInClick }: UserMenuProps) {
           >
             Sign out everywhere
           </button>
+          <button
+            className="user-menu-item user-menu-item-danger"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              setDeleteInput("");
+              setDeleteError(null);
+              setConfirmingDelete(true);
+            }}
+          >
+            Delete account…
+          </button>
+        </div>
+      )}
+      {confirmingDelete && (
+        <div
+          className="modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-account-title"
+          onClick={() => !deleting && setConfirmingDelete(false)}
+        >
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2 id="delete-account-title" className="modal-title">
+              Delete account
+            </h2>
+            <p className="modal-lead">
+              This permanently removes your account and all synced data
+              (reviewed questions, flags, notes). This cannot be undone.
+            </p>
+            <p className="modal-lead">
+              Type <strong>{DELETE_CONFIRM_PHRASE}</strong> to confirm.
+            </p>
+            <input
+              className="auth-field"
+              type="text"
+              value={deleteInput}
+              onChange={(e) => setDeleteInput(e.target.value)}
+              placeholder={DELETE_CONFIRM_PHRASE}
+              disabled={deleting}
+              autoFocus
+            />
+            {deleteError && (
+              <div className="auth-alert auth-alert-error" role="alert">
+                {deleteError}
+              </div>
+            )}
+            <div className="auth-footer">
+              <button
+                type="button"
+                className="auth-link"
+                onClick={() => setConfirmingDelete(false)}
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="modal-cta modal-cta-danger"
+                disabled={
+                  deleting || deleteInput.trim() !== DELETE_CONFIRM_PHRASE
+                }
+                onClick={async () => {
+                  setDeleting(true);
+                  setDeleteError(null);
+                  const r = await deleteAccount();
+                  setDeleting(false);
+                  if (!r.ok) {
+                    setDeleteError(r.error ?? "Failed to delete account.");
+                    return;
+                  }
+                  setConfirmingDelete(false);
+                }}
+              >
+                {deleting ? "Deleting…" : "Delete account"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

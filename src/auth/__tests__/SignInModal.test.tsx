@@ -7,7 +7,13 @@ import { SignInModal } from "../SignInModal";
 const mockUseAuth = vi.fn();
 vi.mock("../AuthContext", () => ({
   useAuth: () => mockUseAuth(),
-  PASSWORD_MIN_LENGTH: 8,
+  PASSWORD_MIN_LENGTH: 12,
+}));
+
+// Captcha is a no-op in tests — no site key configured, no token.
+vi.mock("../captcha", () => ({
+  isCaptchaConfigured: () => false,
+  getCaptchaToken: vi.fn(async () => undefined),
 }));
 
 beforeEach(() => {
@@ -29,6 +35,7 @@ function makeAuth() {
     resetPassword: vi.fn().mockResolvedValue({ ok: true }),
     updatePassword: vi.fn().mockResolvedValue({ ok: true }),
     clearRecovery: vi.fn(),
+    deleteAccount: vi.fn().mockResolvedValue({ ok: true }),
   };
 }
 
@@ -60,7 +67,11 @@ describe("SignInModal", () => {
     await userEvent.type(screen.getByLabelText(/password/i), "supersecret");
     await userEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
 
-    expect(auth.signIn).toHaveBeenCalledWith("foo@bar.com", "supersecret");
+    expect(auth.signIn).toHaveBeenCalledWith(
+      "foo@bar.com",
+      "supersecret",
+      undefined,
+    );
   });
 
   it("shows the error returned from signIn", async () => {
@@ -92,12 +103,16 @@ describe("SignInModal", () => {
     ).toBeInTheDocument();
 
     await userEvent.type(screen.getByLabelText(/email/i), "new@example.com");
-    await userEvent.type(screen.getByLabelText(/password/i), "longenough");
+    await userEvent.type(screen.getByLabelText(/password/i), "LongEnough1!");
     await userEvent.click(
       screen.getByRole("button", { name: /create account/i }),
     );
 
-    expect(auth.signUp).toHaveBeenCalledWith("new@example.com", "longenough");
+    expect(auth.signUp).toHaveBeenCalledWith(
+      "new@example.com",
+      "LongEnough1!",
+      undefined,
+    );
   });
 
   it("shows a confirmation message when sign-up reports needsConfirmation", async () => {
@@ -111,7 +126,7 @@ describe("SignInModal", () => {
 
     await userEvent.click(screen.getByRole("tab", { name: /sign up/i }));
     await userEvent.type(screen.getByLabelText(/email/i), "new@example.com");
-    await userEvent.type(screen.getByLabelText(/password/i), "longenough");
+    await userEvent.type(screen.getByLabelText(/password/i), "LongEnough1!");
     await userEvent.click(
       screen.getByRole("button", { name: /create account/i }),
     );
@@ -165,7 +180,7 @@ describe("SignInModal", () => {
     ).not.toBeInTheDocument();
     // Use placeholder to disambiguate from the dialog's aria-labelledby
     // (which also matches /new password/i via the heading).
-    expect(screen.getByPlaceholderText(/at least 8 characters/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/at least 12 characters/i)).toBeInTheDocument();
   });
 
   it("calls updatePassword and clearRecovery after a successful recovery submit", async () => {
@@ -175,14 +190,14 @@ describe("SignInModal", () => {
     render(<SignInModal open onClose={onClose} />);
 
     await userEvent.type(
-      screen.getByPlaceholderText(/at least 8 characters/i),
-      "newlongpass",
+      screen.getByPlaceholderText(/at least 12 characters/i),
+      "NewLongPass1!",
     );
     await userEvent.click(
       screen.getByRole("button", { name: /update password/i }),
     );
 
-    expect(auth.updatePassword).toHaveBeenCalledWith("newlongpass");
+    expect(auth.updatePassword).toHaveBeenCalledWith("NewLongPass1!");
     // SignInModal defers the close by 1200ms so the user reads the success
     // message — give waitFor enough time to clear that.
     await waitFor(() => expect(auth.clearRecovery).toHaveBeenCalled(), {

@@ -18,10 +18,12 @@ In the Supabase dashboard:
    and **Redirect URLs**. These are used for the email confirmation and
    password-reset links.
 4. **Auth → Policies**:
-   - Password minimum length: **8** (matches `PASSWORD_MIN_LENGTH` in
-     `src/auth/AuthContext.tsx`).
+   - Password minimum length: **12** (matches `PASSWORD_MIN_LENGTH` in
+     `src/auth/AuthContext.tsx`). The client also enforces a 3-of-4
+     character-class rule via `assessPassword()`.
    - Leak protection: **ON**.
-   - Captcha: enable for production (hCaptcha / Turnstile).
+   - Captcha: **enable** for production. The app supports **Cloudflare
+     Turnstile** out of the box (see §6).
 5. **Auth → Rate limits**: keep the defaults or tighten further. Supabase
    already throttles `/token`, `/signup`, `/recover` endpoints.
 
@@ -131,7 +133,7 @@ If the upsert/onConflict clauses in `useQuestionMeta.ts` need to scope to
 | Token refresh | Automatic (`autoRefreshToken: true`) |
 | Session persistence | `persistSession: true` |
 | Email/URL exchange | `detectSessionInUrl: true` for confirmation + reset |
-| Password min length | 8 chars, validated client-side and server-side |
+| Password min length | **12 chars** + 3-of-4 character-class rule (lowercase, uppercase, digits, symbols) via `assessPassword()`; mirrored server-side in Supabase Auth → Policies |
 | Email enumeration | Generic error message ("Invalid email or password.") |
 | Rate-limit messaging | Friendly throttle message when Supabase returns 429 |
 | Sign-out everywhere | `signOut({ scope: 'global' })` in user menu |
@@ -141,14 +143,36 @@ If the upsert/onConflict clauses in `useQuestionMeta.ts` need to scope to
 
 ## 5. Production hardening (recommended)
 
-- **Captcha** on `/signup` and `/recover` (Supabase has hCaptcha + Turnstile
-  built-in).
+- **Captcha** — wired (see §6). Enable the Supabase-side enforcement too.
 - **MFA** — Supabase supports TOTP enrollment; surface in a settings page.
-- **CSP** — add a strict `Content-Security-Policy` header at the host (Vercel
-  `vercel.json` or Netlify `_headers`) that allows only `*.supabase.co` for
-  `connect-src`.
+- **CSP** — shipped via `vercel.json` `headers`. Restricts `connect-src` to
+  `*.supabase.co` (plus `challenges.cloudflare.com` for Turnstile), blocks
+  framing, enables HSTS, and adds a strict `Permissions-Policy`.
 - **Anomaly detection** — Supabase logs auth events; ship them to a SIEM if
   the app handles sensitive data.
-- **Account deletion** endpoint — required by GDPR. Add an Edge Function that
-  uses the service-role key to call `admin.deleteUser(userId)` after the
-  user confirms.
+- **Account deletion** — implemented as a Supabase Edge Function at
+  `supabase/functions/delete-account` and exposed in the user menu behind a
+  typed-confirmation prompt. Deploy with:
+  ```bash
+  supabase functions deploy delete-account
+  ```
+  `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_URL` are injected automatically;
+  set `ALLOWED_ORIGIN` to your production origin to lock down CORS.
+
+## 6. Captcha (Cloudflare Turnstile)
+
+The app ships with Turnstile support that activates only when the
+`VITE_TURNSTILE_SITE_KEY` env var is set. Steps:
+
+1. Create a Turnstile site at <https://dash.cloudflare.com/?to=/:account/turnstile>
+   and copy the **site key** + **secret key**.
+2. Add `VITE_TURNSTILE_SITE_KEY=...` to `.env.local` (and to Vercel project
+   settings for production).
+3. In Supabase: **Auth → Settings → Bot and Abuse Protection** → enable
+   Turnstile and paste the **secret key**.
+4. Done. `signUp`, `signInWithPassword`, and `resetPasswordForEmail` now
+   include a fresh captcha token on every submit. The widget is rendered
+   invisibly via `src/auth/captcha.ts`.
+
+When the env var is unset (local dev) the captcha module is a no-op and
+auth flows proceed without a token.

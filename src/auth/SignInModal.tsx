@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth, PASSWORD_MIN_LENGTH } from "./AuthContext";
+import { getCaptchaToken, isCaptchaConfigured } from "./captcha";
 
 interface SignInModalProps {
   open: boolean;
@@ -85,17 +86,32 @@ export function SignInModal({ open, onClose }: SignInModalProps) {
     }
     setBusy(true);
     try {
+      // Fetch a fresh Turnstile token per submit. Tokens are single-use and
+      // short-lived, so we always reset between attempts. When the site key
+      // is not configured (dev) this is a no-op and resolves to undefined.
+      const captchaToken =
+        mode !== "update-password" && isCaptchaConfigured()
+          ? await getCaptchaToken()
+          : undefined;
+      if (
+        mode !== "update-password" &&
+        isCaptchaConfigured() &&
+        !captchaToken
+      ) {
+        setError("Couldn't verify you're human. Please try again.");
+        return;
+      }
       if (mode === "signin") {
-        const r = await signIn(email, password);
+        const r = await signIn(email, password, captchaToken);
         if (!r.ok) setError(r.error ?? "Sign-in failed.");
       } else if (mode === "signup") {
-        const r = await signUp(email, password);
+        const r = await signUp(email, password, captchaToken);
         if (!r.ok) setError(r.error ?? "Sign-up failed.");
         else if (r.needsConfirmation) {
           setInfo(`Check ${email} for a confirmation link.`);
         }
       } else if (mode === "reset") {
-        const r = await resetPassword(email);
+        const r = await resetPassword(email, captchaToken);
         if (!r.ok) setError(r.error ?? "Reset failed.");
         else setInfo(`If an account exists for ${email}, a reset link is on its way.`);
       } else {

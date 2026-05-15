@@ -210,7 +210,35 @@ describe("AuthProvider", () => {
     const r = (window as unknown as { __r: { ok: boolean; error: string } })
       .__r;
     expect(r.ok).toBe(false);
-    expect(r.error).toMatch(/at least 8/);
+    expect(r.error).toMatch(/at least 12/);
+    expect(state.signUp).not.toHaveBeenCalled();
+  });
+
+  it("signUp rejects passwords that lack complexity", async () => {
+    function CallSignUp() {
+      const { signUp } = useAuth();
+      return (
+        <button
+          onClick={async () => {
+            // 12+ chars but only one character class
+            const r = await signUp("foo@bar.com", "aaaaaaaaaaaaaa");
+            (window as unknown as { __r: unknown }).__r = r;
+          }}
+        >
+          go
+        </button>
+      );
+    }
+    render(
+      <AuthProvider>
+        <CallSignUp />
+      </AuthProvider>,
+    );
+    await userEvent.click(screen.getByText("go"));
+    const r = (window as unknown as { __r: { ok: boolean; error: string } })
+      .__r;
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/mix/i);
     expect(state.signUp).not.toHaveBeenCalled();
   });
 
@@ -221,7 +249,7 @@ describe("AuthProvider", () => {
       return (
         <button
           onClick={async () => {
-            const r = await signUp("foo@bar.com", "longenough");
+            const r = await signUp("foo@bar.com", "LongEnough1!");
             (window as unknown as { __r: unknown }).__r = r;
           }}
         >
@@ -257,7 +285,7 @@ describe("AuthProvider", () => {
           <span data-testid="recovery">{isRecovery ? "yes" : "no"}</span>
           <button
             onClick={async () => {
-              const r = await updatePassword("newlongpass");
+              const r = await updatePassword("NewLongPass1!");
               (window as unknown as { __r: unknown }).__r = r;
             }}
           >
@@ -282,7 +310,7 @@ describe("AuthProvider", () => {
     await waitFor(() =>
       expect(screen.getByTestId("recovery").textContent).toBe("no"),
     );
-    expect(state.updateUser).toHaveBeenCalledWith({ password: "newlongpass" });
+    expect(state.updateUser).toHaveBeenCalledWith({ password: "NewLongPass1!" });
     const r = (window as unknown as { __r: { ok: boolean } }).__r;
     expect(r.ok).toBe(true);
   });
@@ -310,7 +338,7 @@ describe("AuthProvider", () => {
     const r = (window as unknown as { __r: { ok: boolean; error: string } })
       .__r;
     expect(r.ok).toBe(false);
-    expect(r.error).toMatch(/at least 8/);
+    expect(r.error).toMatch(/at least 12/);
     expect(state.updateUser).not.toHaveBeenCalled();
   });
 

@@ -26,19 +26,49 @@ export interface AuthContextValue {
   // PASSWORD_RECOVERY on the click-through from the reset email; the UI
   // should prompt the user to set a new password and call updatePassword().
   isRecovery: boolean;
-  signIn: (email: string, password: string) => Promise<AuthResult>;
-  signUp: (email: string, password: string) => Promise<AuthResult>;
+  signIn: (
+    email: string,
+    password: string,
+    captchaToken?: string,
+  ) => Promise<AuthResult>;
+  signUp: (
+    email: string,
+    password: string,
+    captchaToken?: string,
+  ) => Promise<AuthResult>;
   signOut: (everywhere?: boolean) => Promise<void>;
-  resetPassword: (email: string) => Promise<AuthResult>;
+  resetPassword: (email: string, captchaToken?: string) => Promise<AuthResult>;
   updatePassword: (newPassword: string) => Promise<AuthResult>;
   clearRecovery: () => void;
+  deleteAccount: () => Promise<AuthResult>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 // Password policy enforced client-side; the canonical rule still lives in
-// Supabase Auth settings (Auth → Policies → Password requirements).
-export const PASSWORD_MIN_LENGTH = 8;
+// Supabase Auth settings (Auth → Policies → Password requirements). Bumped
+// to 12 to roughly align with current NIST guidance for user-chosen secrets.
+export const PASSWORD_MIN_LENGTH = 12;
+
+// Returns null on success or a human-readable reason on failure. Requires
+// at least 3 of {lowercase, uppercase, digit, symbol} in addition to the
+// minimum length, which kills the most common weak-password patterns
+// without forcing the user to follow any specific composition rule.
+export function assessPassword(password: string): string | null {
+  if (password.length < PASSWORD_MIN_LENGTH) {
+    return `Password must be at least ${PASSWORD_MIN_LENGTH} characters.`;
+  }
+  const classes = [
+    /[a-z]/.test(password),
+    /[A-Z]/.test(password),
+    /\d/.test(password),
+    /[^A-Za-z0-9]/.test(password),
+  ].filter(Boolean).length;
+  if (classes < 3) {
+    return "Password must mix at least 3 of: lowercase, uppercase, digits, symbols.";
+  }
+  return null;
+}
 
 function normalizeError(message: string | undefined): string {
   if (!message) return "Something went wrong. Please try again.";
@@ -89,10 +119,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   const signIn = useCallback<AuthContextValue["signIn"]>(
-    async (email, password) => {
+    async (email, password, captchaToken) => {
       const { error } = await supabase.auth.signInWithPassword({
         email: email.trim().toLowerCase(),
         password,
+        options: captchaToken ? { captchaToken } : undefined,
       });
       if (error) return { ok: false, error: normalizeError(error.message) };
       return { ok: true };
@@ -101,19 +132,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
   );
 
   const signUp = useCallback<AuthContextValue["signUp"]>(
-    async (email, password) => {
-      if (password.length < PASSWORD_MIN_LENGTH) {
-        return {
-          ok: false,
-          error: `Password must be at least ${PASSWORD_MIN_LENGTH} characters.`,
-        };
-      }
+    async (email, password, captchaToken) => {
+      const policy = assessPassword(password);
+      if (policy) return { ok: false, error: policy };
       const { data, error } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password,
         options: {
           emailRedirectTo:
             typeof window !== "undefined" ? window.location.origin : undefined,
+          captchaToken,
         },
       });
       if (error) return { ok: false, error: normalizeError(error.message) };
@@ -132,7 +160,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   );
 
   const resetPassword = useCallback<AuthContextValue["resetPassword"]>(
-    async (email) => {
+    async (email, captchaToken) => {
       const { error } = await supabase.auth.resetPasswordForEmail(
         email.trim().toLowerCase(),
         {
@@ -140,6 +168,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             typeof window !== "undefined"
               ? `${window.location.origin}/?recovery=1`
               : undefined,
+          captchaToken,
         },
       );
       if (error) return { ok: false, error: normalizeError(error.message) };
@@ -150,12 +179,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const updatePassword = useCallback<AuthContextValue["updatePassword"]>(
     async (newPassword) => {
-      if (newPassword.length < PASSWORD_MIN_LENGTH) {
-        return {
-          ok: false,
-          error: `Password must be at least ${PASSWORD_MIN_LENGTH} characters.`,
-        };
-      }
+      const policy = assessPassword(newPassword);
+      if (policy) return { ok: false, error: policy };
       const { error } = await supabase.auth.updateUser({
         password: newPassword,
       });
@@ -167,6 +192,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
   );
 
   const clearRecovery = useCallback(() => setIsRecovery(false), []);
+
+  // Calls the `delete-account` Edge Function which verifies the caller's JWT
+  // server-side and uses the service-role key to remove the auth user. On
+  // success we sign out so the dead session doesn't linger in localStorage.
+  const deleteAccount = useCallback<AuthContextValue["deleteAccount"]>(
+    async () => {
+      const { error } = await supabase.functions.invoke("delete-account");
+      if (error) {
+        return {
+          ok: false,
+          error: normalizeError(error.message ?? "Account deletion failed."),
+        };
+      }
+      await supabase.auth.signOut({ scope: "global" });
+      return { ok: true };
+    },
+    [],
+  );
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -180,6 +223,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       resetPassword,
       updatePassword,
       clearRecovery,
+      deleteAccount,
     }),
     [
       status,
@@ -191,6 +235,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       resetPassword,
       updatePassword,
       clearRecovery,
+      deleteAccount,
     ],
   );
 

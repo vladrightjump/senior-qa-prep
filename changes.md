@@ -107,7 +107,7 @@ industry best practices, without breaking the guest (local-only) experience.
 | Token storage | `localStorage` via SDK, protected by RLS not by storage choice |
 | Token refresh | Automatic (`autoRefreshToken: true`) |
 | Session bootstrap | `persistSession: true`, `detectSessionInUrl: true` for email links |
-| Password min length | 8 chars enforced client-side + server-side |
+| Password min length | **12 chars** + 3-of-4 character-class rule (`assessPassword()`); mirrored in Supabase Auth → Policies |
 | Email enumeration | Generic "Invalid email or password" — never leaks which field is wrong |
 | Rate limit messaging | Friendly "Too many attempts" message on 429 |
 | Sign-out everywhere | `signOut({ scope: 'global' })` exposed in the user menu |
@@ -231,3 +231,96 @@ In the Supabase dashboard:
 
 After that: sign-up → confirm email → sign in, and the existing
 reviewed/flag/notes UI automatically syncs per user.
+
+---
+
+## Iteration 3 — Auth hardening (captcha, account deletion, CSP, recovery)
+
+**Goal:** close the production-readiness gaps left by Iteration 2 — bot
+protection, GDPR-style account deletion, transport/runtime hardening
+headers, and a real password-recovery UI flow.
+
+### Files added
+
+```
+src/auth/captcha.ts                          # Cloudflare Turnstile loader (invisible widget)
+supabase/functions/delete-account/index.ts   # Edge Function: verifies JWT, calls admin.deleteUser
+```
+
+### Files modified
+
+- `src/auth/AuthContext.tsx`
+  - Bumped `PASSWORD_MIN_LENGTH` from 8 → **12** to align with NIST guidance.
+  - Added `assessPassword()` — requires 3 of 4 character classes
+    (lowercase / uppercase / digits / symbols).
+  - Added `isRecovery` state + `clearRecovery()`; the auth listener now
+    flips `isRecovery` when Supabase emits `PASSWORD_RECOVERY`.
+  - Added `updatePassword(newPassword)` — runs `assessPassword()` then
+    calls `supabase.auth.updateUser`.
+  - Added `deleteAccount()` — invokes the `delete-account` Edge Function
+    and signs out globally on success.
+  - `signIn` / `signUp` / `resetPassword` now accept an optional
+    `captchaToken` and forward it to Supabase.
+- `src/auth/SignInModal.tsx`
+  - New `update-password` mode driven by `isRecovery`; locks the modal
+    into the new-password form when the user clicks through from a
+    reset email.
+  - Fetches a fresh Turnstile token per submit when configured.
+  - Reset-password success message is intentionally
+    enumeration-resistant: "If an account exists for X, a reset link is
+    on its way."
+- `src/auth/UserMenu.tsx`
+  - Added "Delete account…" entry behind a typed confirmation prompt
+    ("delete my account") to prevent accidental clicks.
+- `vercel.json`
+  - Added strict security headers: CSP (no inline scripts, `frame-ancestors 'none'`,
+    `connect-src` pinned to `*.supabase.co` + Turnstile), HSTS preload,
+    Referrer-Policy, X-Content-Type-Options, X-Frame-Options DENY,
+    Permissions-Policy locking down camera/mic/geolocation/FLoC.
+
+### Captcha — Cloudflare Turnstile
+
+- Activates only when `VITE_TURNSTILE_SITE_KEY` is set; no-op in dev.
+- Renders invisibly off-screen, token is single-use per submit.
+- Supabase-side enforcement must also be enabled (Auth → Settings →
+  Bot and Abuse Protection) — otherwise the client token is decoration.
+
+### Account deletion — `supabase/functions/delete-account`
+
+- Deploy: `supabase functions deploy delete-account --no-verify-jwt`
+  (we verify the JWT manually so the OPTIONS preflight isn't rejected).
+- Verifies the caller's bearer token via `userClient.auth.getUser()`,
+  then uses a separate service-role client to call
+  `admin.auth.admin.deleteUser(userId)`.
+- Per-user rows are removed by `on delete cascade` on the `user_id`
+  FK added in the `AUTH.md §3` SQL migration.
+- Required project secrets: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
+  (both auto-injected). Optional: `ALLOWED_ORIGIN` to lock CORS to the
+  prod origin instead of `*`.
+
+### Known issues (carry forward)
+
+- **Upsert `onConflict` mismatch.** `src/hooks/useQuestionMeta.ts` uses
+  `onConflict: "question_id"` for upserts on `qa_flags` / `qa_reviewed`
+  (and in the legacy-localStorage migration), but the `AUTH.md §3` SQL
+  creates composite unique indexes on `(user_id, question_id)`. After
+  that migration runs in prod, the upserts must be changed to
+  `onConflict: "user_id,question_id"` or replaced with plain inserts
+  scoped by RLS. Not yet fixed — left as a known issue because no live
+  user data depends on it yet.
+- **Edge function anon-key fallback** falls back to `""` if neither
+  `SUPABASE_ANON_KEY` nor `ANON_KEY` is set. Make it required on the
+  next pass.
+- **CORS default `*`** in the Edge Function — works, but `ALLOWED_ORIGIN`
+  should be hard-required in prod.
+- **Realtime channel** subscribes without a `user_id` filter; RLS still
+  scopes payloads server-side, but a `filter` clause would cut wasted
+  bandwidth.
+
+### Verification
+
+- `npm run typecheck` ✓
+- `npm test` ✓ (auth flow tests cover sign-in / sign-up / reset; the
+  new `updatePassword` / `deleteAccount` paths are not yet covered —
+  TODO for next iteration)
+- `npm run build` ✓
