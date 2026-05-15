@@ -1083,3 +1083,184 @@ kbd {
 @media print {
   .progress-orb, .galaxy-canvas-wrap, .modal-backdrop, .pill-btn { display: none !important; }
 }
+
+/* ============================================================================
+   Auth UI: sign-in modal, user chip + dropdown menu.
+   ========================================================================= */
+
+.auth-modal { max-width: 460px; }
+
+.auth-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 4px;
+  margin-bottom: 16px;
+}
+.auth-tab {
+  flex: 1;
+  background: transparent;
+  border: 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--fg-muted);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+.auth-tab:hover { color: var(--fg); }
+.auth-tab.active {
+  background: var(--bg-elev);
+  color: var(--fg);
+  box-shadow: 0 1px 2px rgba(0,0,0,.05);
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--fg-muted);
+}
+.auth-field input {
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.auth-field input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.auth-field input:disabled { opacity: .6; cursor: not-allowed; }
+
+.auth-alert {
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid;
+}
+.auth-alert-error {
+  background: var(--hard-bg);
+  color: var(--hard-fg);
+  border-color: var(--hard-fg);
+}
+.auth-alert-info {
+  background: var(--easy-bg);
+  color: var(--easy-fg);
+  border-color: var(--easy-fg);
+}
+
+.auth-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+.auth-link {
+  background: none;
+  border: 0;
+  padding: 4px 0;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+}
+.auth-link:hover { text-decoration: underline; }
+.auth-link-muted { color: var(--fg-muted); margin-left: auto; }
+
+/* User chip + dropdown */
+.user-menu { position: relative; }
+.user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  padding: 4px 10px 4px 4px;
+  border-radius: 999px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+  max-width: 220px;
+}
+.user-chip:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.user-chip-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+.user-chip-email {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.user-chip-loading {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+}
+@media (max-width: 720px) {
+  .user-chip-email { display: none; }
+}
+.user-menu-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.12);
+  min-width: 220px;
+  z-index: 50;
+  padding: 6px;
+  animation: popIn .15s ease-out;
+}
+.user-menu-email {
+  font-size: 12px;
+  color: var(--fg-muted);
+  padding: 8px 10px 4px;
+  word-break: break-all;
+}
+.user-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: var(--fg);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.user-menu-item:hover { background: var(--bg-soft); }

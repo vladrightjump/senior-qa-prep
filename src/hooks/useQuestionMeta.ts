@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { useAuth } from "../auth/AuthContext";
 import type { QuestionComment } from "../types";
 
 interface UseQuestionMetaResult {
@@ -77,6 +78,8 @@ async function migrateLocalReviewedIfNeeded(): Promise<string[]> {
 }
 
 export function useQuestionMeta(): UseQuestionMetaResult {
+  const { user, status } = useAuth();
+  const userId = user?.id ?? null;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [flags, setFlags] = useState<Set<string>>(() => new Set());
@@ -120,8 +123,19 @@ export function useQuestionMeta(): UseQuestionMetaResult {
     }
   };
 
-  // Initial load: migrate legacy local state, then fetch everything.
+  // Initial load: only when signed in. Anonymous users see empty state
+  // (their local UI state still works via useLocalStorage in App).
   useEffect(() => {
+    if (status === "loading") return;
+    if (!userId) {
+      setFlags(new Set());
+      setReviewed(new Set());
+      setCommentsByQuestion(new Map());
+      setError(null);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     let cancelled = false;
     (async () => {
       await migrateLocalReviewedIfNeeded();
@@ -154,10 +168,11 @@ export function useQuestionMeta(): UseQuestionMetaResult {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [userId, status]);
 
   // Realtime: keep flags, reviewed, and comments in sync across devices.
   useEffect(() => {
+    if (!userId) return;
     const channel = supabase
       .channel("qa-meta")
       .on(
@@ -212,7 +227,7 @@ export function useQuestionMeta(): UseQuestionMetaResult {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [userId]);
 
   const toggleFlag = useCallback(async (questionId: string) => {
     const willFlag = !flagsRef.current.has(questionId);

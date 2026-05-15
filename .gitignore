@@ -20,3 +20,4 @@ vite.config.js
 # local npm cache (workaround for root-owned ~/.npm)
 .npm-cache/
 .npmrc
+coverage/

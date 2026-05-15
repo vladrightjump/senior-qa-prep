@@ -12,5 +12,17 @@ if (!url || !anonKey) {
 }
 
 export const supabase = createClient(url, anonKey, {
-  auth: { persistSession: false },
+  auth: {
+    // PKCE flow: best practice for SPAs — auth code is exchanged for tokens
+    // using a one-time code_verifier, mitigating interception attacks.
+    flowType: "pkce",
+    // Persist the session in localStorage so refresh / new tabs keep the user
+    // signed in. Supabase tokens are short-lived JWTs; the refresh token is
+    // automatically rotated by the SDK.
+    persistSession: true,
+    autoRefreshToken: true,
+    // Required for email-confirmation and password-reset redirects to land
+    // back on the app and complete the exchange.
+    detectSessionInUrl: true,
+  },
 });

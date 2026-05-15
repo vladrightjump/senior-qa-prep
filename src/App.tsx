@@ -7,6 +7,8 @@ import { TopBar } from "./components/TopBar";
 import { Sidebar, NEEDS_INVESTIGATION_ID } from "./components/Sidebar";
 import { QuestionCard } from "./components/QuestionCard";
 import { HelpModal } from "./components/HelpModal";
+import { SignInModal } from "./auth/SignInModal";
+import { useAuth } from "./auth/AuthContext";
 
 const KnowledgeGalaxy = lazy(() =>
   import("./components/three/KnowledgeGalaxy").then((m) => ({
@@ -45,10 +47,12 @@ export default function App() {
   const [focusedIdx, setFocusedIdx] = useState<number>(-1);
   const [galaxyOpen, setGalaxyOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [signInOpen, setSignInOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const focusedCardRef = useRef<HTMLDivElement>(null);
 
   const meta = useQuestionMeta();
+  const { isRecovery } = useAuth();
 
   // First-time onboarding: open help modal once
   useEffect(() => {
@@ -61,6 +65,13 @@ export default function App() {
       /* localStorage unavailable — silently skip */
     }
   }, []);
+
+  // Password reset: when the user clicks through from the reset email,
+  // Supabase emits PASSWORD_RECOVERY and AuthContext sets isRecovery. Pop
+  // the modal so they can set a new password.
+  useEffect(() => {
+    if (isRecovery) setSignInOpen(true);
+  }, [isRecovery]);
 
   // Apply theme
   useEffect(() => {
@@ -254,6 +265,7 @@ export default function App() {
         galaxyOpen={galaxyOpen}
         onToggleGalaxy={() => setGalaxyOpen((v) => !v)}
         onOpenHelp={() => setHelpOpen(true)}
+        onOpenSignIn={() => setSignInOpen(true)}
         onCycleTheme={cycleTheme}
         onReset={reset}
         onMobileMenuToggle={() => setMobileMenuOpen((v) => !v)}
@@ -368,6 +380,7 @@ export default function App() {
         </main>
       </div>
       <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <SignInModal open={signInOpen} onClose={() => setSignInOpen(false)} />
     </>
   );
 }
