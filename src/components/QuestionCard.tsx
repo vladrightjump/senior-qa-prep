@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Question, QuestionComment } from "../types";
 import { Diagram } from "./Diagram";
+import { MediaBlock } from "./MediaBlock";
 
 interface QuestionCardProps {
   question: Question;
@@ -118,6 +119,9 @@ export function QuestionCard({
       {isOpen && (
         <div className="q-detail">
           {question.diagram && <Diagram source={question.diagram} />}
+          {question.media && question.media.length > 0 && (
+            <MediaBlock media={question.media} />
+          )}
           <div dangerouslySetInnerHTML={{ __html: question.answer }} />
         </div>
       )}

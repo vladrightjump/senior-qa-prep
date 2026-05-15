@@ -27,25 +27,34 @@ No backend, no accounts, no telemetry.
 
 ## Tech Stack
 
-- **React 18.3** — function components and hooks, no class components
+- **React 19** — function components and hooks, concurrent features
 - **TypeScript 5.6** — strict mode, `noUnusedLocals`, `noUnusedParameters`
 - **Vite 5.4** — dev server with HMR, Rollup for production builds
+- **@react-three/fiber 9 + @react-three/drei + three** — declarative 3D scenes
+  (animated progress orb in the header, interactive Knowledge Galaxy)
+- **Mermaid 11** — lazy-loaded diagrams inside answer cards
 - **Pure CSS** — custom properties for light/dark/auto theming, no UI library
 - **localStorage** — Set-aware JSON serialization for progress persistence
-
-2 runtime deps, 5 dev deps. Production bundle ≈ 50 KB gzipped.
 
 ---
 
 ## Features
 
+- **🪐 Knowledge Galaxy** — interactive 3D map of all categories (R3F + drei).
+  Drag to rotate, scroll to zoom, click an orb to dive in. Orb size encodes
+  question count, the green ring shows progress, gold dots mark flagged items.
+- **Animated 3D progress orb** in the top bar that shifts hue blue → green as
+  you complete more questions.
 - Per-category search (question text, tags, answer content)
 - Difficulty filter: easy / mid / hard
 - Mark-as-reviewed with persistent progress tracking
-- Global progress bar + per-category progress in sidebar
+- Per-question notes synced via Supabase (or local-only if not configured)
+- Inline **Mermaid diagrams** and **media blocks** (image / video / YouTube)
+  inside answer cards
+- First-visit help modal + on-demand `?` shortcut
 - Light / dark / auto theme (follows OS preference)
 - Mobile-responsive (hamburger menu under 800px)
-- Print-friendly (`Cmd/Ctrl+P` → clean PDF output)
+- Print-friendly (`Cmd/Ctrl+P` → clean PDF output, 3D + modals stripped)
 - Offline-first — no network calls after initial load
 
 ### Keyboard shortcuts
@@ -57,7 +66,10 @@ No backend, no accounts, no telemetry.
 | `j` / `k` | Navigate questions |
 | `Space` | Toggle question open/closed |
 | `r` | Mark focused question as reviewed |
-| `Esc` | Unfocus search / close mobile menu |
+| `f` | Flag focused question to investigate |
+| `g` | Toggle Knowledge Galaxy |
+| `?` | Open help modal |
+| `Esc` | Unfocus search / close mobile menu / close modal |
 
 ---
 
@@ -89,11 +101,21 @@ qa-app/
 All content lives in `src/data/` as TypeScript files. The shape is compile-time enforced:
 
 ```ts
+interface QuestionMedia {
+  type: "image" | "video" | "youtube";
+  src: string;
+  caption?: string;
+  alt?: string;
+  poster?: string;
+}
+
 interface Question {
   q: string;
   diff: "easy" | "mid" | "hard";
   tags?: string[];
-  answer: string; // HTML string
+  answer: string;        // HTML string
+  diagram?: string;      // Mermaid source — rendered above the answer
+  media?: QuestionMedia[]; // images / clips / YouTube embeds
 }
 ```
 

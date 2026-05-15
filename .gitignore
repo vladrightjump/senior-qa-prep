@@ -16,3 +16,7 @@ dist-ssr
 *.tsbuildinfo
 vite.config.d.ts
 vite.config.js
+
+# local npm cache (workaround for root-owned ~/.npm)
+.npm-cache/
+.npmrc

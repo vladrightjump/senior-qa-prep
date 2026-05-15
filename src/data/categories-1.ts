@@ -13,6 +13,13 @@ const playwrightTS: Category = {
       q: "What is the difference between page.locator() and page.$()? Which should you use in a senior framework?",
       diff: "mid",
       tags: ["playwright", "locators"],
+      media: [
+        {
+          type: "youtube",
+          src: "https://www.youtube.com/watch?v=Mzx00MGOyAY",
+          caption: "Playwright fundamentals — locators in practice",
+        },
+      ],
       diagram: `flowchart TB
   subgraph DOLLAR["page.$('.btn')  — eager snapshot"]
     D1["query DOM<br/>→ ElementHandle"] --> D2["DOM re-renders<br/>(React state change)"]

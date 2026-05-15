@@ -1,9 +1,13 @@
 import type { Theme } from "../types";
+import { ProgressOrb } from "./three/ProgressOrb";
 
 interface TopBarProps {
   totalReviewed: number;
   totalQuestions: number;
   theme: Theme;
+  galaxyOpen: boolean;
+  onToggleGalaxy: () => void;
+  onOpenHelp: () => void;
   onCycleTheme: () => void;
   onReset: () => void;
   onMobileMenuToggle: () => void;
@@ -13,11 +17,15 @@ export function TopBar({
   totalReviewed,
   totalQuestions,
   theme,
+  galaxyOpen,
+  onToggleGalaxy,
+  onOpenHelp,
   onCycleTheme,
   onReset,
   onMobileMenuToggle,
 }: TopBarProps) {
   const pct = totalQuestions ? Math.round((totalReviewed / totalQuestions) * 100) : 0;
+  const progress = totalQuestions ? totalReviewed / totalQuestions : 0;
   const themeIcon = theme === "auto" ? "◐" : theme === "light" ? "☀" : "☾";
 
   return (
@@ -34,10 +42,35 @@ export function TopBar({
         QA Interview Prep <span className="dim">Senior Automation</span>
       </div>
       <div className="topbar-spacer" />
-      <div className="topbar-progress" title={`${totalReviewed} of ${totalQuestions} reviewed`}>
-        <span>{totalReviewed}/{totalQuestions}</span>
-        <div className="progress-bar"><div style={{ width: `${pct}%` }} /></div>
+      <button
+        className={`pill-btn ${galaxyOpen ? "active" : ""}`}
+        onClick={onToggleGalaxy}
+        title="Toggle Knowledge Galaxy (g)"
+        aria-pressed={galaxyOpen}
+      >
+        🪐 <span className="pill-btn-label">Galaxy</span>
+      </button>
+      <div
+        className="topbar-progress"
+        title={`${totalReviewed} of ${totalQuestions} reviewed (${pct}%)`}
+      >
+        <ProgressOrb
+          progress={progress}
+          size={44}
+          ariaLabel={`Overall progress: ${pct}%`}
+        />
+        <span className="topbar-progress-num">
+          {totalReviewed}/{totalQuestions}
+        </span>
       </div>
+      <button
+        className="icon-btn"
+        onClick={onOpenHelp}
+        title="Help (?)"
+        aria-label="Open help"
+      >
+        ?
+      </button>
       <button
         className="icon-btn"
         onClick={onCycleTheme}

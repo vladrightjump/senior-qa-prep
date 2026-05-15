@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { CATEGORIES } from "./data/questions";
 import type { DiffFilter, Question, Theme } from "./types";
 import { useLocalStorage } from "./hooks/useLocalStorage";
@@ -6,8 +6,16 @@ import { useQuestionMeta } from "./hooks/useQuestionMeta";
 import { TopBar } from "./components/TopBar";
 import { Sidebar, NEEDS_INVESTIGATION_ID } from "./components/Sidebar";
 import { QuestionCard } from "./components/QuestionCard";
+import { HelpModal } from "./components/HelpModal";
+
+const KnowledgeGalaxy = lazy(() =>
+  import("./components/three/KnowledgeGalaxy").then((m) => ({
+    default: m.KnowledgeGalaxy,
+  })),
+);
 
 const STORAGE_KEY = "qa-prep-state-v3";
+const HELP_SEEN_KEY = "qa-prep-help-seen-v1";
 
 interface PersistedState {
   activeCategoryId: string;
@@ -35,10 +43,24 @@ export default function App() {
   const [diffFilter, setDiffFilter] = useState<DiffFilter>("all");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [focusedIdx, setFocusedIdx] = useState<number>(-1);
+  const [galaxyOpen, setGalaxyOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const focusedCardRef = useRef<HTMLDivElement>(null);
 
   const meta = useQuestionMeta();
+
+  // First-time onboarding: open help modal once
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(HELP_SEEN_KEY)) {
+        setHelpOpen(true);
+        localStorage.setItem(HELP_SEEN_KEY, "1");
+      }
+    } catch {
+      /* localStorage unavailable — silently skip */
+    }
+  }, []);
 
   // Apply theme
   useEffect(() => {
@@ -118,6 +140,7 @@ export default function App() {
     setState((p) => ({ ...p, activeCategoryId: id }));
     setSearch("");
     setDiffFilter("all");
+    setGalaxyOpen(false);
   };
 
   const toggleOpen = (id: string) => {
@@ -159,6 +182,18 @@ export default function App() {
         e.preventDefault();
         searchRef.current?.focus();
         searchRef.current?.select();
+        return;
+      }
+
+      if (e.key === "?") {
+        e.preventDefault();
+        setHelpOpen(true);
+        return;
+      }
+
+      if (e.key === "g") {
+        e.preventDefault();
+        setGalaxyOpen((v) => !v);
         return;
       }
 
@@ -216,6 +251,9 @@ export default function App() {
         totalReviewed={totalReviewed}
         totalQuestions={totalQuestions}
         theme={state.theme}
+        galaxyOpen={galaxyOpen}
+        onToggleGalaxy={() => setGalaxyOpen((v) => !v)}
+        onOpenHelp={() => setHelpOpen(true)}
         onCycleTheme={cycleTheme}
         onReset={reset}
         onMobileMenuToggle={() => setMobileMenuOpen((v) => !v)}
@@ -231,81 +269,105 @@ export default function App() {
           onCloseMobile={() => setMobileMenuOpen(false)}
         />
         <main className="main">
-          <div className="cat-header">
-            <h1>{headerTitle}</h1>
-            <p>{headerDesc}</p>
-          </div>
-          {meta.error && (
-            <div className="meta-error">
-              Sync issue: {meta.error}. Changes may not be saved.
-            </div>
-          )}
-          <div className="controls">
-            <input
-              ref={searchRef}
-              type="text"
-              className="search"
-              placeholder={
-                isInvestigationView
-                  ? "Search flagged questions…   (press /)"
-                  : "Search this category…   (press /)"
-              }
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <div className="pills" role="tablist" aria-label="Difficulty filter">
-              {(["all", "easy", "mid", "hard"] as const).map((d) => (
-                <button
-                  key={d}
-                  className={`pill ${diffFilter === d ? "active" : ""}`}
-                  onClick={() => setDiffFilter(d)}
-                  role="tab"
-                  aria-selected={diffFilter === d}
-                >
-                  {d}
-                </button>
-              ))}
-            </div>
-          </div>
-          {filtered.length === 0 ? (
-            <div className="empty">
-              {isInvestigationView
-                ? "Nothing flagged yet. Click 🔎 on any question to add it here."
-                : "No questions match. Try clearing search or changing difficulty."}
+          {galaxyOpen ? (
+            <div className="galaxy-view">
+              <div className="cat-header">
+                <h1>🪐 Knowledge Galaxy</h1>
+                <p>
+                  All {CATEGORIES.length} categories at a glance. Orb size = number
+                  of questions, green ring = your progress, gold dot = flagged items.
+                  Click an orb to dive in.
+                </p>
+              </div>
+              <Suspense fallback={<div className="galaxy-loading">Loading galaxy…</div>}>
+                <KnowledgeGalaxy
+                  categories={CATEGORIES}
+                  reviewedIds={meta.reviewed}
+                  flaggedIds={meta.flags}
+                  onSelect={setActiveCategory}
+                />
+              </Suspense>
             </div>
           ) : (
-            <div className="q-list">
-              {filtered.map((item, i) => {
-                const isFocused = i === focusedIdx;
-                const qid = item.q.id;
-                return (
-                  <div ref={isFocused ? focusedCardRef : null} key={qid}>
-                    {isInvestigationView && (
-                      <div className="q-card-source">{item.categoryLabel}</div>
-                    )}
-                    <QuestionCard
-                      question={item.q}
-                      num={item.idx + 1}
-                      isReviewed={meta.reviewed.has(qid)}
-                      isOpen={state.openIds.has(qid)}
-                      isFocused={isFocused}
-                      isFlagged={meta.flags.has(qid)}
-                      isCommentsOpen={state.commentsOpenIds.has(qid)}
-                      comments={meta.commentsByQuestion.get(qid) ?? []}
-                      onToggleOpen={() => toggleOpen(qid)}
-                      onToggleReviewed={() => meta.toggleReviewed(qid)}
-                      onToggleFlag={() => meta.toggleFlag(qid)}
-                      onToggleComments={() => toggleComments(qid)}
-                      onAddComment={(body) => meta.addComment(qid, body)}
-                      onDeleteComment={(cid) => meta.deleteComment(cid)}
-                    />
-                  </div>
-                );
-              })}
-            </div>
+            <>
+              <div className="cat-header">
+                <h1>{headerTitle}</h1>
+                <p>{headerDesc}</p>
+              </div>
+              {meta.error && (
+                <div className="meta-error">
+                  Sync issue: {meta.error}. Changes may not be saved.
+                </div>
+              )}
+              <div className="controls">
+                <input
+                  ref={searchRef}
+                  type="text"
+                  className="search"
+                  placeholder={
+                    isInvestigationView
+                      ? "Search flagged questions…   (press /)"
+                      : "Search this category…   (press /)"
+                  }
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+                <div className="pills" role="tablist" aria-label="Difficulty filter">
+                  {(["all", "easy", "mid", "hard"] as const).map((d) => (
+                    <button
+                      key={d}
+                      className={`pill ${diffFilter === d ? "active" : ""}`}
+                      onClick={() => setDiffFilter(d)}
+                      role="tab"
+                      aria-selected={diffFilter === d}
+                    >
+                      {d}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {filtered.length === 0 ? (
+                <div className="empty">
+                  {isInvestigationView
+                    ? "Nothing flagged yet. Click 🔎 on any question to add it here."
+                    : "No questions match. Try clearing search or changing difficulty."}
+                </div>
+              ) : (
+                <div className="q-list">
+                  {filtered.map((item, i) => {
+                    const isFocused = i === focusedIdx;
+                    const qid = item.q.id;
+                    return (
+                      <div ref={isFocused ? focusedCardRef : null} key={qid}>
+                        {isInvestigationView && (
+                          <div className="q-card-source">{item.categoryLabel}</div>
+                        )}
+                        <QuestionCard
+                          question={item.q}
+                          num={item.idx + 1}
+                          isReviewed={meta.reviewed.has(qid)}
+                          isOpen={state.openIds.has(qid)}
+                          isFocused={isFocused}
+                          isFlagged={meta.flags.has(qid)}
+                          isCommentsOpen={state.commentsOpenIds.has(qid)}
+                          comments={meta.commentsByQuestion.get(qid) ?? []}
+                          onToggleOpen={() => toggleOpen(qid)}
+                          onToggleReviewed={() => meta.toggleReviewed(qid)}
+                          onToggleFlag={() => meta.toggleFlag(qid)}
+                          onToggleComments={() => toggleComments(qid)}
+                          onAddComment={(body) => meta.addComment(qid, body)}
+                          onDeleteComment={(cid) => meta.deleteComment(cid)}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
         </main>
       </div>
+      <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
     </>
   );
 }

@@ -1,5 +1,13 @@
 export type Difficulty = "easy" | "mid" | "hard";
 
+export interface QuestionMedia {
+  type: "image" | "video" | "youtube";
+  src: string;
+  caption?: string;
+  alt?: string;
+  poster?: string;
+}
+
 export interface Question {
   id: string;
   q: string;
@@ -9,6 +17,9 @@ export interface Question {
   // Optional Mermaid diagram source (e.g. `graph TD; A-->B`). Rendered above
   // the answer body when present.
   diagram?: string;
+  // Optional rich media (images, video clips, YouTube embeds) rendered below
+  // the diagram and above the answer body.
+  media?: QuestionMedia[];
 }
 
 export interface QuestionComment {

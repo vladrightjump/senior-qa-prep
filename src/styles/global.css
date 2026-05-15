@@ -784,3 +784,302 @@ kbd {
   background: var(--accent-soft);
   color: var(--accent);
 }
+
+/* ============================================================================
+   Dynamic UX additions: 3D progress orb, Knowledge Galaxy, help modal,
+   media blocks, smoother card transitions.
+   ========================================================================= */
+
+/* ----- ProgressOrb (TopBar) ----- */
+.progress-orb {
+  display: inline-block;
+  vertical-align: middle;
+  flex: 0 0 auto;
+}
+.progress-orb canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+.topbar-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.topbar-progress-num {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--fg-muted);
+  font-weight: 500;
+}
+
+/* ----- Pill button (Galaxy toggle) ----- */
+.pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .15s ease, transform .12s ease, border-color .15s ease;
+}
+.pill-btn:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.pill-btn:active { transform: scale(.97); }
+.pill-btn.active {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
+@media (max-width: 600px) {
+  .pill-btn-label { display: none; }
+}
+
+/* ----- Knowledge Galaxy ----- */
+.galaxy-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.galaxy-canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: clamp(420px, 65vh, 720px);
+  background: radial-gradient(ellipse at center, #0c1224 0%, #05070d 70%);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.galaxy-canvas-wrap canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+.galaxy-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: clamp(420px, 65vh, 720px);
+  background: radial-gradient(ellipse at center, #0c1224 0%, #05070d 70%);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: rgba(220, 230, 245, 0.65);
+  font-size: 14px;
+  letter-spacing: 0.5px;
+}
+.galaxy-hint {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(220, 230, 245, 0.7);
+  font-size: 12px;
+  background: rgba(0,0,0,.35);
+  border: 1px solid rgba(255,255,255,.08);
+  padding: 4px 10px;
+  border-radius: 999px;
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+}
+.galaxy-node-label {
+  text-align: center;
+  color: #e9eef8;
+  font-size: 12px;
+  line-height: 1.3;
+  text-shadow: 0 1px 4px rgba(0,0,0,.65);
+  transition: transform .15s ease, color .15s ease;
+  white-space: nowrap;
+}
+.galaxy-node-label.hovered { transform: translateY(-2px) scale(1.08); color: #fff; }
+.galaxy-node-title { font-weight: 600; }
+.galaxy-node-meta { opacity: .75; font-size: 11px; margin-top: 2px; }
+
+/* ----- Help modal ----- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 10, 18, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn .18s ease-out;
+}
+.modal {
+  position: relative;
+  background: var(--bg-elev);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.35);
+  width: min(720px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 28px 28px 24px;
+  animation: popIn .22s cubic-bezier(.2,.9,.3,1.2);
+}
+.modal-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  background: transparent;
+  border: 0;
+  color: var(--fg-muted);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+.modal-close:hover { background: var(--bg-soft); color: var(--fg); }
+.modal-title { margin: 0 0 6px; font-size: 22px; font-weight: 700; }
+.modal-lead { color: var(--fg-muted); margin: 0 0 18px; }
+.modal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.modal-grid section {
+  background: var(--bg-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.modal-grid h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.modal-grid p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--fg-muted);
+  line-height: 1.5;
+}
+.modal-shortcuts {
+  border-top: 1px solid var(--border-soft);
+  padding-top: 14px;
+}
+.modal-shortcuts h3 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.kbd-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 6px 16px;
+  font-size: 13px;
+  color: var(--fg-muted);
+}
+.kbd-grid kbd {
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--fg);
+}
+.modal-cta {
+  margin-top: 18px;
+  width: 100%;
+  background: var(--accent);
+  color: var(--accent-text);
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform .12s ease, filter .15s ease;
+}
+.modal-cta:hover { filter: brightness(1.08); }
+.modal-cta:active { transform: scale(.98); }
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(8px) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ----- Media block in question detail ----- */
+.media-block {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin: 12px 0 16px;
+}
+.media-item {
+  margin: 0;
+  background: var(--bg-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.media-item img,
+.media-item video {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #000;
+}
+.media-embed {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%;
+  background: #000;
+}
+.media-embed iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.media-item figcaption {
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--fg-muted);
+  border-top: 1px solid var(--border-soft);
+}
+
+/* ----- Smoother card transitions ----- */
+.q-card {
+  transition: border-color .18s ease, transform .15s ease, box-shadow .18s ease;
+}
+.q-card:hover:not(.open) {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(20,20,20,.04), 0 8px 20px rgba(20,20,20,.05);
+}
+.q-detail {
+  animation: slideDown .22s ease-out;
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Print: hide 3D + modal */
+@media print {
+  .progress-orb, .galaxy-canvas-wrap, .modal-backdrop, .pill-btn { display: none !important; }
+}
