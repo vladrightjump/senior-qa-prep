@@ -1,6 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { supabase } from "../lib/supabase";
-import { useAuth } from "../auth/AuthContext";
+import { useCallback, useEffect, useState } from "react";
 import type { QuestionComment } from "../types";
 
 interface UseQuestionMetaResult {
@@ -16,302 +14,150 @@ interface UseQuestionMetaResult {
   editComment: (commentId: string, body: string) => Promise<void>;
 }
 
-function groupBy<T, K>(items: T[], key: (item: T) => K): Map<K, T[]> {
-  const out = new Map<K, T[]>();
-  for (const item of items) {
-    const k = key(item);
-    const arr = out.get(k);
-    if (arr) arr.push(item);
-    else out.set(k, [item]);
-  }
-  return out;
-}
+const FLAGS_KEY = "qa-flags-v1";
+const REVIEWED_KEY = "qa-reviewed-v1";
+const COMMENTS_KEY = "qa-comments-v1";
 
-// One-time migration: push any localStorage reviewed IDs from previous app
-// versions into the DB so progress isn't lost when we switch to server-side
-// tracking. Idempotent — guarded by a flag in localStorage.
-const MIGRATION_FLAG = "qa-reviewed-migrated-v1";
+// One-time migration from the legacy v2/v3 combined state blob where
+// reviewed IDs were stored inside qa-prep-state-v3.
+const MIGRATION_FLAG = "qa-reviewed-migrated-local-v1";
 const LEGACY_KEYS = ["qa-prep-state-v3", "qa-prep-state-v2"];
 
-function readLegacyReviewedIds(): string[] {
-  const ids = new Set<string>();
+function readSet(key: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return new Set(parsed.filter((v) => typeof v === "string"));
+  } catch {
+    /* fall through */
+  }
+  return new Set();
+}
+
+function writeSet(key: string, set: Set<string>): void {
+  try {
+    localStorage.setItem(key, JSON.stringify([...set]));
+  } catch {
+    /* quota / privacy mode — ignore */
+  }
+}
+
+function readComments(): Map<string, QuestionComment[]> {
+  try {
+    const raw = localStorage.getItem(COMMENTS_KEY);
+    if (!raw) return new Map();
+    const parsed = JSON.parse(raw) as QuestionComment[];
+    if (!Array.isArray(parsed)) return new Map();
+    const map = new Map<string, QuestionComment[]>();
+    for (const c of parsed) {
+      const list = map.get(c.question_id) ?? [];
+      list.push(c);
+      map.set(c.question_id, list);
+    }
+    for (const list of map.values()) {
+      list.sort((a, b) => a.created_at.localeCompare(b.created_at));
+    }
+    return map;
+  } catch {
+    return new Map();
+  }
+}
+
+function writeComments(map: Map<string, QuestionComment[]>): void {
+  try {
+    const flat: QuestionComment[] = [];
+    for (const list of map.values()) flat.push(...list);
+    localStorage.setItem(COMMENTS_KEY, JSON.stringify(flat));
+  } catch {
+    /* ignore */
+  }
+}
+
+function migrateLegacyReviewed(current: Set<string>): Set<string> {
+  if (localStorage.getItem(MIGRATION_FLAG)) return current;
+  const merged = new Set(current);
   for (const key of LEGACY_KEYS) {
     try {
       const raw = localStorage.getItem(key);
       if (!raw) continue;
       const parsed = JSON.parse(raw);
       const r = parsed?.reviewedIds;
-      // v2/v3 serialize Sets as { __set__: true, values: [...] }
       const values: unknown = r?.values ?? r;
       if (Array.isArray(values)) {
-        for (const v of values) {
-          if (typeof v === "string" && /^[0-9a-f-]{36}$/i.test(v)) ids.add(v);
-        }
+        for (const v of values) if (typeof v === "string") merged.add(v);
       }
     } catch {
-      /* ignore — stale or malformed state */
+      /* ignore stale state */
     }
   }
-  return [...ids];
+  localStorage.setItem(MIGRATION_FLAG, "1");
+  if (merged.size !== current.size) writeSet(REVIEWED_KEY, merged);
+  return merged;
 }
 
-async function migrateLocalReviewedIfNeeded(): Promise<string[]> {
-  if (localStorage.getItem(MIGRATION_FLAG)) return [];
-  const legacy = readLegacyReviewedIds();
-  if (legacy.length === 0) {
-    localStorage.setItem(MIGRATION_FLAG, "1");
-    return [];
+function newId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
   }
-  const { error } = await supabase
-    .from("qa_reviewed")
-    .upsert(
-      legacy.map((id) => ({ question_id: id })),
-      { onConflict: "question_id" },
-    );
-  if (error) {
-    // Don't set the flag — try again on next load.
-    console.warn("Reviewed migration failed:", error.message);
-    return [];
-  }
-  localStorage.setItem(MIGRATION_FLAG, "1");
-  return legacy;
+  return `c_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export function useQuestionMeta(): UseQuestionMetaResult {
-  const { user, status } = useAuth();
-  const userId = user?.id ?? null;
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [flags, setFlags] = useState<Set<string>>(() => new Set());
-  const [reviewed, setReviewed] = useState<Set<string>>(() => new Set());
+  const [flags, setFlags] = useState<Set<string>>(() => readSet(FLAGS_KEY));
+  const [reviewed, setReviewed] = useState<Set<string>>(() =>
+    migrateLegacyReviewed(readSet(REVIEWED_KEY)),
+  );
   const [commentsByQuestion, setCommentsByQuestion] = useState<
     Map<string, QuestionComment[]>
-  >(() => new Map());
+  >(() => readComments());
 
-  // Mirrors of the state Sets that always reflect the latest value. The
-  // toggle handlers need to read the current membership *synchronously* to
-  // decide between insert and delete — state updater functions run later, so
-  // closing over a side-effect-set variable inside setFlags() doesn't work.
-  const flagsRef = useRef(flags);
-  const reviewedRef = useRef(reviewed);
-  useEffect(() => {
-    flagsRef.current = flags;
-  }, [flags]);
-  useEffect(() => {
-    reviewedRef.current = reviewed;
-  }, [reviewed]);
-
-  // Counts in-flight DB writes so we can warn the user before they refresh
-  // or close the tab while changes haven't been persisted yet.
-  const pendingWrites = useRef(0);
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      if (pendingWrites.current > 0) {
-        e.preventDefault();
-        e.returnValue = "";
-      }
-    };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, []);
-  const track = async <T,>(p: PromiseLike<T>): Promise<T> => {
-    pendingWrites.current += 1;
-    try {
-      return await p;
-    } finally {
-      pendingWrites.current -= 1;
-    }
-  };
-
-  // Initial load: only when signed in. Anonymous users see empty state
-  // (their local UI state still works via useLocalStorage in App).
-  useEffect(() => {
-    if (status === "loading") return;
-    if (!userId) {
-      setFlags(new Set());
-      setReviewed(new Set());
-      setCommentsByQuestion(new Map());
-      setError(null);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    let cancelled = false;
-    (async () => {
-      await migrateLocalReviewedIfNeeded();
-      const [flagsRes, reviewedRes, commentsRes] = await Promise.all([
-        supabase.from("qa_flags").select("question_id"),
-        supabase.from("qa_reviewed").select("question_id"),
-        supabase
-          .from("qa_comments")
-          .select("*")
-          .order("created_at", { ascending: true }),
-      ]);
-      if (cancelled) return;
-      if (flagsRes.error || reviewedRes.error || commentsRes.error) {
-        setError(
-          flagsRes.error?.message ??
-            reviewedRes.error?.message ??
-            commentsRes.error?.message ??
-            "Load failed",
-        );
-        setLoading(false);
-        return;
-      }
-      setFlags(new Set((flagsRes.data ?? []).map((r) => r.question_id)));
-      setReviewed(new Set((reviewedRes.data ?? []).map((r) => r.question_id)));
-      setCommentsByQuestion(
-        groupBy(commentsRes.data as QuestionComment[], (c) => c.question_id),
-      );
-      setLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [userId, status]);
-
-  // Realtime: keep flags, reviewed, and comments in sync across devices.
-  useEffect(() => {
-    if (!userId) return;
-    const channel = supabase
-      .channel("qa-meta")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "qa_flags" },
-        (payload) => {
-          setFlags((prev) => {
-            const next = new Set(prev);
-            if (payload.eventType === "INSERT") next.add(payload.new.question_id);
-            else if (payload.eventType === "DELETE") next.delete(payload.old.question_id);
-            return next;
-          });
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "qa_reviewed" },
-        (payload) => {
-          setReviewed((prev) => {
-            const next = new Set(prev);
-            if (payload.eventType === "INSERT") next.add(payload.new.question_id);
-            else if (payload.eventType === "DELETE") next.delete(payload.old.question_id);
-            return next;
-          });
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "qa_comments" },
-        (payload) => {
-          setCommentsByQuestion((prev) => {
-            const next = new Map(prev);
-            const upsert = (c: QuestionComment) => {
-              const list = (next.get(c.question_id) ?? []).filter((x) => x.id !== c.id);
-              list.push(c);
-              list.sort((a, b) => a.created_at.localeCompare(b.created_at));
-              next.set(c.question_id, list);
-            };
-            const remove = (c: QuestionComment) => {
-              const list = (next.get(c.question_id) ?? []).filter((x) => x.id !== c.id);
-              if (list.length) next.set(c.question_id, list);
-              else next.delete(c.question_id);
-            };
-            if (payload.eventType === "INSERT") upsert(payload.new as QuestionComment);
-            else if (payload.eventType === "UPDATE") upsert(payload.new as QuestionComment);
-            else if (payload.eventType === "DELETE") remove(payload.old as QuestionComment);
-            return next;
-          });
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [userId]);
+  useEffect(() => writeSet(FLAGS_KEY, flags), [flags]);
+  useEffect(() => writeSet(REVIEWED_KEY, reviewed), [reviewed]);
+  useEffect(() => writeComments(commentsByQuestion), [commentsByQuestion]);
 
   const toggleFlag = useCallback(async (questionId: string) => {
-    const willFlag = !flagsRef.current.has(questionId);
     setFlags((prev) => {
       const next = new Set(prev);
-      if (willFlag) next.add(questionId);
-      else next.delete(questionId);
+      if (next.has(questionId)) next.delete(questionId);
+      else next.add(questionId);
       return next;
     });
-    const { error } = await track(
-      willFlag
-        ? supabase
-            .from("qa_flags")
-            .upsert({ question_id: questionId }, { onConflict: "question_id" })
-        : supabase.from("qa_flags").delete().eq("question_id", questionId),
-    );
-    if (error) {
-      setError(error.message);
-      setFlags((prev) => {
-        const next = new Set(prev);
-        if (willFlag) next.delete(questionId);
-        else next.add(questionId);
-        return next;
-      });
-    }
   }, []);
 
   const toggleReviewed = useCallback(async (questionId: string) => {
-    const willMark = !reviewedRef.current.has(questionId);
     setReviewed((prev) => {
       const next = new Set(prev);
-      if (willMark) next.add(questionId);
-      else next.delete(questionId);
+      if (next.has(questionId)) next.delete(questionId);
+      else next.add(questionId);
       return next;
     });
-    const { error } = await track(
-      willMark
-        ? supabase
-            .from("qa_reviewed")
-            .upsert({ question_id: questionId }, { onConflict: "question_id" })
-        : supabase.from("qa_reviewed").delete().eq("question_id", questionId),
-    );
-    if (error) {
-      setError(error.message);
-      setReviewed((prev) => {
-        const next = new Set(prev);
-        if (willMark) next.delete(questionId);
-        else next.add(questionId);
-        return next;
-      });
-    }
   }, []);
 
   const addComment = useCallback(async (questionId: string, body: string) => {
     const trimmed = body.trim();
     if (!trimmed) return;
-    const { data, error } = await track(
-      supabase
-        .from("qa_comments")
-        .insert({ question_id: questionId, body: trimmed })
-        .select()
-        .single(),
-    );
-    if (error || !data) {
-      setError(error?.message ?? "Add failed");
-      return;
-    }
+    const now = new Date().toISOString();
+    const comment: QuestionComment = {
+      id: newId(),
+      question_id: questionId,
+      body: trimmed,
+      created_at: now,
+      updated_at: now,
+    };
     setCommentsByQuestion((prev) => {
       const next = new Map(prev);
-      const list = [...(next.get(questionId) ?? []), data as QuestionComment];
-      next.set(questionId, list);
+      next.set(questionId, [...(next.get(questionId) ?? []), comment]);
       return next;
     });
   }, []);
 
   const deleteComment = useCallback(async (commentId: string) => {
-    let removed: QuestionComment | undefined;
     setCommentsByQuestion((prev) => {
       const next = new Map(prev);
       for (const [qId, list] of next) {
-        const idx = list.findIndex((c) => c.id === commentId);
-        if (idx >= 0) {
-          removed = list[idx];
-          const updated = list.filter((c) => c.id !== commentId);
+        const updated = list.filter((c) => c.id !== commentId);
+        if (updated.length !== list.length) {
           if (updated.length) next.set(qId, updated);
           else next.delete(qId);
           break;
@@ -319,51 +165,30 @@ export function useQuestionMeta(): UseQuestionMetaResult {
       }
       return next;
     });
-    const { error } = await track(
-      supabase.from("qa_comments").delete().eq("id", commentId),
-    );
-    if (error && removed) {
-      setError(error.message);
-      const restored = removed;
-      setCommentsByQuestion((prev) => {
-        const next = new Map(prev);
-        const list = [...(next.get(restored.question_id) ?? []), restored];
-        list.sort((a, b) => a.created_at.localeCompare(b.created_at));
-        next.set(restored.question_id, list);
-        return next;
-      });
-    }
   }, []);
 
   const editComment = useCallback(async (commentId: string, body: string) => {
     const trimmed = body.trim();
     if (!trimmed) return;
-    const { data, error } = await track(
-      supabase
-        .from("qa_comments")
-        .update({ body: trimmed, updated_at: new Date().toISOString() })
-        .eq("id", commentId)
-        .select()
-        .single(),
-    );
-    if (error || !data) {
-      setError(error?.message ?? "Edit failed");
-      return;
-    }
-    const updated = data as QuestionComment;
+    const now = new Date().toISOString();
     setCommentsByQuestion((prev) => {
       const next = new Map(prev);
-      const list = (next.get(updated.question_id) ?? []).map((c) =>
-        c.id === updated.id ? updated : c,
-      );
-      next.set(updated.question_id, list);
+      for (const [qId, list] of next) {
+        const idx = list.findIndex((c) => c.id === commentId);
+        if (idx >= 0) {
+          const updated = [...list];
+          updated[idx] = { ...list[idx]!, body: trimmed, updated_at: now };
+          next.set(qId, updated);
+          break;
+        }
+      }
       return next;
     });
   }, []);
 
   return {
-    loading,
-    error,
+    loading: false,
+    error: null,
     flags,
     reviewed,
     commentsByQuestion,

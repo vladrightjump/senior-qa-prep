@@ -48,7 +48,7 @@ No backend, no accounts, no telemetry.
 - Per-category search (question text, tags, answer content)
 - Difficulty filter: easy / mid / hard
 - Mark-as-reviewed with persistent progress tracking
-- Per-question notes synced via Supabase (or local-only if not configured)
+- Per-question notes saved locally in the browser
 - Inline **Mermaid diagrams** and **media blocks** (image / video / YouTube)
   inside answer cards
 - First-visit help modal + on-demand `?` shortcut

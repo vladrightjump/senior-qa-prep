@@ -1,6 +1,5 @@
 import type { Theme } from "../types";
 import { ProgressOrb } from "./three/ProgressOrb";
-import { UserMenu } from "../auth/UserMenu";
 
 interface TopBarProps {
   totalReviewed: number;
@@ -9,7 +8,6 @@ interface TopBarProps {
   galaxyOpen: boolean;
   onToggleGalaxy: () => void;
   onOpenHelp: () => void;
-  onOpenSignIn: () => void;
   onCycleTheme: () => void;
   onReset: () => void;
   onMobileMenuToggle: () => void;
@@ -22,7 +20,6 @@ export function TopBar({
   galaxyOpen,
   onToggleGalaxy,
   onOpenHelp,
-  onOpenSignIn,
   onCycleTheme,
   onReset,
   onMobileMenuToggle,
@@ -66,7 +63,6 @@ export function TopBar({
           {totalReviewed}/{totalQuestions}
         </span>
       </div>
-      <UserMenu onSignInClick={onOpenSignIn} />
       <button
         className="icon-btn"
         onClick={onOpenHelp}
