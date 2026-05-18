@@ -324,3 +324,62 @@ supabase/functions/delete-account/index.ts   # Edge Function: verifies JWT, call
   new `updatePassword` / `deleteAccount` paths are not yet covered —
   TODO for next iteration)
 - `npm run build` ✓
+
+---
+
+## Feedback — Areas to improve
+
+Targeted growth areas to focus on going forward. Each subsection captures
+the gap, why it matters, and concrete next steps.
+
+### Basic test management practices
+
+- Strengthen the fundamentals: test planning, test case design, traceability
+  between requirements and tests, defect lifecycle management, and reporting.
+- Get comfortable with a test management tool (e.g. TestRail, Xray, Zephyr)
+  and the artifacts it produces — test plans, suites, runs, evidence.
+- Practice writing clear, atomic test cases with explicit preconditions,
+  steps, and expected results, and link them back to requirements / user
+  stories.
+
+### Confidence in the overall testing strategy (not just automation)
+
+- Treat automation as one tool among many — exploratory, manual, risk-based,
+  and acceptance testing all carry weight.
+- Build a point of view on the test pyramid / trophy for this product:
+  what belongs at unit vs integration vs E2E, and why.
+- Practice articulating *why* a given coverage mix is right for the risk
+  profile, not just *what* was tested.
+
+### Wider research into automation frameworks & libraries
+
+- Stop defaulting to whatever the team currently uses; survey alternatives
+  at each validation level.
+  - **Unit/component:** Vitest, Jest, Testing Library, Storybook test runner.
+  - **API:** Postman/Newman, REST Assured, Supertest, Karate, k6 for load.
+  - **E2E:** Playwright, Cypress, WebdriverIO; mobile: Appium, Maestro.
+  - **Contract:** Pact.
+- For each, learn the trade-offs (speed, flakiness, debuggability, CI fit)
+  so framework choice is justified, not inherited.
+
+### API testing and database testing (SQL & NoSQL)
+
+- **API:** request/response validation, schema validation (JSON Schema /
+  OpenAPI), auth flows (OAuth, JWT, API keys), negative tests, contract
+  tests, performance baselines.
+- **SQL:** become fluent with joins, aggregations, window functions,
+  transactions, and how to validate data integrity post-migration.
+- **NoSQL:** understand document (MongoDB), key-value (Redis), and wide-column
+  models; test for eventual consistency, schema drift, and index coverage.
+- Practice end-to-end: trigger an API call, assert the response, then verify
+  the resulting DB state.
+
+### Confidence to drive improvements beyond current team processes
+
+- Treat the team's process as a starting point, not a ceiling — propose
+  changes when there's evidence (metrics, incidents, friction) to back them.
+- Build the habit of writing short proposals: *current state → problem →
+  proposed change → expected impact → how we'd measure it*.
+- Bring in external benchmarks (industry talks, blog posts, ISTQB material,
+  state-of-testing reports) to anchor suggestions in something broader than
+  personal preference.
