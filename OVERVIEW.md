@@ -3,7 +3,7 @@
 ## What it is
 
 A browser-only study tool for senior QA Automation Engineer interviews.
-~260 questions across 18 categories (8 core + 10 specialty), each with a
+~240 questions across 18 categories (8 core + 10 specialty), each with a
 full model answer covering the *why* (trade-offs, anti-patterns,
 interviewer intent) — not just the *what*.
 
@@ -22,7 +22,7 @@ No backend, no accounts, no telemetry.
 | 3 | SQL fundamentals | 19 |
 | 4 | Framework & architecture | 12 |
 | 5 | CI/CD & flakiness | 17 |
-| 6 | Testing theory | 27 |
+| 6 | Testing theory | 19 |
 | 7 | Real scenarios | 15 |
 | 8 | Behavioral (STAR-format) | 13 |
 

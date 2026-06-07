@@ -559,31 +559,6 @@ const testingTheory: Category = {
 <p>A feature can pass verification and fail validation. Most expensive class of bug.</p>`
     },
     {
-      id: "02deedc0-643b-4dd8-8aa0-feec4ed0d118",
-      q: "What is shift-left testing? Apply it to a real sprint.",
-      diff: "mid",
-      tags: ["process"],
-      diagram: `graph LR
-  REF["Refinement<br/>review AC, ask 'how to verify?'"]
-  KICK["Story kickoff<br/>Gherkin before code"]
-  PAIR["Pair on testability<br/>test-ids, debug hooks"]
-  CONTRACT["API contract<br/>schema first"]
-  PARALLEL["Parallel test dev<br/>tests while dev codes"]
-  E2E["Traditional E2E<br/>after dev complete"]
-  REF --> KICK --> PAIR --> CONTRACT --> PARALLEL --> E2E
-  COST["Bug cost: $1"] -.- REF
-  COST2["Bug cost: $100+"] -.- E2E`,
-      answer: `<p>Move quality activities earlier. Sprint application:</p>
-<ul>
-<li><strong>Refinement</strong> — review AC, ask "how will I verify?", flag ambiguity.</li>
-<li><strong>Story kickoff</strong> — write Gherkin with the dev before they code.</li>
-<li><strong>Pair on testability</strong> — request <code>data-testid</code>, debug hooks, deterministic feature flags.</li>
-<li><strong>API contract first</strong> — agree on schema before implementation.</li>
-<li><strong>Parallel test development</strong> — write API/component tests as dev codes, not after.</li>
-</ul>
-<p>Bugs caught at refinement cost minutes. Bugs caught in production cost hours and trust.</p>`
-    },
-    {
       id: "8d20b5db-1b92-4f60-a20a-8c8acc44248b",
       q: "Boundary value analysis and equivalence partitioning — concrete example.",
       diff: "easy",
@@ -919,91 +894,6 @@ Notes:
 <p><strong>Senior signal:</strong> the levels are a guide, not a ceremony. Some teams collapse integration into system; some split system into "user-facing" and "API". What matters is: each level adds unique confidence; nothing is tested redundantly across levels.</p>`,
     },
     {
-      id: "b5e07f27-6331-47a9-946b-ef574e2c4999",
-      q: "Functional, non-functional, white-box, change-related — explain test types and where they overlap.",
-      diff: "mid",
-      tags: ["istqb", "test-types"],
-      answer: `<ul>
-<li><strong>Functional</strong> — <em>what</em> the system does. "Login accepts valid credentials." Black-box, behavior-driven.</li>
-<li><strong>Non-functional</strong> — <em>how well</em> it does it. Performance, security, usability, reliability, scalability, compatibility. The "-ilities".</li>
-<li><strong>White-box (structural)</strong> — <em>how</em> it's built. Code coverage, control-flow, data-flow, decision coverage. Tests informed by reading the implementation.</li>
-<li><strong>Change-related</strong> — <em>did our change break anything or fix the right thing</em>? Confirmation (it's fixed) and regression (nothing else broke).</li>
-</ul>
-<p><strong>They overlap.</strong> A performance test for the search endpoint:</p>
-<ul>
-<li>Functional: search returns the right results.</li>
-<li>Non-functional: returns them in &lt; 200ms p95.</li>
-<li>White-box: hits the cached path on the second call.</li>
-<li>Change-related: after the new index, regression on 50 query patterns.</li>
-</ul>
-<p>A single physical test can carry multiple labels. The labels exist to make sure you've thought about each angle — not to file each test into one box.</p>`,
-    },
-    {
-      id: "17fc6161-4a53-4398-8b8b-13f75ef3273a",
-      q: "What is static testing? Compare reviews, walkthroughs, and inspections.",
-      diff: "mid",
-      tags: ["istqb", "static-testing"],
-      answer: `<p><strong>Static testing</strong> = examining work products without executing them: requirements, user stories, designs, code, test cases. The cheapest defect-removal activity that exists.</p>
-<table>
-<thead><tr><th>Type</th><th>Formality</th><th>Goal</th><th>Roles</th></tr></thead>
-<tbody>
-<tr><td><strong>Informal review</strong></td><td>None</td><td>Quick sanity check</td><td>Author + any colleague</td></tr>
-<tr><td><strong>Walkthrough</strong></td><td>Low</td><td>Author leads peers through the work to gather feedback / educate</td><td>Author drives; peers comment</td></tr>
-<tr><td><strong>Technical review</strong></td><td>Medium</td><td>Subject-matter assessment</td><td>Trained reviewers, often documented</td></tr>
-<tr><td><strong>Inspection</strong></td><td>Highest</td><td>Find defects systematically against a checklist</td><td>Moderator, reader, author, recorder; defined entry/exit criteria</td></tr>
-</tbody>
-</table>
-<p><strong>Why static testing wins:</strong> defects found in requirements cost 10–100× less than the same defects caught in production. Static testing also finds bugs that dynamic testing literally cannot — missing requirements, contradictory specs, untestable acceptance criteria.</p>
-<p><strong>Modern equivalents:</strong> PR review = walkthrough. Linting/type-checking = automated inspection. ADR review = technical review. The ISTQB labels look dated, but the activities are alive and well in any decent engineering team.</p>`,
-    },
-    {
-      id: "a9387bb9-0b00-4084-90d4-0e5a6308440e",
-      q: "Walk through the ISTQB test process. What does each phase actually produce?",
-      diff: "mid",
-      tags: ["istqb", "process"],
-      diagram: `flowchart TD
-  PLAN["1. Planning<br/>→ test plan"] --> ANA["3. Analysis<br/>→ test conditions"]
-  ANA --> DES["4. Design<br/>→ test cases + data"]
-  DES --> IMP["5. Implementation<br/>→ scripts + env"]
-  IMP --> EXE["6. Execution<br/>→ results + defects"]
-  EXE --> CLO["7. Completion<br/>→ summary + lessons"]
-  MON["2. Monitoring &amp; control<br/>(continuous)"]
-  MON -.-> PLAN
-  MON -.-> ANA
-  MON -.-> DES
-  MON -.-> IMP
-  MON -.-> EXE
-  MON -.-> CLO`,
-      answer: `<ol>
-<li><strong>Test planning</strong> — scope, risk assessment, approach, schedule, resources, exit criteria. <em>Output: test plan.</em></li>
-<li><strong>Test monitoring &amp; control</strong> — ongoing comparison of progress to plan; adjust scope/effort. <em>Output: status reports, control decisions.</em></li>
-<li><strong>Test analysis</strong> — read requirements; identify what to test; define test conditions and coverage criteria. <em>Output: prioritized test conditions, testability defects.</em></li>
-<li><strong>Test design</strong> — turn conditions into concrete test cases using techniques (EP, BVA, decision tables…). <em>Output: test cases, test data design, environment requirements.</em></li>
-<li><strong>Test implementation</strong> — build the testware: scripts, fixtures, data, environments. <em>Output: executable suite + test data + environment.</em></li>
-<li><strong>Test execution</strong> — run, log results, investigate failures, retest fixes. <em>Output: results, defect reports, retest results.</em></li>
-<li><strong>Test completion</strong> — archive, lessons learned, summary report, hand-off. <em>Output: test summary, postmortem, retrospective items.</em></li>
-</ol>
-<p><strong>In Agile</strong>: these phases compress into a sprint cycle, but they don't disappear. Story refinement = analysis. Definition of Done = exit criteria. Demo + retro = completion. A senior QA knows which phase they're in even when no one calls it that.</p>`,
-    },
-    {
-      id: "b1c4f7e7-dca2-4202-b686-6975715da104",
-      q: "Confirmation testing vs regression testing — what's the difference and why does it matter?",
-      diff: "easy",
-      tags: ["istqb", "change-related"],
-      answer: `<ul>
-<li><strong>Confirmation testing</strong>: re-run the test that failed, after the fix, to confirm the defect is resolved. Targeted, narrow.</li>
-<li><strong>Regression testing</strong>: re-run a broader suite to confirm the fix didn't break anything else. Broad, defensive.</li>
-</ul>
-<p><strong>Why this matters:</strong> teams routinely conflate the two and skip the regression half. The bug ticket gets closed because confirmation passed — but the fix introduced a side-effect that won't surface until production.</p>
-<p><strong>Practical pattern after a fix:</strong></p>
-<ol>
-<li>Confirmation: re-run the original failing test. Must pass.</li>
-<li>Confirmation+: write a new automated test that reproduces the bug. It must fail before the fix and pass after — that's how you know your fix actually fixes the right thing.</li>
-<li>Regression: run the suite that exercises the affected area. Critical-path always; full suite for high-risk changes.</li>
-</ol>
-<p>Skipping any of the three is how regressions ship.</p>`,
-    },
-    {
       id: "5c418f00-0c3a-491f-95a6-64e28b7b21ce",
       q: "Walk through the defect lifecycle. Who owns each state?",
       diff: "mid",
@@ -1151,29 +1041,6 @@ locked          tick(&gt; lockout)    anonymous</code></pre>
 <p><strong>When NOT:</strong> when interactions matter beyond pairs (3-way bugs), or when most combinations are nonsense (Apple Pay on Windows). Pin domain-impossible combinations and let pairwise handle the rest.</p>`,
     },
     {
-      id: "0bb3e356-d078-443b-8513-71e5a08b664c",
-      q: "Error guessing — is it a real technique or just intuition?",
-      diff: "easy",
-      tags: ["istqb", "technique"],
-      answer: `<p>Both. It's a recognized ISTQB technique, but its effectiveness depends entirely on the tester's experience pattern-matching against bugs they've seen before.</p>
-<p><strong>What makes someone good at error guessing:</strong></p>
-<ul>
-<li>Memory of past bugs (your own, your team's, the industry's).</li>
-<li>Knowledge of common implementation pitfalls (off-by-one, null defaults, race conditions, locale assumptions).</li>
-<li>Healthy paranoia about edge cases: empty, very long, zero, negative, Unicode, leap year, midnight UTC, weekend.</li>
-</ul>
-<p><strong>Classic error-guessing targets:</strong></p>
-<ul>
-<li>Empty inputs (string "", array [], null, undefined, 0).</li>
-<li>Boundaries (off-by-one, fence-post).</li>
-<li>Duplicates / re-submissions.</li>
-<li>Concurrency (two users hit "buy" on the last item).</li>
-<li>Bizarre locales (Turkish dotless i, RTL, 24-character month names).</li>
-<li>Network partial-failures (request sent but response lost).</li>
-</ul>
-<p><strong>How to systematize it:</strong> keep a <em>bug taxonomy</em> — categories of bugs your product has shipped before. Each new feature gets a quick pass against the taxonomy. Error guessing becomes institutional memory, not personal voodoo.</p>`,
-    },
-    {
       id: "89f99078-b5db-47f7-a7a5-e23095ef1ad9",
       q: "Name the ISO 25010 quality characteristics. Which do most teams under-test?",
       diff: "mid",
@@ -1262,51 +1129,6 @@ locked          tick(&gt; lockout)    anonymous</code></pre>
 <li><strong>Security</strong> — beyond auth basics, things like CSRF, SSRF, injection, IDOR. Outsourced to pen tests once a year instead of continuous.</li>
 <li><strong>Maintainability</strong> — testability of code, not just tests of code. A codebase that's hard to test is itself a quality defect.</li>
 </ul>`,
-    },
-    {
-      id: "2a747904-f5df-4a17-8617-40893e4f3535",
-      q: "What are entry and exit criteria? Why does no one actually follow them?",
-      diff: "mid",
-      tags: ["istqb", "process"],
-      answer: `<p><strong>Entry criteria</strong>: what must be true to start a test activity. Examples: code is merged to integration branch, smoke tests pass, test environment is available, test data is loaded.</p>
-<p><strong>Exit criteria</strong>: what must be true to declare testing done. Examples: all P0/P1 defects closed, critical-path automation green, coverage ≥ X% on modified files, regression suite passed.</p>
-<p><strong>Why teams skip them:</strong></p>
-<ul>
-<li>Written as ceremony in a test plan no one reads.</li>
-<li>Defined too vaguely to enforce ("adequate coverage", "no major issues").</li>
-<li>Aspirational instead of achievable, so the team learns to ignore them.</li>
-</ul>
-<p><strong>How to make them useful:</strong></p>
-<ul>
-<li>Encode them as automated gates in CI, not as a document. A PR can't merge unless tests pass = enforced entry/exit criteria.</li>
-<li>Make them measurable. "All critical-path tests green" not "looks good".</li>
-<li>Keep them few and ruthless. 3 criteria everyone respects beat 15 nobody checks.</li>
-<li>Tie release exit criteria to risk, not to coverage. "Authentication regression suite passes" matters; "85% line coverage" rarely does.</li>
-</ul>
-<p>The senior signal: turning entry/exit criteria from a checklist into infrastructure. A green pipeline IS the exit criterion.</p>`,
-    },
-    {
-      id: "438dc650-a8cc-4e73-ae90-58679719c324",
-      q: "How do you estimate test effort for a new feature?",
-      diff: "mid",
-      tags: ["istqb", "estimation"],
-      answer: `<p>Multiple techniques, used together:</p>
-<ol>
-<li><strong>Expert judgment</strong> — ask experienced testers; faster than analytical methods, biased toward optimism.</li>
-<li><strong>Analogy</strong> — "this feature is like the checkout we shipped last quarter; that took 5 days of QA."</li>
-<li><strong>Three-point estimation</strong> — best (a) + 4×most-likely (m) + worst (b), divided by 6. Smoothes optimism.</li>
-<li><strong>Wideband Delphi</strong> — multiple experts estimate independently, discuss outliers, re-estimate. Best for novel work.</li>
-<li><strong>Test point analysis</strong> — count test conditions × complexity × productivity factor. Formal but slow.</li>
-</ol>
-<p><strong>What seniors include that juniors miss:</strong></p>
-<ul>
-<li><strong>Setup cost</strong>: test environments, data, mocks. Often 30–50% of total effort.</li>
-<li><strong>Failure investigation</strong>: when tests fail, you spend time triaging. Budget for it.</li>
-<li><strong>Cross-team dependencies</strong>: waiting on backend deploys, infra changes, third-party sandboxes.</li>
-<li><strong>Re-test cycles</strong>: never assume one fix → one retest. Plan for 2–3 rounds.</li>
-<li><strong>Documentation + handoff</strong>: written summary, runbook updates, knowledge transfer.</li>
-</ul>
-<p><strong>Anti-pattern:</strong> estimating only "happy-path test writing time" and getting blindsided by everything else. Estimate the activity, not the typing.</p>`,
     },
   ]
 };

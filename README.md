@@ -1,6 +1,6 @@
 # QA Interview Prep — Senior Automation
 
-A personal study app for senior QA Automation Engineer interviews. **~260 questions across 18 categories with full model answers** including TypeScript / Playwright / SQL code examples. Built as a Vite + React + TypeScript single-page app — runs in any modern browser, deploys anywhere static.
+A personal study app for senior QA Automation Engineer interviews. **~240 questions across 18 categories with full model answers** including TypeScript / Playwright / SQL code examples. Built as a Vite + React + TypeScript single-page app — runs in any modern browser, deploys anywhere static.
 
 ![Tech](https://img.shields.io/badge/React-18.3-61dafb?logo=react)
 ![Tech](https://img.shields.io/badge/TypeScript-5.6-3178c6?logo=typescript)
@@ -37,7 +37,7 @@ A browsable, searchable interview-prep reference. Pick a category, scan question
 | 3 | SQL fundamentals | 19 | Joins, indexes, window functions, data-integrity queries |
 | 4 | Framework & architecture | 12 | POM, fixture composition, scaling test code |
 | 5 | CI/CD & flakiness | 17 | GitHub Actions, sharding, flake reduction, metrics |
-| 6 | Testing theory | 27 | Verification vs validation, coverage, mutation testing, ISTQB principles |
+| 6 | Testing theory | 19 | Verification vs validation, coverage, mutation testing, ISTQB principles |
 | 7 | Real scenarios | 15 | P0 incidents, stakeholder pushback, escape rate |
 | 8 | Behavioral | 13 | STAR-format answers with concrete patterns |
 
@@ -361,7 +361,7 @@ Lets the built site work at any URL — root domain, subpath, file:// protocol. 
 
 ### Why Set instead of Array for reviewed/open IDs?
 
-O(1) `has()` lookup. With ~260 questions × hundreds of expand/collapse toggles per session, array search would noticeably affect frame rate. Custom JSON serialization handles persistence.
+O(1) `has()` lookup. With ~240 questions × hundreds of expand/collapse toggles per session, array search would noticeably affect frame rate. Custom JSON serialization handles persistence.
 
 ---
 

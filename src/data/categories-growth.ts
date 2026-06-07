@@ -417,57 +417,6 @@ const automationFrameworks: Category = {
   desc: "Survey of frameworks/libraries at each validation level and how to choose",
   questions: [
     {
-      id: "4c563812-5ac4-45ae-947d-112ddf68be58",
-      q: "Compare Playwright, Cypress, and Selenium / WebdriverIO for browser E2E.",
-      diff: "mid",
-      tags: ["automation", "e2e"],
-      answer: `<ul>
-<li><strong>Playwright</strong> — multi-browser (Chromium, Firefox, WebKit), great async/await ergonomics, built-in tracing, parallelism, auto-wait. Strong default in 2025+.</li>
-<li><strong>Cypress</strong> — exceptional DX, time-travel debugger, in-browser runner. Historically limited to single-tab Chromium; cross-origin and parallel-by-default are weaker.</li>
-<li><strong>Selenium / WebdriverIO</strong> — widest language and grid ecosystem, mature, slower feedback loop. Pick when you need exotic browsers/devices or already have Grid infra.</li>
-</ul>
-<p>Decision drivers: cross-browser need, language preference, CI parallelism, debugging UX, team experience. Pilot two of them on the same flow before standardizing.</p>`
-    },
-    {
-      id: "403673c6-9a2f-4afe-aafb-05be1afe1c5f",
-      q: "What unit / component test frameworks would you survey for a modern web stack?",
-      diff: "easy",
-      tags: ["automation", "unit"],
-      answer: `<ul>
-<li><strong>Vitest</strong> — Vite-native, Jest-compatible API, very fast in modern frontends.</li>
-<li><strong>Jest</strong> — long-time default; biggest ecosystem of matchers/plugins. Slower than Vitest in Vite projects.</li>
-<li><strong>@testing-library</strong> — user-centric component queries. Pairs with Vitest or Jest.</li>
-<li><strong>Storybook test runner / interaction tests</strong> — exercise component stories as tests; great for design-system coverage.</li>
-<li><strong>Mocha + Chai</strong> — flexible but assembly-required; still common in Node libs.</li>
-</ul>
-<p>Backend equivalents to know: JUnit 5 (Java), pytest (Python), Go test, RSpec / Minitest (Ruby), xUnit / NUnit (.NET).</p>`
-    },
-    {
-      id: "f2df1962-77f1-455b-af9d-394fa0153554",
-      q: "Which tools cover API and load testing, and when do you reach for each?",
-      diff: "mid",
-      tags: ["automation", "api", "performance"],
-      answer: `<p><strong>Functional API:</strong></p>
-<ul>
-<li><strong>Postman / Newman</strong> — fast iteration, CI-runnable via Newman. Good for collections + docs.</li>
-<li><strong>REST Assured</strong> (Java), <strong>Supertest</strong> (Node), <strong>HTTPx + pytest</strong> (Python) — code-first, fits CI naturally.</li>
-<li><strong>Karate</strong> — DSL-style, mixes functional + perf, lower-code.</li>
-</ul>
-<p><strong>Contract:</strong></p>
-<ul>
-<li><strong>Pact</strong> — consumer-driven contracts; great for microservice fleets.</li>
-<li><strong>Spring Cloud Contract</strong> — JVM-centric alternative.</li>
-</ul>
-<p><strong>Load / performance:</strong></p>
-<ul>
-<li><strong>k6</strong> — JS scripts, modern, cloud-friendly.</li>
-<li><strong>JMeter</strong> — GUI + plugins, mature.</li>
-<li><strong>Gatling</strong> — Scala DSL, excellent reports.</li>
-<li><strong>Locust</strong> — Python, easy to ramp.</li>
-</ul>
-<p>Mobile: Appium (cross-platform), Maestro (declarative flows), Espresso (Android), XCUITest (iOS). Match tool to platform, team language, and CI fit.</p>`
-    },
-    {
       id: "1bfec75b-382a-48e0-9e31-2e7767b72078",
       q: "How do you evaluate and select a new automation framework?",
       diff: "mid",
@@ -480,20 +429,6 @@ const automationFrameworks: Category = {
 <li><strong>Plan migration</strong> — even the right tool fails if you big-bang the rewrite. Strangler pattern: new tests in new framework, port high-value old tests opportunistically.</li>
 </ol>
 <p>Anti-pattern: picking the framework because it's trending. Pick it because it scores best on <em>your</em> criteria.</p>`
-    },
-    {
-      id: "6bbf34e1-e21f-4607-8177-997146409627",
-      q: "How do you keep up with new frameworks without chasing every trend?",
-      diff: "easy",
-      tags: ["automation", "learning"],
-      answer: `<ul>
-<li><strong>Set a steady cadence</strong> — one focused topic per month beats sporadic binges.</li>
-<li><strong>Curated inputs</strong> — release notes of tools you use, Testing in the Pub / Ministry of Testing, State of Testing report, a couple of trusted blogs (e.g. Kent Dodds, Michael Bolton, Maaret Pyhäjärvi).</li>
-<li><strong>Build a tiny demo</strong> per new framework — reading is not learning; using it is.</li>
-<li><strong>Compare on real criteria</strong> against the incumbent. If it doesn't beat what you have on a measurable axis, park it.</li>
-<li><strong>Share back</strong> — a 10-minute team demo cements the learning and earns mindshare.</li>
-</ul>
-<p>The goal isn't to know every tool — it's to recognize which class of tool to reach for, and to evaluate it on merits.</p>`
     },
     {
       id: "a1b2c3d4-0003-4003-8003-000000000001",
@@ -550,32 +485,6 @@ const automationFrameworks: Category = {
 <li>BrowserStack as the device farm both run on, with a fixed list of ~5 priority devices reflecting your user base.</li>
 </ol>
 <p>Senior signal: you said "and," not "or." You separated framework from environment. You picked based on the <em>team's authoring cost</em>, not the tool's logo.</p>`
-    },
-    {
-      id: "a1b2c3d4-0003-4003-8003-000000000003",
-      q: "Case study: Why does web.dev recommend a 'Crab' shape over a Pyramid for some modern web apps?",
-      diff: "mid",
-      tags: ["frameworks", "case-study", "strategy"],
-      answer: `<p>Google's web.dev published <em>"Pyramid or Crab? Find a testing strategy that fits"</em> as a deliberate pushback on dogmatic pyramid usage. The "Crab" shape says: <strong>thin unit, fat integration, claws of E2E + visual regression.</strong></p>
-<p><strong>The argument:</strong></p>
-<ul>
-<li>For UI-heavy apps, isolated unit tests test framework primitives — not user value. They give false confidence.</li>
-<li>Integration tests (component + state + a few mocked external services) catch the bugs users actually hit.</li>
-<li>E2E and visual regression are not vestigial; for UI apps they're often the most truthful signal.</li>
-</ul>
-<p><strong>When the Crab fits:</strong></p>
-<ul>
-<li>Component-heavy React / Vue / Svelte SPAs with simple logic and complex UI.</li>
-<li>Apps where state management + rendering bugs dominate over algorithmic bugs.</li>
-<li>Teams using Testing Library philosophy ("test the rendered output, not implementation").</li>
-</ul>
-<p><strong>When the Crab is wrong:</strong></p>
-<ul>
-<li>Algorithmic backends (payments, billing, search). The pyramid still wins — most bugs hide in logic, not wiring.</li>
-<li>Greenfield with no perf concerns — start with the pyramid, evolve if you see escape patterns.</li>
-</ul>
-<p><strong>The deeper lesson:</strong> the pyramid is a heuristic, not a law. Mike Cohn proposed it in 2009 for service-oriented Java backends. Modern frontends, mobile apps, and event-driven systems have different bug distributions, so the optimal shape differs.</p>
-<p>Senior interview signal: you can name multiple shapes (Pyramid, Trophy, Diamond, Honeycomb, Crab) and pick one based on <em>where this product's bugs live</em>, not based on which thought-leader's blog you read last.</p>`
     },
     {
       id: "a1b2c3d4-0003-4003-8003-000000000004",
@@ -640,23 +549,6 @@ const apiDatabaseTesting: Category = {
   desc: "API contracts, auth, schema validation, plus SQL & NoSQL data verification",
   questions: [
     {
-      id: "df6a5cc8-45b3-4705-a0b7-3d21d42cd388",
-      q: "What does a thorough API test for a single endpoint cover?",
-      diff: "mid",
-      tags: ["api", "coverage"],
-      answer: `<ul>
-<li><strong>Happy path</strong> — valid request, correct status, payload, headers, side effects in the DB.</li>
-<li><strong>Schema validation</strong> — assert response shape against JSON Schema / OpenAPI; catches silent contract drift.</li>
-<li><strong>Auth &amp; authz</strong> — missing token → 401, wrong role → 403, valid → 200. Test token expiry &amp; refresh.</li>
-<li><strong>Input validation</strong> — boundary values, wrong types, missing required fields, oversize payloads, injection attempts.</li>
-<li><strong>Error paths</strong> — 4xx for client errors, 5xx for server errors, consistent error envelope.</li>
-<li><strong>Idempotency &amp; concurrency</strong> — replay POST with same idempotency key; concurrent writes.</li>
-<li><strong>Side effects</strong> — DB rows created/updated, events emitted, downstream services called.</li>
-<li><strong>Performance baseline</strong> — p50/p95/p99 latency, payload size; alarm on regressions.</li>
-</ul>
-<p>Layer this: contract tests at module boundary, end-to-end checks for the integrated path, smoke checks in production.</p>`
-    },
-    {
       id: "cc815d1b-4401-4eb2-be89-de221ae401a7",
       q: "Show a query you'd use to verify data integrity after a migration.",
       diff: "mid",
@@ -690,53 +582,6 @@ EXCEPT
 SELECT id, md5(concat_ws('|', status, total::text, currency))
 FROM orders_v1;</code></pre>
 <p>Senior habit: capture these as a <em>migration verification script</em> committed alongside the migration, runnable in any environment.</p>`
-    },
-    {
-      id: "cf7d8cf7-2777-4d3c-a8ec-fb28d08a063f",
-      q: "Explain JOINs, GROUP BY, and window functions with a QA-flavored example.",
-      diff: "mid",
-      tags: ["sql", "fundamentals"],
-      answer: `<pre class="code"><code>-- INNER JOIN — orders + their customer name
-SELECT o.id, u.email, o.total
-FROM orders o
-JOIN users u ON u.id = o.user_id;
-
--- LEFT JOIN — find users with no orders (regression suspects)
-SELECT u.id, u.email
-FROM users u
-LEFT JOIN orders o ON o.user_id = u.id
-WHERE o.id IS NULL;
-
--- GROUP BY — revenue per day
-SELECT date_trunc('day', created_at) AS d,
-       sum(total) AS revenue,
-       count(*)   AS n
-FROM orders
-GROUP BY 1
-ORDER BY 1;
-
--- Window function — rank latest orders per user
-SELECT id, user_id, total, created_at,
-       row_number() OVER (PARTITION BY user_id ORDER BY created_at DESC) AS rn
-FROM orders;
--- WHERE rn = 1  → most recent order per user</code></pre>
-<p>QA use cases: spot orphans (LEFT JOIN ... IS NULL), validate aggregate KPIs (GROUP BY), detect duplicate-most-recent rows (window functions). These are the workhorses of data verification.</p>`
-    },
-    {
-      id: "7e3ee435-5721-47a8-b37d-6bc320649713",
-      q: "How is testing a NoSQL store (MongoDB, DynamoDB, Redis) different from SQL?",
-      diff: "hard",
-      tags: ["nosql", "data"],
-      answer: `<ul>
-<li><strong>Schema drift</strong> — schema is implicit. Run a probe that samples N documents per collection and asserts a baseline shape; alert on new/missing fields.</li>
-<li><strong>Eventual consistency</strong> — reads may not see the latest write. Tests must retry-with-timeout or use consistent-read flags where available. Don't assume read-after-write.</li>
-<li><strong>Index coverage</strong> — verify queries hit indexes (<code>explain()</code> in Mongo, CloudWatch metrics for DynamoDB). Missing indexes silently degrade prod, not tests.</li>
-<li><strong>Partition / hot-key patterns</strong> — generate load that exercises multiple partition keys, not a single one.</li>
-<li><strong>TTL &amp; eviction</strong> — Redis keys vanish on TTL; tests need clock control or fixed TTLs.</li>
-<li><strong>Aggregation pipelines / map-reduce</strong> — golden-data tests: known input → expected aggregated output. Pin the pipeline definition.</li>
-<li><strong>Schema validation hooks</strong> — Mongo $jsonSchema validators, Dynamo conditional expressions; assert these are enforced.</li>
-</ul>
-<p>Mental model: SQL guarantees you've forgotten exist in NoSQL must become explicit tests.</p>`
     },
     {
       id: "48b683e8-7d4b-49ad-92d9-ae1c45a5af47",
@@ -860,47 +705,6 @@ WHERE u.id IS NULL                           -- missing rows
 <li>ObjectId → UUID mapping must be deterministic and reversible during cutover.</li>
 </ul>
 <p><strong>Cutover criteria:</strong> shadow-read diff rate &lt; 0.01% for 7 consecutive days, on top-of-funnel reads.</p>`
-    },
-    {
-      id: "a1b2c3d4-0004-4004-8004-000000000003",
-      q: "Case study: Amazon DynamoDB outage (2015) — eventual consistency caught teams off guard. What's the lesson for testing NoSQL?",
-      diff: "mid",
-      tags: ["database", "nosql", "case-study", "consistency"],
-      answer: `<p><strong>What happened:</strong> Sept 20, 2015 — a metadata service inside DynamoDB experienced a thundering-herd retry storm after a brief network blip. The blast radius hit Reddit, Netflix, Tinder, IMDB, and ~20 AWS services that depended on Dynamo for control-plane state. The outage exposed how many teams had built on the assumption of <em>"Dynamo is always there and reads are fresh."</em></p>
-<p><strong>The eventual-consistency surprise:</strong> DynamoDB offers two read modes: <em>eventually consistent</em> (default, cheaper) and <em>strongly consistent</em> (opt-in, costs 2× RCU). Many teams used the default and assumed that a write followed by a read on the same key would return the new value. <strong>Usually true. Not guaranteed.</strong> Under load or replica lag, you can read the old value — and tests written on a happy laptop never see this.</p>
-<p><strong>What testing should have caught:</strong></p>
-<ol>
-<li><strong>Inject latency between write and read.</strong> DynamoDB Local now supports this; use it. A test that writes "X=1," then immediately reads X and asserts 1, is testing wishful thinking.</li>
-<li><strong>Chaos test the consistency mode.</strong> If your code assumes strong consistency, fail the test if the call isn't explicitly marked <code>ConsistentRead=true</code>.</li>
-<li><strong>Test the retry storm.</strong> Add a fault-injection layer (Toxiproxy, AWS Fault Injection Simulator). What happens when 10% of reads time out and the client retries? Often your "idempotent" code isn't.</li>
-<li><strong>Verify monitoring before relying on it.</strong> Many teams discovered their alerts were also routed through Dynamo.</li>
-</ol>
-<p><strong>The deeper QA lesson:</strong> NoSQL stores give you fewer guarantees than SQL. Tests that don't <em>actively probe</em> those weaker guarantees will pass while production silently corrupts. Senior QA reads the AWS / MongoDB / Cassandra consistency docs before writing the test plan, not after the outage.</p>`
-    },
-    {
-      id: "a1b2c3d4-0004-4004-8004-000000000004",
-      q: "Quiz: An API returns HTTP 200 with body { error: 'NOT_FOUND' }. How do you catch this in tests AND in monitoring?",
-      diff: "mid",
-      tags: ["api", "interview-quiz", "scenario"],
-      answer: `<p>Two failures here: (1) the API author conflated <em>HTTP success</em> with <em>operation success</em>, and (2) downstream code that checks only <code>status === 200</code> will treat the error as success. This pattern silently corrupts user-facing flows.</p>
-<p><strong>How to catch in tests:</strong></p>
-<ol>
-<li><strong>Schema validation, not status check.</strong> Every response is validated against an OpenAPI schema. A success schema requires <code>data</code>; an error schema requires <code>error</code>. A body with <code>error</code> on a 200 fails schema validation.
-<pre><code>const schema = await loadOpenAPISchema('/users/{id}', 'get', 200);
-const valid = ajv.compile(schema);
-expect(valid(res.body)).toBe(true);
-// "successResponse must have data; got error" </code></pre>
-</li>
-<li><strong>Negative tests at every endpoint.</strong> "GET /users/does-not-exist should return 4xx, not 200." A failing assertion here is gold — it exposes the bug class on day one.</li>
-<li><strong>Contract test on the consumer side.</strong> Pact lets the consumer assert "I expect status 404 for missing-id" — provider CI breaks if the API returns 200 instead.</li>
-</ol>
-<p><strong>How to catch in monitoring (prod):</strong></p>
-<ol>
-<li><strong>SLO on "real" success rate, not HTTP success rate.</strong> Define success as 2xx <strong>and</strong> body matches success schema. Alert on the delta.</li>
-<li><strong>Log every <code>error</code> field</strong> as a structured event regardless of HTTP status. Datadog / Splunk dashboards count <em>errors served</em>, not just 5xx.</li>
-<li><strong>Synthetic checks assert content, not status.</strong> Datadog Synthetics step: "body does not contain 'error'."</li>
-</ol>
-<p><strong>The interview-level point:</strong> when status and semantics disagree, semantics win. Status is transport; the body is truth. A senior QA writes tests against the body shape, not the transport code.</p>`
     },
     {
       id: "a1b2c3d4-0004-4004-8004-000000000005",
