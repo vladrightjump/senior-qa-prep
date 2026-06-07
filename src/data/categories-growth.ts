@@ -83,22 +83,6 @@ Expected:
 <p>Senior signal: every closed bug has a regression test. Without it, you're trusting human memory.</p>`
     },
     {
-      id: "b86fc6e0-2f4c-4441-bf9c-165d017c766d",
-      q: "What metrics should a test report contain, and which to avoid?",
-      diff: "mid",
-      tags: ["test-management", "metrics", "reporting"],
-      answer: `<p><strong>Useful (decision-driving):</strong></p>
-<ul>
-<li><strong>Defect escape rate</strong> — bugs found in prod / total bugs found. Best single-number quality signal.</li>
-<li><strong>Mean time to detect / restore</strong> — how fast we catch and recover.</li>
-<li><strong>Flakiness rate per suite</strong> — trustworthiness of automation.</li>
-<li><strong>Coverage by risk area</strong> — not raw %, but "critical paths covered: 12 / 12".</li>
-<li><strong>Test execution time &amp; trend</strong> — feedback latency for devs.</li>
-</ul>
-<p><strong>Vanity metrics to avoid:</strong> raw test count ("we have 5,000 tests"), pass % without context ("99% pass" while skipping 200 cases), code coverage % alone, number of bugs filed by tester (incentivizes noise).</p>
-<p>A report is a recommendation, not a dump. Lead with: <em>what works, what's at risk, what we recommend.</em></p>`
-    },
-    {
       id: "a1b2c3d4-0001-4001-8001-000000000001",
       q: "Scenario: It's release day. Regression has 90 cases left and you have 6 hours. The PM wants to ship. What do you do?",
       diff: "hard",
@@ -152,60 +136,6 @@ Expected:
 <p><strong>Language to avoid:</strong> "I'll add more tests." (Vague, defensive, doesn't address class of issue.)</p>
 <p>Senior QA framing: bugs in prod are <em>process signals</em>. The interview win is showing you treat them as data, not as personal failures or QA-vs-dev fights.</p>`
     },
-    {
-      id: "a1b2c3d4-0001-4001-8001-000000000004",
-      q: "Example: Sketch a 1-page test plan for a 'forgot password' feature in a B2C app.",
-      diff: "easy",
-      tags: ["test-management", "example", "test-plan"],
-      answer: `<p>A one-pager is enough for most features. The trick is being explicit about what you <em>aren't</em> testing.</p>
-<pre><code># Test Plan — Forgot Password (FE + API + email)
-
-## 1. Scope
-IN: request reset, email delivery, link-click flow, token expiry, new-password rules, login with new password.
-OUT: account lockout policy (covered by Auth team plan #142), localization beyond en-US, mobile native flow.
-
-## 2. Risks (likelihood x impact)
-- HIGH: token reuse / replay (security)
-- HIGH: reset email not delivered (deliverability)
-- MED:  expired token shows confusing error (UX)
-- LOW:  email rendering in obscure clients (visual)
-
-## 3. Test types &amp; ownership
-- Unit (Dev): token generator, password validator
-- API (QA):  POST /reset-request, POST /reset-confirm — happy + 4xx + 5xx
-- E2E (QA):  full flow on Chrome desktop + Safari iOS, dark mode
-- Security (Sec): token entropy, single-use, expiry, replay
-- Manual (QA): email rendering in Gmail, Outlook, Apple Mail
-
-## 4. Data &amp; environments
-Seeded user fixture, Mailpit for email capture in staging, fake clock for expiry tests.
-
-## 5. Exit criteria
-All P0/P1 pass; no open security findings; deliverability check &gt; 99% in last 24h on staging mailer.
-
-## 6. Out-of-scope risks accepted
-We are not load-testing the reset endpoint this release. Rate limit is enforced upstream by WAF rule #88.
-
-## 7. Sign-off
-QA lead, Eng lead, Security lead.</code></pre>
-<p>Why this is senior: explicit <em>OUT-of-scope</em>, named risk owner, and accepted residual risk. A plan that says "test everything" tells you nothing.</p>`
-    },
-    {
-      id: "a1b2c3d4-0001-4001-8001-000000000005",
-      q: "Quiz: A PM keeps changing acceptance criteria mid-sprint. Traceability is breaking. How do you protect it without becoming the 'no' person?",
-      diff: "mid",
-      tags: ["test-management", "scenario", "traceability"],
-      answer: `<p>Two failures to avoid: (a) freezing the PM out, which damages trust, and (b) silently absorbing the churn, which loses the audit trail.</p>
-<p><strong>The senior approach:</strong></p>
-<ol>
-<li><strong>Move traceability into the ticket itself.</strong> Each AC line has an ID (AC-1, AC-2…). Test cases reference those IDs. If AC-2 changes, the linked test cases auto-show as <em>"needs review."</em></li>
-<li><strong>Set a soft cutoff.</strong> "After Wednesday of sprint, AC changes either ship as-is, get bumped, or trigger an explicit re-plan." Make it a team norm, not a QA edict.</li>
-<li><strong>Maintain a change log on the ticket.</strong> Three lines: <em>"AC-3 changed 2026-05-10 — added handling for expired carts. Re-tested by VF. Original behavior preserved by feature flag."</em></li>
-<li><strong>Surface the cost, not the complaint.</strong> "This is the third AC change this week — last regression took us 6h. If we expect more churn, let's plan for it." Quantified, not whiny.</li>
-</ol>
-<p><strong>Tools that help:</strong> Linear / Jira AC fields, Xray or TestRail for test-to-requirement links, a "definition of ready" the team agreed to, and a 5-minute Friday sync where AC changes are reviewed.</p>
-<p>The goal is to make traceability cost-free for the PM and visible for the team — not to gate their changes.</p>`
-    },
   ]
 };
 
@@ -257,20 +187,6 @@ const testingStrategy: Category = {
 <li>Charter-driven sessions (e.g. "abuse the cart for 60 minutes with focus on quantity edge cases").</li>
 </ul>
 <p>Output isn't pass/fail — it's <strong>findings, questions, new test ideas</strong>. The best findings become permanent automated cases.</p>`
-    },
-    {
-      id: "4fb14f8a-8a0f-4d51-a489-dabafbf205b4",
-      q: "How do you explain a testing strategy to non-QA stakeholders?",
-      diff: "mid",
-      tags: ["strategy", "communication"],
-      answer: `<p>Translate testing concepts into the language of business risk.</p>
-<ul>
-<li><strong>Frame as risk coverage</strong>, not test count. "We protect checkout, login, and refunds at three layers because failures here cost money directly."</li>
-<li><strong>Show the trade-offs</strong> — "Doubling E2E coverage adds 15 min to every PR; the same risk reduction at the API level adds 2 min."</li>
-<li><strong>Use one chart, not ten</strong> — risk-quadrant or pyramid, annotated with feature names.</li>
-<li><strong>Tie to metrics they care about</strong> — escape rate, MTTR, customer-reported incidents, NPS impact.</li>
-</ul>
-<p>If the room can't restate your strategy in their own words afterwards, you haven't explained it yet.</p>`
     },
     {
       id: "6393d97c-7ac9-4c92-8a85-260f43ec3e23",
@@ -351,62 +267,6 @@ const testingStrategy: Category = {
 <p><strong>Non-goals you call out explicitly:</strong> not chasing 90% unit coverage; not building a custom test framework when Maestro exists; not auto-testing every device — pick 5 representative ones via crashlytics demographics.</p>
 <p><strong>Release strategy:</strong> phased rollout via App Store / Play staged release (1% → 10% → 100%), feature flags for risky paths, on-call rota for week-1 launch.</p>
 <p>Senior signal: you named what you're <em>not</em> doing and why. Junior signal: you'd promise full coverage of everything.</p>`
-    },
-    {
-      id: "a1b2c3d4-0002-4002-8002-000000000004",
-      q: "Quiz: A critical bug shipped in code with 95% unit coverage. How is that possible — and what does it say about your strategy?",
-      diff: "mid",
-      tags: ["strategy", "scenario", "interview-quiz"],
-      answer: `<p>Coverage is a <em>measure of code touched by tests</em>, not <em>behavior verified</em>. A 95% covered codebase can still ship critical bugs in at least five ways:</p>
-<ol>
-<li><strong>Wrong assertions.</strong> Tests run the code but assert something trivial (<code>expect(result).toBeDefined()</code>). Mutation testing exposes this — Stryker, PIT.</li>
-<li><strong>Wrong inputs.</strong> Tests pass with the happy data the dev wrote them for; the bug lives in the edge case nobody tested (null, empty string, negative, leap year, timezone boundary).</li>
-<li><strong>Integration gaps.</strong> All units pass; the wiring between them is broken. This is the classic "trophy" critique of the pyramid.</li>
-<li><strong>Mocked-away reality.</strong> The DB call is mocked to return what the test wants. In prod, the real query returns a different shape and the code crashes.</li>
-<li><strong>Concurrency / state.</strong> Single-call unit tests can't surface race conditions, ordering, or stale-cache bugs.</li>
-</ol>
-<p><strong>What it says about your strategy:</strong> you've optimized for the <em>cheapest-to-measure</em> metric instead of <em>fitness-for-purpose</em>. The fix is to add layers where the missing class of bug lives — usually contract / integration tests, mutation testing on the money-math modules, and a small set of synthetic prod probes.</p>
-<p><strong>Reframing line for the interview:</strong> "Coverage is a hygiene signal, not a quality signal. I care more about whether our top 10 critical paths have <em>verified behavior</em> than whether our line coverage is 80 or 95."</p>`
-    },
-    {
-      id: "a1b2c3d4-0002-4002-8002-000000000005",
-      q: "Example: Write a 1-page testing strategy document for a feature.",
-      diff: "mid",
-      tags: ["strategy", "example", "documentation"],
-      answer: `<p>A strategy doc is not a test plan. It says <em>what we'll bet on and why</em>, not the case-by-case detail. One page max.</p>
-<pre><code># Testing Strategy — Realtime Notifications (Q2 2026)
-
-## Goal
-Confidence that notifications are delivered, in order, within SLA (p95 &lt; 5s), without duplicate sends.
-
-## What's risky here
-1. Fan-out at scale — 1 event can become 100k pushes.
-2. Ordering — out-of-order notifications confuse users (e.g. "X liked your post" after "X unliked it").
-3. Idempotency — retries from the broker must not double-send.
-
-## Where we'll put the test weight
-- 60% contract + integration on the publisher and worker boundaries (we own both).
-- 20% unit on the dedup / ordering logic — this is where bugs hide.
-- 15% load tests (k6) at 10x current peak, run weekly.
-- 5% E2E smoke — receive a real push on a real device, 3 platforms.
-
-## What we are NOT doing
-- Not unit-testing every notification template variant (covered by snapshot tests).
-- Not load-testing the email channel — it's not the bottleneck this quarter.
-- Not pursuing 90%+ coverage; we're targeting verified behavior on critical paths.
-
-## How we know it's working
-- Defect escape rate &lt; 1 per release.
-- p95 delivery latency stays under 5s in prod synthetic checks.
-- Zero duplicate-send incidents in 90 days.
-
-## Open risks &amp; owners
-- Mobile push provider rate limits during spikes — owner: @platform-team
-- Replay-attack resistance of the webhook — owner: @security
-
-## Review
-Quarterly, or after any incident touching this surface.</code></pre>
-<p>Why this is senior: it bets the test budget on the <em>highest-risk surfaces</em>, names explicit non-goals, and ties success to <em>measurable</em> outcomes. It would survive a 5-minute exec read.</p>`
     },
   ]
 };
@@ -856,20 +716,6 @@ OWNER: &lt;name&gt;        DATE: &lt;yyyy-mm-dd&gt;       STATUS: Proposed | Tri
 <p>Anti-pattern: declaring victory on vibes. "Feels faster" is not a result; it's a hypothesis.</p>`
     },
     {
-      id: "166e492c-a3d1-46f3-8fc6-a07548ef9235",
-      q: "How do you spot improvement opportunities the team has stopped noticing?",
-      diff: "hard",
-      tags: ["improvement", "observation"],
-      answer: `<ul>
-<li><strong>New-hire questions are gold</strong> — "Why do we do X?" without a good answer is a signal. Capture them in the first 30 days before normalization sets in.</li>
-<li><strong>Look at the friction logs</strong> — Slack threads with repeated "ugh again" reactions, retro themes that recur quarter over quarter, the same Confluence page edited every release.</li>
-<li><strong>Time the small annoyances</strong> — a 15-min ritual × 5 people × weekly is 65h/year. Quantifying makes the case.</li>
-<li><strong>Compare to a peer team or external benchmark</strong> — sometimes you only see the smell when standing outside.</li>
-<li><strong>Pair with someone different</strong> — a dev, a designer, a support engineer. Fresh eyes catch what veterans filter out.</li>
-</ul>
-<p>The senior move: turn a vague complaint into a measured proposal. Anyone can complain; few can move it to action.</p>`
-    },
-    {
       id: "a1b2c3d4-0005-4005-8005-000000000001",
       q: "Scenario: New team. Releases monthly with a 2-week QA freeze. Propose a credible path to weekly releases.",
       diff: "hard",
@@ -893,29 +739,6 @@ OWNER: &lt;name&gt;        DATE: &lt;yyyy-mm-dd&gt;       STATUS: Proposed | Tri
 <p><strong>What kills the proposal:</strong> framing it as a QA wish ("I want faster releases"). Framing it as a business win ("we'll cut lead time from 14 days to 3, recover from incidents 4× faster, and reduce coordination tax") works.</p>`
     },
     {
-      id: "a1b2c3d4-0005-4005-8005-000000000002",
-      q: "Scenario: Your manager rejects your proposal. When do you push, when do you fold?",
-      diff: "mid",
-      tags: ["improvements", "scenario", "influence"],
-      answer: `<p>"No" is data, not a verdict. The senior move is to <em>understand the no</em>, decide whether the reasoning is sound, and respond accordingly.</p>
-<p><strong>Diagnose the no:</strong></p>
-<ul>
-<li><strong>Hard no (don't push):</strong> conflicts with org strategy, regulatory, legal, or budget you don't see. Examples: "We're in due diligence and can't change the release process for 3 months," "Compliance requires this manual signoff." Accept, ask if you can revisit on a date.</li>
-<li><strong>Soft no (push, with new info):</strong> "I don't see the ROI." That's a question, not a verdict. Bring the data they don't have. Re-pitch with one number that changes.</li>
-<li><strong>Political no (re-route):</strong> "Marketing wouldn't like that." There's a stakeholder you haven't talked to. Ask: "Who else needs to weigh in?" Then talk to them, not your manager again.</li>
-<li><strong>Bandwidth no (descope):</strong> "We can't take this on this quarter." Offer a 2-week version. "Could we run a 1-team pilot instead of org-wide?"</li>
-<li><strong>Capricious no (escalate or fold):</strong> no clear reason, no path forward. Try once more in writing. If still no — fold for now, build credibility with smaller wins, retry in 6 months with a track record.</li>
-</ul>
-<p><strong>How to push without being annoying:</strong></p>
-<ol>
-<li>"Can I share the data behind this once more?" — invites a 5-min review.</li>
-<li>"What would change your mind?" — surfaces the real blocker.</li>
-<li>"Can I run a 1-team / 2-week trial?" — lower stakes, clearer signal.</li>
-<li>"Can we revisit at Q+1 planning?" — buys time, signals you'll be back.</li>
-</ol>
-<p><strong>When to fold (and how):</strong> say "thanks, I'll park this" — and actually park it. Document why it was rejected so future-you doesn't repeat the work. Senior signal: you can lose a fight gracefully and stay credible.</p>`
-    },
-    {
       id: "a1b2c3d4-0005-4005-8005-000000000003",
       q: "Case study: How does Google's SRE practice institutionalize 'influence without authority' — and what can QA borrow?",
       diff: "mid",
@@ -936,28 +759,6 @@ OWNER: &lt;name&gt;        DATE: &lt;yyyy-mm-dd&gt;       STATUS: Proposed | Tri
 <li><strong>A toil cap for QA.</strong> Track time spent on manual regression vs new-feature testing vs flake triage. Use the numbers in budget conversations.</li>
 </ol>
 <p><strong>The pattern is the same:</strong> stop arguing about who has authority. Build the <em>structures</em> that make the right behavior the path of least resistance.</p>`
-    },
-    {
-      id: "a1b2c3d4-0005-4005-8005-000000000004",
-      q: "Quiz: A dev says 'QA is the bottleneck.' How do you respond?",
-      diff: "mid",
-      tags: ["improvements", "interview-quiz", "influence"],
-      answer: `<p>This is a politically loaded question with a technical answer underneath. Two failure modes: getting defensive, or capitulating and skipping tests. The senior path is to <em>partner on the bottleneck</em>.</p>
-<p><strong>What not to say:</strong></p>
-<ul>
-<li>"We're not the bottleneck, devs ship buggy code." (Defensive, deflects.)</li>
-<li>"You're right, we'll just test less." (Capitulates, ships incidents.)</li>
-<li>"That's not fair." (Emotional, doesn't move the conversation.)</li>
-</ul>
-<p><strong>What to say:</strong></p>
-<ol>
-<li>"<em>Let's look at where the time goes.</em>" Pull last 5 releases. Show the breakdown — code freeze, regression run, bug retest, manual signoff, environment setup. The bottleneck is rarely "QA running tests"; it's usually environment churn, late-arriving features, or flake retries.</li>
-<li>"<em>What would 'not a bottleneck' look like?</em>" Often the dev wants faster feedback, not less testing. Faster feedback is a shared goal.</li>
-<li>"<em>Here are three concrete things we could change.</em>" e.g., shift left into PR-level testing, kill 50 flaky tests, give devs the test framework to add cases themselves.</li>
-<li>"<em>I'll commit to X if you commit to Y.</em>" "I'll cut regression to 1h if devs add a contract test to each PR." Reciprocity makes it a partnership.</li>
-</ol>
-<p><strong>Interview-level framing:</strong> "When someone says 'X is the bottleneck,' they're usually telling you their pain, not their diagnosis. The job is to find the real constraint, fix that, and make it visible — not to defend QA's honor."</p>
-<p>Senior signal: you reframed the complaint as a system problem and offered a measurable change. Junior signal: you took it personally.</p>`
     },
     {
       id: "a1b2c3d4-0005-4005-8005-000000000005",

@@ -24,12 +24,16 @@ not back to the bloated 297 we started with.
 
 ---
 
-## Scope guardrails
+## Scope guardrails (revised after the 88-Q cut)
 
-- **Cap total Qs at ~325** post-Task-2 (currently 243). That's ~80 new
-  Qs spread across 8 chunks. Hard ceiling — if a chunk threatens it,
-  trim before merging. (Cap revised up from 310 after the deeper
-  design-patterns survey.)
+- **Cap total Qs at ~190** post-Task-2 (currently 155 after Task 1's
+  deep cut). That's ~35 new Qs spread across 3 chunks. Hard ceiling —
+  the corpus is now sized for *actual study*, not reference-grade
+  breadth. If a chunk threatens the cap, trim before merging.
+- The full 40-pattern survey from the earlier draft of this plan is
+  now **`DESIGN_PATTERNS.md` (a reference appendix in the repo)**, not
+  in-app Qs. That keeps the breadth where it's discoverable without
+  diluting the study set.
 - **No new top-level categories beyond two:** "Design Patterns &
   Architecture" (new) and "Domain Playbooks" (new). Everything else
   extends existing categories.
@@ -655,20 +659,23 @@ and the prior payments + healthcare verticals.
 
 | Chunk | Effort (writing + verify) | Net Qs added |
 |---|---|---|
-| 1. UI / Page Modelling Patterns | 4–5 hr | +10 |
-| 2. Test Data + Test Doubles | 4–5 hr | +10 |
-| 3. GoF Structural + Behavioral in tests | 4–5 hr | +10 |
-| 4. Architectural + Principles + Anti-patterns | 4–5 hr | +10 |
-| 5. Test Plan Authoring | 2 hr | +8 |
-| 6. Payments + E-commerce | 3–4 hr | +10 |
-| 7. Healthcare | 2–3 hr | +8 |
-| 8. Logistics + Automotive | 2–3 hr | +8 |
-| **Total** | **~25–32 hr** | **+74** |
+| 1. Essential design patterns (was 4 chunks; now 1 + appendix) | 4–5 hr | +15 |
+| 2. Test Plan Authoring | 2 hr | +8 |
+| 3. One Domain Playbook (your target only) | 3–4 hr | +12 |
+| **Total** | **~10–12 hr** | **+35** |
 
-Final corpus size: 243 + 74 = **317 Qs across 20 categories** — slightly
-above the pre-cut size but with bloat replaced by targeted senior
-material (40 design patterns with diagrams, 26 domain Qs, 8 test-plan
-authoring Qs) rather than generic JS fundamentals.
+Final corpus size: 155 + 35 = **~190 Qs across 20 categories** — sized
+for actual study (you can read the whole thing in two weeks at ~14/day
+including one revisit pass).
+
+The reference-grade material that didn't make the corpus (~25 extra
+design patterns, two other domain playbooks) goes into:
+
+- `DESIGN_PATTERNS.md` — a single Markdown file with the full
+  ~40-pattern survey including Mermaid diagrams, kept as a study
+  appendix you read once or refer back to. Not in the app.
+- `DOMAIN_PLAYBOOKS.md` — a placeholder appendix where the other two
+  domain playbooks live until your target job is more certain.
 
 ---
 

@@ -1,6 +1,6 @@
 # QA Interview Prep — Senior Automation
 
-A personal study app for senior QA Automation Engineer interviews. **~240 questions across 18 categories with full model answers** including TypeScript / Playwright / SQL code examples. Built as a Vite + React + TypeScript single-page app — runs in any modern browser, deploys anywhere static.
+A personal study app for senior QA Automation Engineer interviews. **~155 questions across 18 categories with full model answers** including TypeScript / Playwright / SQL code examples. Built as a Vite + React + TypeScript single-page app — runs in any modern browser, deploys anywhere static.
 
 ![Tech](https://img.shields.io/badge/React-18.3-61dafb?logo=react)
 ![Tech](https://img.shields.io/badge/TypeScript-5.6-3178c6?logo=typescript)
@@ -32,14 +32,14 @@ A browsable, searchable interview-prep reference. Pick a category, scan question
 
 | # | Category | Questions | Focus |
 |---|---|---|---|
-| 1 | Playwright + TS | 44 | Locators, fixtures, auto-waiting, sharding, real framework code, assertion pitfalls |
-| 2 | REST API testing | 21 | HTTP semantics, idempotency, schema validation, security |
-| 3 | SQL fundamentals | 19 | Joins, indexes, window functions, data-integrity queries |
-| 4 | Framework & architecture | 12 | POM, fixture composition, scaling test code |
-| 5 | CI/CD & flakiness | 17 | GitHub Actions, sharding, flake reduction, metrics |
-| 6 | Testing theory | 19 | Verification vs validation, coverage, mutation testing, ISTQB principles |
-| 7 | Real scenarios | 15 | P0 incidents, stakeholder pushback, escape rate |
-| 8 | Behavioral | 13 | STAR-format answers with concrete patterns |
+| 1 | Playwright + TS | 22 | Locators, fixtures, auto-waiting, sharding, real framework code, assertion pitfalls |
+| 2 | REST API testing | 13 | HTTP semantics, idempotency, schema validation, security |
+| 3 | SQL fundamentals | 12 | Joins, indexes, window functions, data-integrity queries |
+| 4 | Framework & architecture | 8 | POM, fixture composition, scaling test code |
+| 5 | CI/CD & flakiness | 10 | GitHub Actions, sharding, flake reduction, metrics |
+| 6 | Testing theory | 12 | Verification vs validation, coverage, mutation testing, ISTQB principles |
+| 7 | Real scenarios | 10 | P0 incidents, stakeholder pushback, escape rate |
+| 8 | Behavioral | 9 | STAR-format answers with concrete patterns |
 
 **Plus 10 specialty categories** — TypeScript programming, GraphQL & contracts, project structure, visual regression, feature flags, test management, testing strategy, automation frameworks survey, API & DB integration, driving improvements.
 
@@ -293,7 +293,7 @@ For code snippets, escape angle brackets: `&lt;` and `&gt;`. The TypeScript file
 
 ## Features
 
-- **~260 senior-level questions** across 18 categories (8 core + 10 specialty)
+- **~155 senior-level questions** across 18 categories (8 core + 10 specialty) — curated for actual study, not breadth-for-breadth's-sake
 - **Per-category search** — searches question text, tags, and answer content
 - **Difficulty filter** — easy / mid / hard
 - **Mark-as-reviewed** — checkbox on each question, persists in localStorage
@@ -361,7 +361,7 @@ Lets the built site work at any URL — root domain, subpath, file:// protocol. 
 
 ### Why Set instead of Array for reviewed/open IDs?
 
-O(1) `has()` lookup. With ~240 questions × hundreds of expand/collapse toggles per session, array search would noticeably affect frame rate. Custom JSON serialization handles persistence.
+O(1) `has()` lookup. With ~155 questions × hundreds of expand/collapse toggles per session, array search would noticeably affect frame rate. Custom JSON serialization handles persistence.
 
 ---
 

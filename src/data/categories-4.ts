@@ -58,70 +58,6 @@ type BuilderArgs = Parameters&lt;typeof OrderBuilder.create&gt;[0];</code></pre>
 <p><strong>Most valuable in practice:</strong> <code>Partial</code> for builder overrides, <code>Omit</code> for create payloads, <code>Record</code> for typed seed maps. Avoids maintaining parallel type definitions that silently drift from each other.</p>`
     },
     {
-      id: "c61046ea-c6ff-4d08-b5ba-e2d5d4a2379c",
-      q: "Interface vs. type alias — when do you pick each in test code?",
-      diff: "mid",
-      tags: ["typescript"],
-      answer: `<p>Both define shapes but with key differences in capabilities and intent.</p>
-<pre class="code"><code>// Interface — use for object shapes that may be extended or implemented
-interface BasePage {
-  goto(url: string): Promise&lt;void&gt;;
-}
-interface AdminPage extends BasePage {
-  impersonateUser(id: string): Promise&lt;void&gt;;
-}
-
-// Type — use for unions, intersections, and computed shapes
-type DiffFilter    = 'easy' | 'mid' | 'hard' | 'all';
-type AuthedFixture = BaseFixture &amp; { token: string };
-type PageOrNull    = Page | null;
-type MaybeArray&lt;T&gt; = T | T[];</code></pre>
-<p><strong>Rule of thumb for test code:</strong></p>
-<ul>
-<li>Use <strong>interface</strong> for Page Objects, fixture types, API client contracts — they are extended across the project.</li>
-<li>Use <strong>type</strong> for unions (difficulty levels, test states), intersections (composed fixture types), and any computed or conditional types.</li>
-</ul>
-<p>Mixed usage within similar concepts is the real smell. Pick one approach per category of thing and be consistent across the framework.</p>`
-    },
-    {
-      id: "df26c997-5663-4cd7-9e06-160de1cb441b",
-      q: "What is a discriminated union and how do you use one in a test framework?",
-      diff: "hard",
-      tags: ["typescript", "patterns"],
-      diagram: `graph TB
-  UNION["APIResult&lt;T&gt;<br/>(discriminated by 'status')"]
-  UNION --> OK["status: 'ok'<br/>data: T"]
-  UNION --> ERR["status: 'error'<br/>message: string<br/>code: number"]
-  UNION --> LOAD["status: 'loading'<br/>(no extra fields)"]
-  CHECK["if (result.status === 'ok')"] -.narrows.-> OK
-  CHECK2["if (result.status === 'error')"] -.narrows.-> ERR
-  classDef ok fill:#2a9d8f,color:#fff
-  classDef err fill:#e76f51,color:#fff
-  classDef load fill:#e9c46a,color:#222
-  class OK ok
-  class ERR err
-  class LOAD load`,
-      answer: `<p>A discriminated union is a union of types sharing a common literal field (the discriminant). TypeScript narrows the type based on that field — no casts needed.</p>
-<pre class="code"><code>type APIResult&lt;T&gt; =
-  | { status: 'ok';      data: T             }
-  | { status: 'error';   message: string; code: number }
-  | { status: 'loading'                      };
-
-function assertSuccess&lt;T&gt;(result: APIResult&lt;T&gt;): T {
-  if (result.status !== 'ok') {
-    throw new Error(\`Expected ok, got \${result.status}: \${
-      result.status === 'error' ? result.message : 'loading'
-    }\`);
-  }
-  return result.data; // TypeScript knows this is T here — no cast
-}
-
-// In tests
-const result = await apiClient.getOrder('ord-123');
-const order  = assertSuccess(result); // type: Order, fully inferred</code></pre>
-<p>Useful in test frameworks for: typed test step results, fixture states (created/failed/torn-down), mock response builders where each HTTP status variant has different fields. Eliminates optional fields that only apply to some cases and the runtime errors they cause.</p>`
-    },
-    {
       id: "902e9e36-dce2-44d0-b2e2-0ffa19778b03",
       q: "How do you type an API response safely without using 'any'?",
       diff: "hard",
@@ -152,32 +88,6 @@ async function fetchOrder(id: string): Promise&lt;Order&gt; {
 const order = await fetchOrder('ord-123');
 expect(order.currency).toBe('EUR'); // TypeScript knows currency is the enum</code></pre>
 <p>Without this: <code>any</code> casts accept wrong shapes silently, breaking at runtime in CI rather than at compile time on your machine. Zod schemas also serve as living documentation of what the API must return.</p>`
-    },
-    {
-      id: "be699df3-c26a-4de9-a426-3e4f72edfccb",
-      q: "Explain Promise.all vs Promise.allSettled — when does each matter in tests?",
-      diff: "mid",
-      tags: ["typescript", "async"],
-      answer: `<pre class="code"><code>// Promise.all — fails fast on first rejection
-// Use when ALL must succeed to continue (test setup)
-const [order, user, inventory] = await Promise.all([
-  apiClient.getOrder(id),
-  apiClient.getUser(userId),
-  apiClient.checkInventory(sku),
-]);
-// If any fails, the test throws immediately — correct for arrange phase
-
-// Promise.allSettled — waits for ALL, collects every result
-// Use in teardown — clean up as much as possible, don't hide the test failure
-const results = await Promise.allSettled([
-  db.delete(orderId),
-  db.delete(userId),
-  cache.flush(sessionKey),
-]);
-const failed = results.filter(r =&gt; r.status === 'rejected');
-if (failed.length) console.warn('Teardown incomplete:', failed);
-// Don't re-throw — would mask the actual test failure</code></pre>
-<p><strong>Rule:</strong> <code>Promise.all</code> in arrange/act — all preconditions must hold. <code>Promise.allSettled</code> in teardown — clean up everything regardless of failures, never let teardown errors shadow test failures.</p>`
     },
     {
       id: "de1e684c-c173-4ad0-845e-314e88c0662e",
@@ -299,107 +209,6 @@ export const test = base.extend&lt;CustomFixtures&gt;({
 
 export { expect } from '@playwright/test';</code></pre>
 <p>Result: every test file imports <code>{ test }</code> from this fixture module. The params <code>{ checkoutPage, apiClient, testUser }</code> are fully typed — autocomplete, rename refactoring, compile-time errors on typos. No casts, no <code>any</code>.</p>`
-    },
-    {
-      id: "72fdf060-e0a3-4e5b-a9d8-bb72f12779d2",
-      q: "Explain the Strategy pattern with a test framework example.",
-      diff: "hard",
-      tags: ["typescript", "patterns", "architecture"],
-      answer: `<p>Strategy defines a family of algorithms behind a common interface, making them interchangeable at runtime without changing the caller.</p>
-<pre class="code"><code>interface AuthStrategy {
-  authenticate(page: Page): Promise&lt;void&gt;;
-}
-
-// Strategy A — full UI login, tests the login flow itself
-class UIAuthStrategy implements AuthStrategy {
-  constructor(private creds: Credentials) {}
-  async authenticate(page: Page) {
-    await page.goto('/login');
-    await page.getByLabel('Email').fill(this.creds.email);
-    await page.getByLabel('Password').fill(this.creds.password);
-    await page.getByRole('button', { name: 'Sign in' }).click();
-    await page.waitForURL('/dashboard');
-  }
-}
-
-// Strategy B — API token injection, 200ms vs 5s
-class APIAuthStrategy implements AuthStrategy {
-  constructor(private creds: Credentials) {}
-  async authenticate(page: Page) {
-    const token = await mintTokenViaAPI(this.creds);
-    await page.context().addCookies([{ name: 'auth', value: token, domain: 'localhost' }]);
-  }
-}
-
-// Fixture selects strategy — swap without touching tests
-const authStrategy: AuthStrategy = process.env.FAST_AUTH
-  ? new APIAuthStrategy(creds)
-  : new UIAuthStrategy(creds);
-
-await authStrategy.authenticate(page);</code></pre>
-<p>Other uses: report formatters, seed strategies (API vs DB direct), notification dispatchers. Adding a new strategy = one new class, zero changes to consumers.</p>`
-    },
-    {
-      id: "41b017fa-effd-4651-b127-064f4ef958a6",
-      q: "What is the difference between map, filter, and reduce — show each used in test data manipulation.",
-      diff: "easy",
-      tags: ["typescript", "programming"],
-      answer: `<pre class="code"><code>const orders: Order[] = await apiClient.getAllOrders();
-
-// map — transform each element, preserves count
-const orderIds  = orders.map(o =&gt; o.id);
-const summaries = orders.map(o =&gt; ({ id: o.id, total: o.total }));
-
-// filter — keep matching elements, reduces count
-const shipped   = orders.filter(o =&gt; o.status === 'shipped');
-const highValue = orders.filter(o =&gt; o.total &gt; 1000);
-
-// reduce — aggregate to one value
-const grandTotal = orders.reduce((sum, o) =&gt; sum + o.total, 0);
-
-// Group by status — reduce to a map
-const byStatus = orders.reduce&lt;Record&lt;string, Order[]&gt;&gt;((acc, o) =&gt; {
-  (acc[o.status] ??= []).push(o);
-  return acc;
-}, {});
-
-// Chain them — readable, no mutation
-const shippedTotal = orders
-  .filter(o =&gt; o.status === 'shipped')
-  .map(o =&gt; o.total)
-  .reduce((sum, t) =&gt; sum + t, 0);</code></pre>
-<p>Used constantly for: transforming API responses into assertion inputs, grouping test results by category, computing expected aggregates to compare against database totals. All three are pure — no mutation, safe across parallel workers.</p>`
-    },
-    {
-      id: "1879f346-7b12-474c-a4b9-ba3112b12a36",
-      q: "How do optional chaining and nullish coalescing interact with test assertions?",
-      diff: "easy",
-      tags: ["typescript"],
-      answer: `<pre class="code"><code>// Optional chaining — avoids TypeError on missing nested props
-const city = user?.address?.city;       // undefined if any part is null
-const tag  = order?.items?.[0]?.tag;
-
-// Nullish coalescing — default only for null/undefined (not 0 or '')
-const label  = category?.label  ?? 'Unknown';
-const count  = result?.count    ?? 0;
-const status = response?.status ?? 500;
-
-// ❌ The trap: optional chaining in assertions silently passes
-expect(order?.total).toBeGreaterThan(0);
-// If order is null, order?.total is undefined — some matchers pass on undefined!
-
-// ✅ Assert existence first, then assert the property
-expect(order).not.toBeNull();
-expect(order!.total).toBeGreaterThan(0);
-
-// ✅ Or use a helper that fails loudly
-function defined&lt;T&gt;(value: T | null | undefined, label: string): T {
-  if (value == null) throw new Error(\`Expected \${label} to be defined\`);
-  return value;
-}
-const total = defined(order, 'order').total;
-expect(total).toBeGreaterThan(0);</code></pre>
-<p><strong>Rule:</strong> never use <code>?.</code> inside <code>expect()</code>. It turns missing values into <code>undefined</code> and some matchers accept that, producing a test that passes when the data is completely absent.</p>`
     },
     {
       id: "2daa11d5-8ca3-41e7-8041-7ff0f0626b15",
@@ -617,77 +426,6 @@ expect(body.errors).toBeUndefined();</code></pre>
 <p>The most common mistake: only asserting on <code>body.data</code> and ignoring <code>body.errors</code>. Tests pass green while the UI renders broken widgets. Always check both fields explicitly.</p>`
     },
     {
-      id: "f58ea388-7683-47ca-93d1-c5f64b7abad0",
-      q: "How do you use GraphQL schema introspection to drive test coverage?",
-      diff: "hard",
-      tags: ["graphql", "api"],
-      answer: `<p>GraphQL exposes its own schema at runtime via introspection. Query it to discover all operations, types, and deprecations.</p>
-<pre class="code"><code>const INTROSPECTION = \`
-  query {
-    __schema {
-      queryType    { fields { name isDeprecated deprecationReason } }
-      mutationType { fields { name isDeprecated deprecationReason } }
-    }
-  }
-\`;
-
-const response = await request.post('/graphql', { data: { query: INTROSPECTION } });
-const schema   = (await response.json()).data.__schema;
-
-// Warn on deprecated fields still in your test suite
-const deprecated = schema.queryType.fields
-  .filter(f =&gt; f.isDeprecated)
-  .map(f =&gt; f.name);
-
-console.log('Deprecated operations still in use:', deprecated);</code></pre>
-<p><strong>Senior uses:</strong></p>
-<ul>
-<li><strong>Schema snapshot</strong> — save the SDL as a file, diff it on every CI run. Any field removal or type change fails CI and forces a deliberate review.</li>
-<li><strong>Auto-generate stubs</strong> — enumerate all mutations from introspection and generate test skeletons for new ones.</li>
-<li><strong>Deprecation tracking</strong> — detect when your tests reference fields the API team has flagged for removal.</li>
-</ul>
-<pre class="code"><code>// Schema snapshot test
-test('schema has not changed unexpectedly', async () => {
-  const sdl = await fetchSchemaSDL();
-  expect(sdl).toMatchSnapshot(); // blocks any unreviewed change
-});</code></pre>`
-    },
-    {
-      id: "13645dd8-2296-4784-8e5b-e2cc883653a9",
-      q: "Schema evolution in GraphQL — how do you test backward compatibility?",
-      diff: "hard",
-      tags: ["graphql", "contracts"],
-      answer: `<p>GraphQL deprecates rather than versions. Adding fields is safe. Removing or renaming breaks existing clients silently.</p>
-<pre class="code"><code># Safe change — additive only
-type Order {
-  id:          ID!
-  total:       Float!
-  status:      String! @deprecated(reason: "Use orderStatus")
-  orderStatus: OrderStatus!       # new enum — added alongside old field
-  estimatedDelivery: String       # new optional — safe
-}
-
-# Breaking change — never do this without a deprecation window
-type Order {
-  id:          ID!
-  total:       Float!
-  # status removed — all existing clients break immediately
-  orderStatus: OrderStatus!
-}</code></pre>
-<pre class="code"><code>// Test: deprecated field still works during the window
-test('status field returns value during deprecation period', async () => {
-  const { data } = await graphqlQuery(\`{ order(id: "ord-1") { id status } }\`);
-  expect(data.order.status).toBeDefined(); // must not break until officially removed
-});
-
-// Test: new field works
-test('orderStatus returns typed enum value', async () => {
-  const { data } = await graphqlQuery(\`{ order(id: "ord-1") { orderStatus } }\`);
-  expect(['PENDING', 'SHIPPED', 'DELIVERED']).toContain(data.order.orderStatus);
-});</code></pre>
-<p><strong>Breaking changes checklist:</strong> removing a field, changing a type (String → Int), making a nullable field required, renaming an enum value, removing an enum value. Any of these fail existing clients unless caught by contract or snapshot tests.</p>`
-    },
-    {
       id: "e56a91ad-ed4f-432b-8e51-9be6e7d6fc83",
       q: "Walk through a complete Pact consumer test — what does it actually produce?",
       diff: "hard",
@@ -735,54 +473,6 @@ it('returns an order by ID', async () =&gt; {
 });
 // Running this test writes: pacts/OrderUI-OrderAPI.json</code></pre>
 <p>Pact spins up a local mock server, replays the expected interaction, records it as JSON. That file is published to Pact Broker. The provider pulls it and verifies against their real code. Consumer and provider never share an environment — the contract file is the handshake.</p>`
-    },
-    {
-      id: "cd6fd9ea-edc3-4404-8012-f2d17d2b63d5",
-      q: "Why must provider verification run in the provider's CI — not the consumer's?",
-      diff: "hard",
-      tags: ["contracts", "pact"],
-      diagram: `flowchart LR
-  subgraph CONS["Consumer repo (OrderUI)"]
-    CTEST["consumer test<br/>vs Pact MOCK"]
-    CTEST --> PACT["pact.json<br/>(my wishlist)"]
-  end
-  PACT --> BROKER[(Pact Broker)]
-  subgraph PROV["Provider repo (OrderAPI) ⚡critical"]
-    PCI["provider CI"]
-    PVER["Verifier replays pact<br/>against REAL code + DB"]
-    PCI --> PVER
-  end
-  BROKER --> PVER
-  PVER --> RES{"matches?"}
-  RES -- yes --> OK["✓ deploy allowed"]
-  RES -- no --> BLOCK["✗ provider PR blocked<br/>consumer team notified"]
-  classDef cons fill:#0a3d6e,color:#fff
-  classDef prov fill:#2a9d8f,color:#fff
-  classDef bad fill:#e76f51,color:#fff
-  class CTEST,PACT cons
-  class PCI,PVER,OK prov
-  class BLOCK bad`,
-      answer: `<p>This is the organizational rule that makes contract testing work. Without it the whole system is circular and useless.</p>
-<p><strong>Consumer CI:</strong> generates the pact, runs against a mock. Always passes — the mock does whatever you told it to. The pact file is the consumer's wishlist.</p>
-<p><strong>Provider CI:</strong> must verify the pact against the real implementation. This is where the contract earns its value.</p>
-<pre class="code"><code>// provider.spec.ts — lives in the Order API repo
-import { Verifier } from '@pact-foundation/pact';
-
-test('verify consumer contracts', async () =&gt; {
-  await new Verifier({
-    provider:        'OrderAPI',
-    providerBaseUrl: 'http://localhost:3000',
-    pactBrokerUrl:   process.env.PACT_BROKER_URL,
-    publishVerificationResult: true,
-    providerVersion:           process.env.GIT_SHA,
-    stateHandlers: {
-      'order ord-123 exists': async () =&gt; {
-        await db.seed({ id: 'ord-123', total: 100 });
-      },
-    },
-  }).verifyProvider();
-});</code></pre>
-<p><strong>The failure scenario that proves value:</strong> API team renames <code>status</code> to <code>orderStatus</code>. Consumer tests still pass (against the old mock). Provider verification fails. The renaming PR is blocked. The consumer team is notified. That is the contract working exactly as designed.</p>`
     },
     {
       id: "39d22efc-1c40-4af0-b1d5-c90b060b6b58",
@@ -878,31 +568,6 @@ tests/
   CheckoutTests.spec.ts         // PascalCase is not the file convention
   test-checkout.spec.ts         // redundant prefix</code></pre>
 <p>Name files after the <strong>feature or user journey</strong>, not the component or class. Consistency within the project matters more than which convention you pick. Set <code>testDir</code> in <code>playwright.config.ts</code> to enforce the root.</p>`
-    },
-    {
-      id: "cc0a0726-9daf-44d3-8d9a-c945e4be46c8",
-      q: "What is a barrel file (index.ts) and when does it become harmful?",
-      diff: "mid",
-      tags: ["conventions", "typescript"],
-      answer: `<p>A barrel file re-exports from multiple modules, collapsing import paths.</p>
-<pre class="code"><code>// pages/index.ts — barrel
-export { CheckoutPage }  from './CheckoutPage';
-export { LoginPage }     from './LoginPage';
-export { DashboardPage } from './DashboardPage';
-
-// Without barrel — verbose
-import { CheckoutPage } from '../pages/CheckoutPage';
-import { LoginPage }    from '../pages/LoginPage';
-
-// With barrel — clean
-import { CheckoutPage, LoginPage } from '../pages';</code></pre>
-<p><strong>When barrels become harmful:</strong></p>
-<ul>
-<li><strong>Circular imports</strong> — A imports from <code>index.ts</code> which re-exports B which imports A. Hard to debug, causes runtime errors.</li>
-<li><strong>Slow test startup</strong> — Node loads the entire barrel even when you need one export. In large projects this adds meaningful seconds.</li>
-<li><strong>False coupling</strong> — renaming one file requires updating the barrel, creating unnecessary churn.</li>
-</ul>
-<p><strong>Rule:</strong> one barrel per major folder (<code>pages/</code>, <code>api/</code>, <code>fixtures/</code>). No nested barrels. Skip the barrel in <code>utils/</code> unless the folder is very stable — utils tend to grow and barrel maintenance becomes a tax.</p>`
     },
     {
       id: "64bb5654-b09a-48ab-ab2b-b6cb2774d5c4",
@@ -1006,45 +671,6 @@ class CheckoutPage {
 <p>Tests read as: <code>await checkout.payment.fillCard('4242...')</code>. Each section file is independently reviewable and can be changed without touching the others.</p>`
     },
     {
-      id: "3da7fe7b-7ab0-4585-a939-35ea59ab6016",
-      q: "What does a well-structured tsconfig.json look like for a Playwright project?",
-      diff: "mid",
-      tags: ["typescript", "configuration"],
-      answer: `<pre class="code"><code>// tsconfig.json — for test code
-{
-  "compilerOptions": {
-    "target":             "ES2022",
-    "module":             "CommonJS",
-    "lib":                ["ES2022"],
-    "strict":             true,
-    "noUnusedLocals":     true,     // catches stale imports immediately
-    "noUnusedParameters": true,
-    "noImplicitReturns":  true,
-    "esModuleInterop":    true,
-    "resolveJsonModule":  true,
-    "baseUrl":            ".",
-    "paths": {
-      "@fixtures/*": ["./fixtures/*"],
-      "@pages/*":    ["./pages/*"],
-      "@utils/*":    ["./utils/*"]
-    }
-  },
-  "include": ["**/*.ts"],
-  "exclude": ["node_modules", "dist", "playwright-report"]
-}
-
-// tsconfig.node.json — only for playwright.config.ts
-{
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "module":           "ESNext",
-    "moduleResolution": "bundler"
-  },
-  "include": ["playwright.config.ts"]
-}</code></pre>
-<p><strong>Path aliases</strong> (<code>@fixtures/*</code>) eliminate <code>../../../fixtures/</code> crawling. <strong>Strict mode</strong> is non-negotiable — it catches the null dereferences and missing awaits that cause flaky tests. <code>noUnusedLocals</code> keeps imports clean and startup fast.</p>`
-    },
-    {
       id: "27ab85dd-ac64-4050-8771-febfa0282d37",
       q: "Co-located tests vs. a separate test directory — which do you use and when?",
       diff: "mid",
@@ -1069,26 +695,6 @@ e2e/
   fixtures/
   utils/</code></pre>
 <p>E2E tests exercise multiple source files and full user journeys — co-location with any single source file makes no sense. Component tests belong next to the component so that deleting the component also deletes the test. Never mix the two conventions in the same folder — it breaks <code>testMatch</code> patterns and confuses CI configuration.</p>`
-    },
-    {
-      id: "d1c960b8-8766-4240-bd94-83e333146cdc",
-      q: "How do you version and share test utilities across multiple repositories?",
-      diff: "hard",
-      tags: ["architecture", "monorepo"],
-      answer: `<p>Three options by team maturity:</p>
-<p><strong>1. Private npm package</strong> — most robust. Version with semver, publish to Nexus or GitHub Packages, consumers pin a version.</p>
-<pre class="code"><code>// @company/test-utils — published internally
-import { createFactory, assertSchema } from '@company/test-utils';
-import { userFactory }                 from '@company/test-utils/factories';</code></pre>
-<p><strong>2. Monorepo workspace package</strong> — no publishing step, always latest.</p>
-<pre class="code"><code>// packages/test-utils/package.json
-{ "name": "@company/test-utils", "version": "1.0.0" }
-
-// apps/web/package.json
-{ "devDependencies": { "@company/test-utils": "workspace:*" } }</code></pre>
-<p><strong>3. Git submodule</strong> — avoid. No versioning, merge conflicts on updates, poor DX.</p>
-<p><strong>What belongs in shared utils:</strong> schema validators, factory helpers, typed assertion wrappers, seed script utilities, shared TypeScript types.</p>
-<p><strong>What does NOT belong:</strong> Playwright fixtures (they depend on test context), environment-specific config, test data values. Those stay per-repo.</p>`
     },
   ],
 };
@@ -1249,39 +855,6 @@ await expect(page.getByTestId('payment-form'))
 });</code></pre>`
     },
     {
-      id: "594b0adb-43e2-4888-b27c-dd189ec93d6f",
-      q: "How do you test dark mode and light mode visually?",
-      diff: "mid",
-      tags: ["visual", "theming"],
-      answer: `<pre class="code"><code>// Option 1 — Playwright projects per colour scheme (cleanest)
-// playwright.config.ts
-projects: [
-  { name: 'light', use: { ...devices['Desktop Chrome'], colorScheme: 'light' } },
-  { name: 'dark',  use: { ...devices['Desktop Chrome'], colorScheme: 'dark'  } },
-],
-// Playwright sets prefers-color-scheme media query automatically
-
-// Option 2 — Force theme via attribute in the test
-test('dark mode checkout', async ({ page }) =&gt; {
-  await page.goto('/checkout');
-  await page.evaluate(() =&gt; {
-    document.documentElement.setAttribute('data-theme', 'dark');
-  });
-  await expect(page.getByTestId('checkout-form'))
-    .toHaveScreenshot('checkout-dark.png', { animations: 'disabled' });
-});
-
-// Option 3 — Use the app's theme toggle
-test('both themes render correctly', async ({ page }) =&gt; {
-  await page.goto('/');
-  await expect(page.getByTestId('hero')).toHaveScreenshot('hero-light.png');
-
-  await page.getByTestId('theme-toggle').click();
-  await expect(page.getByTestId('hero')).toHaveScreenshot('hero-dark.png');
-});</code></pre>
-<p>Keep separate baseline files per theme: <code>checkout-light-1280.png</code>, <code>checkout-dark-1280.png</code>. Never share baselines between themes — they differ by design. The project-based approach (Option 1) is most robust because Playwright controls the colour scheme at the browser level.</p>`
-    },
-    {
       id: "ca29f314-e5b6-4db0-8ff0-6f4f36fc6c66",
       q: "How do you integrate visual regression into CI without blocking every PR?",
       diff: "hard",
@@ -1302,44 +875,6 @@ on:
       - 'src/components/**'
       - 'src/styles/**'</code></pre>
 <p>Always upload diff artifacts on failure — never fail CI silently on a visual difference. Require a human review step before a visual failure blocks merge. False positives that block merges are the fastest way to get visual testing disabled by the team.</p>`
-    },
-    {
-      id: "75f7dc2d-6036-44aa-a694-f88344521961",
-      q: "How do you use Storybook for visual regression testing?",
-      diff: "mid",
-      tags: ["visual", "storybook"],
-      diagram: `flowchart LR
-  STORIES["Button.stories.ts<br/>Primary · Disabled · Loading"] --> SB["Storybook build<br/>(static site)"]
-  SB --> OPT{"integration"}
-  OPT -->|"Chromatic"| CR["cloud render<br/>diff in PR UI<br/>$ paid"]
-  OPT -->|"test-runner"| TR["jest-style runner<br/>+ Playwright screenshots"]
-  OPT -->|"manual"| PW["Playwright<br/>goto iframe.html?id=..."]
-  CR --> BASE[(baselines<br/>+ approval flow)]
-  TR --> BASE
-  PW --> BASE
-  classDef opt fill:#0a3d6e,color:#fff
-  classDef store fill:#2a9d8f,color:#fff
-  class STORIES,SB store
-  class CR,TR,PW opt`,
-      answer: `<p>Storybook renders components in isolation — ideal for component-level visual regression because there is no page-level noise.</p>
-<pre class="code"><code>// Button.stories.ts — each story = a state to screenshot
-export const Primary:  Story = { args: { label: 'Submit', variant: 'primary' } };
-export const Disabled: Story = { args: { label: 'Submit', disabled: true    } };
-export const Loading:  Story = { args: { label: 'Submit', loading: true      } };</code></pre>
-<p><strong>Integration options:</strong></p>
-<ul>
-<li><strong>Chromatic</strong> (by Storybook maintainers) — cloud service, auto-detects story changes, visual review UI in the PR. Best DX, paid.</li>
-<li><strong>@storybook/test-runner</strong> — runs assertions and interactions against stories in a real browser. Free, pairs with Playwright screenshots.</li>
-<li><strong>Playwright visiting Storybook iframe</strong> — manual but free.</li>
-</ul>
-<pre class="code"><code>// Playwright visiting isolated story
-test('Button — primary state', async ({ page }) =&gt; {
-  await page.goto('http://localhost:6006/iframe.html?id=button--primary');
-  await page.waitForLoadState('networkidle');
-  await expect(page.locator('#storybook-root'))
-    .toHaveScreenshot('button-primary.png', { animations: 'disabled' });
-});</code></pre>
-<p>Strategy: component visual tests in Storybook (isolated, fast, dev-friendly) + page-level region screenshots in Playwright E2E (integration-level). Together they cover both the design system and real page composition.</p>`
     },
   ],
 };
@@ -1499,35 +1034,6 @@ test('variant B: one-page checkout completes an order', async ({ page }) =&gt; {
   expect(JSON.parse(analyticsRequest.postData()!).variant).toBe('variant_b');
 });</code></pre>
 <p>Test both variants fully — variant B ships to 50% of real users. Also test: switching variants mid-session does not corrupt cart state, and analytics always records the correct variant label (wrong label = the experiment is unmeasurable).</p>`
-    },
-    {
-      id: "8f210726-dc8b-4a44-a5ef-62990315d2f2",
-      q: "When should a stale feature flag be removed and how do you test the removal safely?",
-      diff: "mid",
-      tags: ["feature-flags", "lifecycle"],
-      answer: `<p>Stale flags accumulate dead conditional branches, make code unreadable, and occasionally get toggled by mistake in production. They are technical debt with a blast radius.</p>
-<p><strong>Remove a flag when:</strong></p>
-<ul>
-<li>It has been at 100% rollout for 1–2 sprints with no incidents.</li>
-<li>The team has decided the "off" path will never be needed again.</li>
-<li>The flag service dashboard shows zero traffic to the "off" branch.</li>
-</ul>
-<p><strong>Safe removal process:</strong></p>
-<ol>
-<li>Delete the flag from the flag service.</li>
-<li>Remove all flag checks from the codebase — leave only the "on" behavior as the default.</li>
-<li>Run the full test suite. Tests that forced <code>flag = false</code> now test the deleted code path — they should fail or be removed.</li>
-<li>Delete the "off" test group entirely.</li>
-<li>Rename the "on" test group — it is now the permanent regression suite.</li>
-</ol>
-<pre class="code"><code>// Before removal
-test.describe('with flag OFF', () =&gt; { ... }); // ← DELETE this group
-test.describe('with flag ON',  () =&gt; { ... }); // ← KEEP, rename
-
-// After removal — flag gone, this IS the behavior
-test.describe('checkout', () =&gt; {
-  test('completes order with new form', ...); // permanent test
-});</code></pre>`
     },
     {
       id: "f154115f-5d60-4cba-bfa4-9f08fa2ca3bf",

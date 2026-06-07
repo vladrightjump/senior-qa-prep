@@ -119,16 +119,6 @@ const scenarios: Category = {
 <p>Stale flags accumulate and become technical debt.</p>`
     },
     {
-      id: "72974001-bf3b-49e7-b002-f85e670528a9",
-      q: "Communicate test results to a non-technical PM.",
-      diff: "mid",
-      tags: ["soft-skills"],
-      answer: `<p>Don't lead with numbers — lead with risk. PM cares about <strong>"what could break for users?"</strong>, not "85.3% pass rate".</p>
-<p><strong>Bad:</strong> "47 failed, 12 passed, 3 skipped, P95 8.4 min."</p>
-<p><strong>Good:</strong> "Checkout works for new users. Known issue with refund flow affects ~3% of customers — ticket QA-512. Otherwise green."</p>
-<p>Frame: what works, what's at risk, what's the recommendation. Numbers support narrative; they don't replace it.</p>`
-    },
-    {
       id: "d17f88d3-1795-45a6-917e-a1b65981af88",
       q: "Justify ROI of automation to a CFO who only sees cost.",
       diff: "hard",
@@ -154,63 +144,6 @@ const scenarios: Category = {
 <li><strong>Local mock server</strong> (WireMock, MSW) — full control, maintenance burden. Use when above options fail.</li>
 </ul>
 <p>Senior approach: layer them. Test mode for the critical path E2E. Mocks for error states. Contract tests if the provider publishes contracts. No single tool covers all needs.</p>`
-    },
-    {
-      id: "85dfc98f-9862-4606-8973-dbc65faabb6c",
-      q: "A team member's tests are constantly flaking. How do you address it without alienating them?",
-      diff: "hard",
-      tags: ["soft-skills", "flakiness"],
-      answer: `<p>Lead with curiosity, not criticism.</p>
-<ol>
-<li><strong>Pair with them</strong> — "I want to understand how you're approaching this." Often the issue is missing context, not skill.</li>
-<li><strong>Show, don't tell</strong> — walk through a concrete fix on one of their flaky tests. Pattern transfers.</li>
-<li><strong>Make patterns reusable</strong> — extract their fix into a shared utility so the next person benefits.</li>
-<li><strong>Codify in lint/review</strong> — eslint rules catch hard waits. PR template asks "is this auto-waiting?"</li>
-<li><strong>Track the metric collectively</strong> — flake rate per team, not per person. Public shaming kills morale.</li>
-</ol>
-<p>The wrong move: filing tickets blaming the author. The right move: invest in their growth and the team's patterns.</p>`
-    },
-    {
-      id: "86a66619-670d-4aa7-87a5-dc358819d416",
-      q: "Stakeholder asks for 100% test coverage. How do you respond?",
-      diff: "mid",
-      tags: ["soft-skills", "metrics"],
-      answer: `<p>Reframe the question. They don't actually want 100% coverage — they want confidence that bugs won't ship.</p>
-<blockquote style="border-left: 3px solid var(--accent); padding: 0 12px; margin: 8px 0;">
-"I hear you want strong protection against bugs. Coverage is one signal but it can mislead — you can hit 100% with weak assertions and still ship bugs. What I'd recommend: track defect escape rate (bugs found in prod / total bugs found). Currently at X%. Goal: get to under 2%. That's the metric that actually measures what you care about."
-</blockquote>
-<p>Educate, don't dismiss. Offer a better metric. Tie back to their goal — confidence, not numbers.</p>`
-    },
-    {
-      id: "606a2acf-2a32-4475-8d6b-6c2c35aa91b0",
-      q: "How would you test an Android Automotive infotainment system?",
-      diff: "hard",
-      tags: ["mobile", "automotive"],
-      answer: `<p>Layered approach:</p>
-<ul>
-<li><strong>Unit</strong> — state machines (audio focus, BT pairing).</li>
-<li><strong>Integration</strong> — service interactions, IPC, BT/USB media.</li>
-<li><strong>UI E2E</strong> — Espresso + Appium on emulator and real head unit.</li>
-<li><strong>Performance</strong> — memory budget (~2GB total system), no jank during playback, boot time.</li>
-<li><strong>Reliability</strong> — 24h soak under thermal stress.</li>
-<li><strong>Security</strong> — malicious USB/BT input, fuzzing the media parser.</li>
-<li><strong>Environmental</strong> — driving constraints, voice input, "eyes off road" requirements.</li>
-</ul>
-<p>Specific concerns: emulator differs from real hardware (audio routing, hardware acceleration). Always validate on real head units before release. Automotive grade ≠ consumer grade — the bar is higher.</p>`
-    },
-    {
-      id: "cc788147-bb41-40c6-bc7c-484428250e97",
-      q: "Production has a memory leak only after 6+ hours of runtime. How do you reproduce and verify a fix?",
-      diff: "hard",
-      tags: ["incident", "performance"],
-      answer: `<ol>
-<li><strong>Reproduce in test env</strong> — run the affected user journey in a loop with a perf tracer (Chrome DevTools, perf MBean for Java, etc). 6h reduces to 30min if you can simulate intensity.</li>
-<li><strong>Capture heap snapshots</strong> at start, mid, end. Diff them — what's growing without bound?</li>
-<li><strong>Identify retainers</strong> — event listeners that aren't unregistered, closures holding refs, caches without eviction.</li>
-<li><strong>Validate the fix</strong> — same loop, heap snapshot at end should match start within tolerance.</li>
-<li><strong>Add a soak test to CI</strong> — nightly job, runs 4 hours, checks final heap is bounded. Catches future regressions.</li>
-</ol>
-<p>The senior signal: turning a one-off incident into ongoing automated coverage.</p>`
     },
     {
       id: "d1c32db6-5873-4593-b689-31281353a6a9",
@@ -290,20 +223,6 @@ const behavioral: Category = {
 <p>Strong example: "Empty cart edge case shipped. Unit test had <code>expect(total).toBeGreaterThan(0)</code> instead of equality. Added boundary cases to cart unit test template, now required in PR descriptions for cart changes."</p>`
     },
     {
-      id: "defb1efd-3d21-4f5f-bb27-fbbba58f2d74",
-      q: "How do you work with developers who resist writing testable code?",
-      diff: "hard",
-      tags: ["soft-skills"],
-      answer: `<ul>
-<li><strong>Empathy first</strong> — they're optimizing for their constraints, not lazy.</li>
-<li><strong>Show benefits in their terms</strong> — faster local feedback, fewer 2am pages.</li>
-<li><strong>Offer to pair</strong> — "want to pair on this, I'll show you a 5-min pattern?"</li>
-<li><strong>Start small</strong> — test IDs on key elements, debug hooks.</li>
-<li><strong>Build trust over weeks</strong>, not one meeting.</li>
-</ul>
-<p>Wrong: enforcement without context. Right: make their job easier, watch resistance fade.</p>`
-    },
-    {
       id: "f6ab8fa7-9e62-45e3-b569-355a1eeeb60d",
       q: "Time you introduced a new tool against initial team resistance.",
       diff: "mid",
@@ -332,38 +251,6 @@ const behavioral: Category = {
 <p>Bad: "I was right, they were wrong." Good: "Disagreed, made my case, lost. 3 months later issue surfaced. Discussed as team, updated practice. Learned to make case more clearly with data."</p>`
     },
     {
-      id: "c842c109-b048-4ac5-af1e-b8f34ed60e7a",
-      q: "Why are you leaving your current role? Why this company?",
-      diff: "easy",
-      tags: ["soft-skills"],
-      answer: `<p><strong>Why leaving:</strong> forward-looking, never bashing.</p>
-<ul>
-<li>"Want bigger system scale / domain depth / senior role with mentorship."</li>
-<li>"Current role is great, next 12 months don't have growth I'm excited about."</li>
-</ul>
-<p><strong>Why this company:</strong> show you researched.</p>
-<ul>
-<li>"Your test pyramid blog post matched how I think — wanted to work where that's already culture."</li>
-<li>"Your engineering blog mentioned shifting from manual to automation in automotive — exactly the transition I'd want to lead."</li>
-</ul>
-<p>Don't say "growth" or "good company" — generic = didn't prepare.</p>`
-    },
-    {
-      id: "39cc250f-e201-43fc-8b40-e86981fd09bc",
-      q: "Describe a time you turned around a hostile stakeholder.",
-      diff: "hard",
-      tags: ["star", "soft-skills"],
-      answer: `<p>Concrete situation. Pattern that works:</p>
-<ol>
-<li><strong>Listen first</strong> — find the real concern. Often not what they said.</li>
-<li><strong>Acknowledge their position</strong> — they need to feel heard before they'll change.</li>
-<li><strong>Make a small concession</strong> — show good faith, not weakness.</li>
-<li><strong>Follow through visibly</strong> — promised X by Friday → delivered Thursday.</li>
-<li><strong>Compound trust over weeks</strong> — one meeting won't fix it.</li>
-</ol>
-<p>Hostility is usually fear or frustration. Treat it as a signal, not an attack.</p>`
-    },
-    {
       id: "9f8b77c1-d3b1-4ec9-9ac2-6773e5fbd1b8",
       q: "How do you handle being wrong in a public discussion?",
       diff: "mid",
@@ -375,20 +262,6 @@ const behavioral: Category = {
 <li><strong>Take the lesson, leave the embarrassment</strong> — don't dwell. Don't apologize 3 times.</li>
 </ol>
 <p>The senior signal: you can change your mind without losing credibility. People who can't admit being wrong don't get trusted with hard problems.</p>`
-    },
-    {
-      id: "f89cb10e-8ec5-43e8-9439-b6ff31fff689",
-      q: "Tell me about a project that failed.",
-      diff: "hard",
-      tags: ["star"],
-      answer: `<p>Pick a real one. The interviewer can smell sanitized stories.</p>
-<ul>
-<li><strong>What we tried</strong> — be honest about the goal.</li>
-<li><strong>Why it failed</strong> — root cause, not "the team didn't get it".</li>
-<li><strong>What I'd do differently</strong> — show learning, not regret.</li>
-<li><strong>What we salvaged</strong> — even failed projects produce something useful.</li>
-</ul>
-<p>Avoid: blaming others, framing the failure as someone else's fault, or claiming you predicted everything. The strong answer is one where you grew.</p>`
     },
     {
       id: "61cefba6-355c-4d86-92d6-97c36adbc9c8",

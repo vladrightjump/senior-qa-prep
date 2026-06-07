@@ -269,32 +269,6 @@ Execution Time: 843.1 ms                                                    ─ 
 <p>Common fix here: <code>CREATE INDEX idx_orders_user_id ON orders(user_id)</code> and <code>CREATE INDEX idx_users_country ON users(country)</code>. Re-run EXPLAIN ANALYZE to confirm Index Scans replaced Seq Scans.</p>`
     },
     {
-      id: "17c828de-0a58-4e7e-809a-d231cb2cdff0",
-      q: "WHERE vs. HAVING?",
-      diff: "easy",
-      tags: ["sql"],
-      diagram: `flowchart LR
-  FROM["FROM orders"] --> WHERE["WHERE created_at &gt;= '2026-01-01'<br/>(filter ROWS before grouping)"]
-  WHERE --> GROUP["GROUP BY customer_id"]
-  GROUP --> HAVING["HAVING COUNT(*) &gt; 5<br/>(filter GROUPS after aggregation)"]
-  HAVING --> SELECT["SELECT customer_id, COUNT(*)"]
-  SELECT --> ORDER["ORDER BY count DESC"]
-  classDef early fill:#2a9d8f,color:#fff
-  classDef late fill:#e9c46a,color:#222
-  class WHERE early
-  class HAVING late`,
-      answer: `<ul>
-<li><strong>WHERE</strong> filters rows <em>before</em> aggregation.</li>
-<li><strong>HAVING</strong> filters groups <em>after</em> aggregation.</li>
-</ul>
-<pre class="code"><code>SELECT customer_id, COUNT(*) AS orders
-FROM orders
-WHERE created_at &gt;= '2026-01-01'  -- before grouping
-GROUP BY customer_id
-HAVING COUNT(*) &gt; 5;  -- after grouping</code></pre>
-<p>Always prefer WHERE when possible — filtering before aggregation is much faster.</p>`
-    },
-    {
       id: "136a4f8a-e6d2-441b-bce7-f2cce66c7d73",
       q: "What is a transaction? Explain ACID.",
       diff: "mid",
@@ -367,42 +341,6 @@ WHERE salary != 50000 OR salary IS NULL;</code></pre>
 <p>Three-valued logic (TRUE / FALSE / UNKNOWN) is the source of many "worked in dev, not in prod" bugs.</p>`
     },
     {
-      id: "4c295db8-589a-4f5f-834f-e6ea56f93d1c",
-      q: "Subquery vs. CTE — when to prefer each?",
-      diff: "mid",
-      tags: ["sql"],
-      answer: `<pre class="code"><code>-- Subquery
-SELECT * FROM users
-WHERE id IN (SELECT user_id FROM orders WHERE total &gt; 1000);
-
--- CTE — named, reusable, more readable
-WITH big_spenders AS (
-  SELECT user_id, SUM(total) AS lifetime
-  FROM orders GROUP BY user_id HAVING SUM(total) &gt; 1000
-)
-SELECT u.email, b.lifetime
-FROM users u JOIN big_spenders b ON u.id = b.user_id;</code></pre>
-<p><strong>Prefer CTE:</strong> reused multiple times, recursion, readability matters.</p>
-<p><strong>Prefer subquery:</strong> simple one-off filtering or scalar lookups.</p>
-<p>Senior nuance: in some DBs CTEs were optimization fences (Postgres pre-12). Modern engines handle both similarly.</p>`
-    },
-    {
-      id: "e54be14b-67c6-4620-b66a-b6c412df8a91",
-      q: "Detect orders with totals not matching their line items sum.",
-      diff: "hard",
-      tags: ["sql", "data-integrity"],
-      answer: `<pre class="code"><code>SELECT
-  o.id,
-  o.total AS recorded_total,
-  SUM(li.price * li.quantity) AS computed_total,
-  o.total - SUM(li.price * li.quantity) AS diff
-FROM orders o
-JOIN line_items li ON li.order_id = o.id
-GROUP BY o.id, o.total
-HAVING o.total != SUM(li.price * li.quantity);</code></pre>
-<p>Real production audit query. Catches denormalization drift — order total cached on parent row, updates not atomic with line item changes. Should return zero rows. If not, file a bug.</p>`
-    },
-    {
       id: "685956b6-d290-4fb4-b5f5-67b5be1cc711",
       q: "What is a window function? Show one in use.",
       diff: "hard",
@@ -465,18 +403,6 @@ FROM orders;</code></pre>
 <p>Common functions: <code>ROW_NUMBER</code>, <code>RANK</code>, <code>DENSE_RANK</code>, <code>LAG</code>, <code>LEAD</code>, <code>SUM</code>/<code>AVG</code> as window. Essential for analytics queries.</p>`
     },
     {
-      id: "e88005b5-4f38-4e39-9462-b8ae510b75fc",
-      q: "What's the difference between TRUNCATE, DELETE, and DROP?",
-      diff: "easy",
-      tags: ["sql"],
-      answer: `<ul>
-<li><strong>DELETE</strong> — DML. Removes rows. Can be filtered with WHERE. Logged, slower. Triggers fire. Rolls back in transaction.</li>
-<li><strong>TRUNCATE</strong> — DDL. Removes all rows. Fast, minimally logged. No WHERE. Resets identity counters. May not roll back depending on DB.</li>
-<li><strong>DROP</strong> — DDL. Removes the table itself. Schema gone.</li>
-</ul>
-<p>For test cleanup: TRUNCATE if you can — fastest. DELETE if you need triggers or WHERE.</p>`
-    },
-    {
       id: "42bb367d-1065-45cd-9015-a606295c6bc9",
       q: "What is an n+1 query problem and how do you detect it?",
       diff: "hard",
@@ -506,44 +432,6 @@ for (const user of users) {
 // Fix: eager load with JOIN
 const users = await db.users.findMany({ include: { orders: true } });  // 1 query</code></pre>
 <p><strong>Detect in tests:</strong> count queries during a request. Many ORMs have a query-count assertion or middleware. <code>EXPLAIN</code> on individual queries doesn't catch it — the issue is the count, not any single query.</p>`
-    },
-    {
-      id: "d34a0d2c-bc47-407b-83af-0371787ec0bd",
-      q: "Test that a UNIQUE constraint actually works.",
-      diff: "mid",
-      tags: ["sql", "data-integrity"],
-      answer: `<pre class="code"><code>test('email column enforces uniqueness', async ({ db }) =&gt; {
-  await db.users.create({ data: { email: 'dup@test.com' } });
-
-  await expect(
-    db.users.create({ data: { email: 'dup@test.com' } })
-  ).rejects.toThrow(/unique constraint/i);
-});
-
-// Edge case: case sensitivity
-test('uniqueness should be case-insensitive', async ({ db }) =&gt; {
-  await db.users.create({ data: { email: 'Test@example.com' } });
-  // Whether this should succeed depends on your spec
-  await expect(
-    db.users.create({ data: { email: 'test@example.com' } })
-  ).rejects.toThrow(/unique constraint/i);
-});</code></pre>
-<p>Uniqueness on emails is often case-insensitive in spec but case-sensitive in the DB column. Test the actual behavior, not the assumed one.</p>`
-    },
-    {
-      id: "77c68bb1-11ca-432f-adf1-d9b56e8fccf8",
-      q: "What's the difference between INNER JOIN and CROSS JOIN?",
-      diff: "easy",
-      tags: ["sql", "joins"],
-      answer: `<ul>
-<li><strong>INNER JOIN</strong> — combines rows where the ON condition matches.</li>
-<li><strong>CROSS JOIN</strong> — Cartesian product. Every row from A paired with every row from B. No ON clause.</li>
-</ul>
-<pre class="code"><code>-- 4 sizes × 6 colors = 24 rows
-SELECT s.size, c.color
-FROM sizes s
-CROSS JOIN colors c;</code></pre>
-<p>Practical use: generate all combinations (variants for products, dates × users for reports). Accidental CROSS JOIN (forgotten ON clause) is a common bug — catastrophic for large tables.</p>`
     },
     {
       id: "4b95a2b8-4ed7-43e1-93d4-aee078945f01",
@@ -634,37 +522,6 @@ WHERE rnk &lt;= 3;                                                      -- ⑥</
 <li><strong>Non-clustered index</strong> — separate structure with pointers to the table rows. Many per table. Lookups require an extra "key lookup" step to fetch full row data, unless the index is "covering" (includes all needed columns).</li>
 </ul>
 <p>Trade-off: more non-clustered indexes = faster reads on those columns, slower writes (every INSERT/UPDATE updates all indexes). The covering index pattern (<code>INCLUDE</code> in SQL Server) avoids the lookup step.</p>`
-    },
-    {
-      id: "95bdcbcf-54f5-4367-972a-895b615fa784",
-      q: "Test that a backend correctly enforces a foreign key cascade delete.",
-      diff: "mid",
-      tags: ["sql", "data-integrity"],
-      answer: `<pre class="code"><code>test('deleting user cascades to orders', async ({ db }) =&gt; {
-  // Arrange
-  const user = await db.users.create({ data: { email: 'test@x.com' } });
-  await db.orders.create({ data: { userId: user.id, total: 100 } });
-  await db.orders.create({ data: { userId: user.id, total: 200 } });
-
-  // Act
-  await db.users.delete({ where: { id: user.id } });
-
-  // Assert: orders gone too
-  const orphaned = await db.orders.findMany({ where: { userId: user.id } });
-  expect(orphaned).toHaveLength(0);
-});
-
-test('CASCADE doesn\\'t affect unrelated data', async ({ db }) =&gt; {
-  const userA = await db.users.create({ data: { email: 'a@x.com' } });
-  const userB = await db.users.create({ data: { email: 'b@x.com' } });
-  await db.orders.create({ data: { userId: userB.id, total: 50 } });
-
-  await db.users.delete({ where: { id: userA.id } });
-
-  const bsOrders = await db.orders.findMany({ where: { userId: userB.id } });
-  expect(bsOrders).toHaveLength(1);
-});</code></pre>
-<p>The negative test (CASCADE doesn't over-delete) is the senior signal — easy to over-cascade, hard to recover.</p>`
     },
   ]
 };
@@ -812,21 +669,6 @@ export const test = mergeTests(authTest, dataTest);</code></pre>
 <p><strong>Senior heuristic:</strong> "what's the cheapest test that gives me confidence?" Don't write E2E for date formatting. Don't write unit test for "the entire checkout flow".</p>`
     },
     {
-      id: "2e3215e7-1c47-4163-8574-960d55e0af13",
-      q: "Devs writing tests vs. QA writing tests — what's the difference?",
-      diff: "mid",
-      tags: ["strategy"],
-      answer: `<p><strong>Devs</strong> test what they wrote — happy paths, known boundaries, with bias toward "the code I just wrote works".</p>
-<p><strong>QA</strong> tests the system as users would — adversarial, in user journeys, across feature boundaries. QA owns:</p>
-<ul>
-<li>Cross-feature integration (checkout + promotions + tax + currency).</li>
-<li>Negative paths and edge cases.</li>
-<li>Test strategy at suite level (automated/manual/exploratory mix).</li>
-<li>Quality of the test suite as a product (flakiness, gaps, runtime).</li>
-</ul>
-<p>Both should write tests. Senior framing: <strong>devs write code, QA owns quality strategy.</strong></p>`
-    },
-    {
       id: "3fd71681-525f-40c5-bc9e-6e52f95351e5",
       q: "How do you prevent a test framework from rotting?",
       diff: "hard",
@@ -842,25 +684,6 @@ export const test = mergeTests(authTest, dataTest);</code></pre>
 <li>Documentation + runbook.</li>
 <li>Refactor mercilessly.</li>
 </ul>`
-    },
-    {
-      id: "7ceb0045-7b3d-4c62-904b-9bb09af400a1",
-      q: "What is Arrange-Act-Assert? Show it in a Playwright test.",
-      diff: "easy",
-      tags: ["patterns"],
-      answer: `<pre class="code"><code>test('user can place an order', async ({ checkoutPage, testUser }) =&gt; {
-  // Arrange
-  await checkoutPage.goto();
-  await checkoutPage.addItemToCart('SKU-001');
-
-  // Act
-  await checkoutPage.placeOrder();
-
-  // Assert
-  await expect(checkoutPage.orderConfirmation).toBeVisible();
-  await expect(checkoutPage.orderNumber).toMatch(/^ORD-\\d+$/);
-});</code></pre>
-<p>Three sections separated by blank lines. Reading the test reveals intent. Anti-pattern: interleaving — clicking, asserting, clicking — failures hard to localize.</p>`
     },
     {
       id: "eaa1b487-b0d7-4e75-b26d-2f4a46652516",
@@ -940,69 +763,6 @@ export const test = mergeTests(authTest, dataTest);</code></pre>
 <tr><td style="padding:6px;">Snapshot/restore</td><td>Reproducible, fast</td><td>Maintenance overhead, stale snapshots</td></tr>
 </table>
 <p><strong>Senior choice:</strong> factories + API-based seeding for most tests. Snapshots only for very expensive setups. Avoid static fixtures beyond simple lookup data.</p>`
-    },
-    {
-      id: "c12f23aa-4ac5-4dc9-b20e-87e247b8ce1b",
-      q: "How do you structure tests for a large monorepo with multiple apps?",
-      diff: "hard",
-      tags: ["architecture", "monorepo"],
-      answer: `<pre class="code"><code>monorepo/
-├── apps/
-│   ├── web/
-│   │   └── e2e/         # web-specific E2E tests
-│   ├── admin/
-│   │   └── e2e/         # admin-specific
-├── packages/
-│   ├── ui/
-│   │   └── tests/       # component tests
-│   └── api-client/
-│       └── tests/       # unit + contract tests
-├── e2e/                 # cross-app journeys (rare)
-├── tools/
-│   └── test-utils/      # shared test utilities
-└── playwright.config.ts</code></pre>
-<p><strong>Principles:</strong></p>
-<ul>
-<li>Tests live near the code they test.</li>
-<li>Shared utilities in <code>tools/</code>, imported via workspace package references.</li>
-<li>Cross-app tests only for genuine journeys spanning apps.</li>
-<li>Use Nx or Turborepo to run only affected tests on PR.</li>
-</ul>`
-    },
-    {
-      id: "e27d348a-c767-41bd-8d24-c5ca6d7f29a3",
-      q: "What is the Builder pattern in test code? When is it useful?",
-      diff: "mid",
-      tags: ["patterns", "data"],
-      answer: `<pre class="code"><code>class OrderBuilder {
-  private order: Partial&lt;Order&gt; = {
-    status: 'pending',
-    currency: 'EUR',
-    items: [],
-  };
-
-  withCustomer(customerId: string): this {
-    this.order.customerId = customerId;
-    return this;
-  }
-  withItem(sku: string, qty = 1): this {
-    this.order.items!.push({ sku, qty });
-    return this;
-  }
-  expired(): this {
-    this.order.status = 'expired';
-    return this;
-  }
-  build(): Order { return this.order as Order; }
-}
-
-// Usage
-const order = new OrderBuilder()
-  .withCustomer('cust-123')
-  .withItem('SKU-001', 2)
-  .expired()
-  .build();</code></pre>
-<p>Useful when test data has many optional fields and combinations. Reads like English. Compare to a 12-arg constructor or a giant options object.</p>`
     },
   ]
 };

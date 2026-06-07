@@ -216,17 +216,6 @@ test('authenticate', async ({ page }) => {
 <p>Multi-role: separate state files per role. Even faster: skip UI login, hit the auth API directly.</p>`
     },
     {
-      id: "3ea69109-251f-439b-bb47-9b2bc1fd37de",
-      q: "What's wrong with: <code>expect(page.locator('.btn').click()).toBeVisible()</code>",
-      diff: "easy",
-      tags: ["playwright", "async"],
-      answer: `<p><code>click()</code> returns <code>Promise&lt;void&gt;</code>, not a Locator. The expect is asserting on the click promise, which has no <code>toBeVisible()</code> matcher.</p>
-<pre class="code"><code>// ✅ Correct
-await page.locator('.btn').click();
-await expect(page.locator('.result')).toBeVisible();</code></pre>
-<p>Classic interview filter — separates copy-paste candidates from those who understand async control flow.</p>`
-    },
-    {
       id: "1ab81cad-5f1b-4ea1-80b2-5928c2d33c19",
       q: "How do you intercept and mock a network request? When is it correct vs. wrong?",
       diff: "mid",
@@ -253,29 +242,6 @@ await expect(page.locator('.result')).toBeVisible();</code></pre>
 });</code></pre>
 <p><strong>When to mock:</strong> UI error states (rate limits, 5xx, timeouts), third-party APIs you can't control, isolation testing.</p>
 <p><strong>When NOT to mock:</strong> happy paths (real integration matters), contract validation (mocks drift), end-to-end confidence.</p>`
-    },
-    {
-      id: "f975cd9c-2c6b-4d88-889e-6a35d30bc9b1",
-      q: "Explain async/await vs. Promises and why it matters in tests.",
-      diff: "mid",
-      tags: ["typescript", "async"],
-      answer: `<p>Promises = eventual completion. <code>async/await</code> = syntactic sugar — async function returns a Promise, await pauses execution.</p>
-<p><strong>Why it matters:</strong> a missing <code>await</code> is the #1 cause of "passing tests that don't test anything". The action returns a Promise, the next line runs immediately, the test reports green before the operation completes.</p>
-<div class="code-walk">
-<pre class="code"><code>// ❌ Bug — missing await
-page.getByLabel('Email').fill('test@example.com');               // ①
-await expect(page.getByText('Welcome')).toBeVisible();           // ②
-
-// ✅ Correct
-await page.getByLabel('Email').fill('test@example.com');         // ③
-await expect(page.getByText('Welcome')).toBeVisible();</code></pre>
-<ol class="code-walk-notes">
-  <li><span class="cw-num">1</span><span><code>fill()</code> returns a Promise that nothing is awaiting. JS moves on immediately — the field may still be empty when the next line runs.</span></li>
-  <li><span class="cw-num">2</span><span>The Welcome assertion may fire before the form is even filled. The test passes if Welcome happens to be visible for other reasons — false green.</span></li>
-  <li><span class="cw-num">3</span><span>With <code>await</code>, JS pauses here until <code>fill()</code> resolves. The next line sees a fully-filled form. Result is deterministic.</span></li>
-</ol>
-</div>
-<p>Senior tip: enable <code>@typescript-eslint/no-floating-promises</code>. Treat any missing <code>await</code> as a compile error, not a code-review nit.</p>`
     },
     {
       id: "3b30ae11-78b1-4908-b081-a96e3ece1e46",
@@ -364,24 +330,6 @@ for (const { code, expectedTotal } of currencies) {
   });
 }</code></pre>
 <p>Each runs as a separate test with its own report row. Don't put all in one test with a loop — when one fails, you lose the others' signal.</p>`
-    },
-    {
-      id: "c68de5fd-bf37-47ed-8f57-a6899db2e69b",
-      q: "How do you test file upload in Playwright?",
-      diff: "mid",
-      tags: ["playwright"],
-      answer: `<pre class="code"><code>// Standard input[type=file]
-await page.getByLabel('Upload').setInputFiles('./fixtures/avatar.png');
-await expect(page.getByText('Upload complete')).toBeVisible();
-
-// Multiple files
-await fileInput.setInputFiles(['file1.csv', 'file2.csv']);
-
-// Drag-and-drop dropzone
-await page.getByTestId('dropzone').dispatchEvent('drop', {
-  dataTransfer: await page.evaluateHandle(() =&gt; new DataTransfer()),
-});</code></pre>
-<p>For DnD, the cleanest pattern is to bypass the visual drop and call <code>setInputFiles</code> on the underlying hidden input if it exists.</p>`
     },
     {
       id: "eaea2709-8727-43cf-8385-8a31f288b1c5",
@@ -478,16 +426,6 @@ if (typeof response === 'object' &amp;&amp; response &amp;&amp; 'foo' in respons
   // safe
 }</code></pre>
 <p>In tests: prefer <code>unknown</code> for API responses, validate with Zod or Ajv. <code>any</code> is acceptable in narrow scopes wrapping legacy code, never in shared utilities.</p>`
-    },
-    {
-      id: "ae008fcc-6440-4af4-8b91-d8209ab56382",
-      q: "How do you handle iframes in Playwright?",
-      diff: "mid",
-      tags: ["playwright"],
-      answer: `<pre class="code"><code>const frame = page.frameLocator('iframe[name="payment"]');
-await frame.getByLabel('Card number').fill('4242424242424242');
-await frame.getByRole('button', { name: 'Pay' }).click();</code></pre>
-<p><code>frameLocator</code> is lazy and auto-waits. Avoid older <code>page.frame()</code> — it returns a snapshot Frame object that doesn't auto-wait.</p>`
     },
     {
       id: "3e67b911-cd91-4d05-be7b-43c6625bf1ea",
@@ -624,35 +562,6 @@ export const test = base.extend&lt;{}, WorkerFixtures&gt;({
 <li><strong>Trace only on retry</strong> — saves I/O.</li>
 </ol>
 <p>Realistic outcome: 4 shards × 4 workers ≈ 8 min wall clock. Cost rises linearly — balance speed vs. budget.</p>`
-    },
-    {
-      id: "a632764a-f84c-4dbd-8e63-10003a3c074a",
-      q: "How do you handle a flaky test caused by an animation?",
-      diff: "mid",
-      tags: ["playwright", "flakiness"],
-      answer: `<p>Animations cause "element moves under the cursor" failures. Three options:</p>
-<ol>
-<li><strong>Disable animations globally</strong> — best for tests. <code>use: { reducedMotion: 'reduce' }</code> or inject CSS <code>* { animation-duration: 0s !important; }</code>.</li>
-<li><strong>Wait for stability</strong> — Playwright auto-waits for stability before clicking, but transitions can fool it. Use <code>{ force: true }</code> as last resort.</li>
-<li><strong>Wait for animation end</strong> — listen for <code>transitionend</code> via <code>page.waitForFunction</code>.</li>
-</ol>
-<p>Disabling animations is the production-grade answer — fast, deterministic, and matches CI environments.</p>`
-    },
-    {
-      id: "9fe11971-faae-45bd-9777-54651b9ea671",
-      q: "How do you test multi-tab or new-window flows?",
-      diff: "mid",
-      tags: ["playwright"],
-      answer: `<pre class="code"><code>const [newPage] = await Promise.all([
-  context.waitForEvent('page'),  // wait for new tab
-  page.getByRole('link', { name: 'Open report' }).click(),
-]);
-
-await newPage.waitForLoadState();
-await expect(newPage).toHaveTitle(/Report/);
-// Now interact with newPage
-</code></pre>
-<p>Always use <code>Promise.all</code> with <code>waitForEvent</code> + the action that triggers it — avoids race between the click and the listener.</p>`
     },
     {
       id: "3b0793b6-080c-411c-8a4f-42f74e74a7e3",
@@ -796,29 +705,6 @@ const enabledBtns = page.getByRole('button').filter({ hasNot: page.getByText('Di
 <p>Chaining preserves auto-waiting through the chain. Each scoping is lazy — re-evaluated on every action.</p>`
     },
     {
-      id: "55c75fe5-166b-4e5c-8a7b-f38714ad89c6",
-      q: "What is test.step() and why use it?",
-      diff: "mid",
-      tags: ["playwright", "reporting"],
-      answer: `<pre class="code"><code>test('checkout flow', async ({ page }) =&gt; {
-  await test.step('Login', async () =&gt; {
-    await page.goto('/login');
-    await page.getByLabel('Email').fill('user@test.com');
-    await page.getByRole('button', { name: 'Sign in' }).click();
-  });
-
-  await test.step('Add item to cart', async () =&gt; {
-    await page.getByTestId('add-to-cart-SKU-001').click();
-  });
-
-  await test.step('Place order', async () =&gt; {
-    await page.getByRole('button', { name: 'Place order' }).click();
-    await expect(page.getByText('Confirmed')).toBeVisible();
-  });
-});</code></pre>
-<p>Steps appear in the HTML report as collapsible sections. Failure messages show which step failed. Improves debuggability without changing test logic.</p>`
-    },
-    {
       id: "15c18646-5fc4-4e0f-90ae-e28c8e72b8df",
       q: "How do you handle a date/time picker that depends on real wall-clock time?",
       diff: "hard",
@@ -831,57 +717,6 @@ await page.clock.fastForward(60_000);  // jump 1 minute
 // 2. Inject server-side via header (best when backend supports it)
 await page.setExtraHTTPHeaders({ 'X-Mock-Time': '2026-05-06T10:00:00Z' });</code></pre>
 <p><strong>Don't</strong> hardcode "today's date" in test data. Don't compare with <code>new Date()</code> in assertions — flake on midnight rollover. Always control time explicitly.</p>`
-    },
-    {
-      id: "27eb1ab6-e425-40d7-9fc4-d48577375e8f",
-      q: "What is page.evaluate() and when should you avoid it?",
-      diff: "mid",
-      tags: ["playwright"],
-      answer: `<p>Runs JS in the browser context, returns the result.</p>
-<pre class="code"><code>const itemCount = await page.evaluate(() =&gt; {
-  return document.querySelectorAll('.cart-item').length;
-});</code></pre>
-<p><strong>Avoid when:</strong> a Locator can do it. <code>page.locator('.cart-item').count()</code> is auto-waiting and resilient; <code>evaluate</code> is a one-time snapshot.</p>
-<p><strong>Use when:</strong> you need to read or set non-DOM state (window properties, localStorage, redux store). Or for one-off DOM queries that don't fit Locator semantics.</p>`
-    },
-    {
-      id: "a00dbd5c-0685-4c99-8a97-6dafa621d3ef",
-      q: "How do you parallelize tests across multiple browsers?",
-      diff: "mid",
-      tags: ["playwright", "ci"],
-      answer: `<pre class="code"><code>// playwright.config.ts
-projects: [
-  { name: 'chromium', use: devices['Desktop Chrome'] },
-  { name: 'firefox', use: devices['Desktop Firefox'] },
-  { name: 'webkit', use: devices['Desktop Safari'] },
-  { name: 'mobile-chrome', use: devices['Pixel 5'] },
-  { name: 'mobile-safari', use: devices['iPhone 13'] },
-]</code></pre>
-<p>Each project runs in parallel. Filter at runtime: <code>npx playwright test --project=chromium</code>.</p>
-<p><strong>Senior nuance:</strong> running 5 browsers × full suite = 5x cost. Be selective — smoke on all browsers, full regression on Chromium only, then schedule cross-browser nightly. Don't run cross-browser on every PR unless the product requires it.</p>`
-    },
-    {
-      id: "e90cfc43-438e-4264-9dbe-c164e9b6a1b9",
-      q: "How do you handle a long-running test that times out?",
-      diff: "mid",
-      tags: ["playwright", "performance"],
-      answer: `<p>Default test timeout is 30s. Two reasons it might exceed:</p>
-<ol>
-<li><strong>The test legitimately needs longer</strong> — multi-step flows, data loading, external dependencies.</li>
-<li><strong>Something is wrong</strong> — infinite wait, race condition, broken auto-wait.</li>
-</ol>
-<pre class="code"><code>// Per-test timeout
-test('slow report generation', async ({ page }) =&gt; {
-  test.setTimeout(120_000);  // 2 minutes
-  // ...
-});
-
-// Per-action timeout
-await page.locator('.export').click({ timeout: 10_000 });
-
-// Polling assertion timeout
-await expect.poll(check, { timeout: 60_000 }).toBe(true);</code></pre>
-<p>Don't increase the global timeout to mask issues. Diagnose first — usually the test is waiting on something that should be polled differently or a real perf regression.</p>`
     },
     {
       id: "c548d703-50a0-47f2-b880-9691d8577db9",
@@ -908,317 +743,6 @@ export const expect = baseExpect.extend({
 // Usage
 await expect(page.getByText('Footer')).toBeVisibleInViewport();</code></pre>
 <p>Custom matchers domain-specific assertions (visible-in-viewport, has-correct-currency-format) and produce better error messages than chained generic assertions.</p>`
-    },
-    {
-      id: "ad8ba591-c99e-49dd-b970-c5d1fe5aefe6",
-      q: "A column has sort capability. How do you assert it's actually sorted?",
-      diff: "mid",
-      tags: ["assertions", "tables"],
-      answer: `<p>Don't just check first vs. last value. Validate the full sequence with the <strong>right comparator for the data type</strong>.</p>
-<pre class="code"><code>function isSorted&lt;T&gt;(arr: T[], cmp: (a: T, b: T) =&gt; number, dir: 'asc' | 'desc' = 'asc') {
-  for (let i = 1; i &lt; arr.length; i++) {
-    const c = cmp(arr[i - 1], arr[i]);
-    if (dir === 'asc' ? c &gt; 0 : c &lt; 0) return false;
-  }
-  return true;
-}
-
-// Click the header, wait for the sort to actually apply (not the click)
-await page.getByRole('columnheader', { name: 'Price' }).click();
-await expect(page.getByTestId('row-loading')).toHaveCount(0);
-
-// Numbers — strip currency symbols, parse, numeric compare
-const prices = (await page.getByTestId('price-cell').allTextContents())
-  .map(s =&gt; parseFloat(s.replace(/[^0-9.-]/g, '')));
-expect(isSorted(prices, (a, b) =&gt; a - b)).toBe(true);
-
-// Strings — locale-aware
-const names = await page.getByTestId('name-cell').allTextContents();
-expect(isSorted(names, (a, b) =&gt; a.localeCompare(b, 'en', { sensitivity: 'base' }))).toBe(true);
-
-// Dates — parse to epoch, compare numerically
-const dates = (await page.getByTestId('date-cell').allTextContents()).map(d =&gt; Date.parse(d));
-expect(isSorted(dates, (a, b) =&gt; a - b)).toBe(true);</code></pre>
-<p><strong>Gotchas:</strong></p>
-<ul>
-<li>Don't compare with <code>[...arr].sort()</code>. JS <code>.sort()</code> defaults to string compare, so numbers sort lexicographically (1, 10, 2).</li>
-<li>Toggle direction: click again, assert <em>reverse</em>-sorted. A test that only checks asc misses broken desc.</li>
-<li>Need 3+ rows for the assertion to mean something. With 0–1 rows it's vacuously true.</li>
-<li>If the sort is server-side: wait on the network response (<code>page.waitForResponse</code>) before reading rows, not just the visual loader.</li>
-</ul>`,
-    },
-    {
-      id: "33c58ff9-cf6c-4e3c-9b96-b28a287383e4",
-      q: "Assert two lists contain the same items regardless of order.",
-      diff: "easy",
-      tags: ["assertions"],
-      answer: `<pre class="code"><code>const expected = ['admin', 'viewer', 'editor'];
-const actual = await page.getByTestId('role-chip').allTextContents();
-
-// ❌ Brittle — order-sensitive
-expect(actual).toEqual(expected);
-
-// ✅ Subset check — but you also need length
-expect(actual).toEqual(expect.arrayContaining(expected));
-expect(actual).toHaveLength(expected.length);
-
-// ✅ Cleanest — symmetric, handles duplicates
-expect([...actual].sort()).toEqual([...expected].sort());</code></pre>
-<p>For object arrays:</p>
-<pre class="code"><code>// Normalize, then compare
-const norm = (o: Order) =&gt; ({ id: o.id, total: o.total });
-expect(actual.map(norm).sort((a, b) =&gt; a.id.localeCompare(b.id)))
-  .toEqual(expected.map(norm).sort((a, b) =&gt; a.id.localeCompare(b.id)));</code></pre>
-<p><strong>Trap:</strong> <code>arrayContaining</code> is a subset check — <code>['a','a']</code> passes against expected <code>['a']</code>. Always pair it with a length assertion.</p>`,
-    },
-    {
-      id: "7111cc0d-89dd-408b-bf5d-4e16574cdeae",
-      q: "Assert a toast appears AND auto-dismisses without flaking.",
-      diff: "mid",
-      tags: ["assertions", "flakiness"],
-      answer: `<p>The trap: by the time <code>expect(toast).toBeVisible()</code> runs, the toast may have already auto-dismissed. The window is narrow.</p>
-<pre class="code"><code>// ❌ Race condition
-await saveBtn.click();
-await expect(toast).toBeVisible();   // may already be gone
-await expect(toast).toBeHidden();
-
-// ✅ Tight timeout on the appearance, generous one on the disappearance
-await saveBtn.click();
-await expect(toast).toBeVisible({ timeout: 1500 });
-await expect(toast).toHaveText(/saved/i);
-await expect(toast).toBeHidden({ timeout: 6000 });
-
-// ✅ Even safer for very short-lived UI — arm the waiter BEFORE the action
-const appeared = toast.waitFor({ state: 'visible' });
-await saveBtn.click();
-await appeared;
-const text = await toast.textContent();
-expect(text).toMatch(/saved/i);</code></pre>
-<p><strong>Pattern:</strong> for any transient UI (toasts, snackbars, flash messages), set up the listener <em>before</em> the trigger.</p>`,
-    },
-    {
-      id: "45f5d74a-40a2-4f69-9692-c00a0a0139ef",
-      q: "Assert that an element does NOT appear — without resorting to sleep().",
-      diff: "mid",
-      tags: ["assertions", "flakiness"],
-      answer: `<pre class="code"><code>// ❌ Anti-pattern: hopeful waiting
-await page.waitForTimeout(3000);
-expect(await errorBanner.isVisible()).toBe(false);
-
-// ❌ Too eager — checks before rendering pipeline runs
-expect(await errorBanner.count()).toBe(0);
-
-// ✅ Web-first negative assertion with an explicit timeout
-await expect(errorBanner).toHaveCount(0, { timeout: 3000 });
-// or
-await expect(errorBanner).toBeHidden({ timeout: 3000 });</code></pre>
-<p>The smarter pattern: wait on the <em>actual signal</em> that "the work is done", then assert.</p>
-<pre class="code"><code>// Wait on the API call, then assert no error showed
-const resp = page.waitForResponse(r =&gt; r.url().includes('/api/save'));
-await saveBtn.click();
-await resp;
-await expect(errorBanner).toBeHidden();</code></pre>
-<p>Why this works: you're tying the negative assertion to a deterministic event (the response landed), not guessing at a duration.</p>`,
-    },
-    {
-      id: "f6ce0d76-d13a-4154-88de-ca85d5a7f180",
-      q: "Assert a calculated price total when the math involves floats.",
-      diff: "mid",
-      tags: ["assertions", "currency"],
-      answer: `<p>Floating-point is not your friend. <code>0.1 + 0.2 === 0.30000000000000004</code>.</p>
-<pre class="code"><code>// ❌ Will randomly fail
-expect(total).toBe(expected);
-
-// ✅ Tolerance
-expect(total).toBeCloseTo(expected, 2);  // 2 decimal places
-
-// ✅ Best: work in integer minor units (cents) and avoid the problem
-expect(Math.round(total * 100)).toBe(Math.round(expected * 100));</code></pre>
-<p>If you're asserting against the UI string (e.g., <code>"€12.34"</code>), the float issue is hidden by formatting — but new traps appear:</p>
-<ul>
-<li>Locale: <code>"12,34"</code> in DE/FR vs <code>"12.34"</code> in EN.</li>
-<li>Currency symbol position: <code>"€12.34"</code> vs <code>"12.34 €"</code>.</li>
-<li>Trailing zeros: <code>"12.30"</code> vs <code>"12.3"</code>.</li>
-</ul>
-<p>Normalize before comparing: strip non-numeric characters, parse, use <code>toBeCloseTo</code>.</p>
-<p><strong>Senior signal:</strong> mention that real-world payment systems should never do float arithmetic — currency must be stored and computed in integer minor units. The bug is often in the system under test, not the assertion.</p>`,
-    },
-    {
-      id: "39e1b565-a3ea-4358-8473-d7e5ecb099de",
-      q: "Tests pass locally but fail in CI on a date assertion. What's wrong?",
-      diff: "hard",
-      tags: ["assertions", "timezones"],
-      answer: `<p>Almost always a timezone mismatch. Your laptop is in Europe/Berlin; CI runs in UTC; the server returns UTC; the UI renders in the browser's local timezone.</p>
-<pre class="code"><code>// ❌ Will pass locally, fail in CI
-expect(dateText).toBe('Mar 5, 2026, 14:30');
-
-// ✅ Pin the browser timezone in Playwright
-test.use({ timezoneId: 'Europe/Berlin' });
-
-// ✅ Or, compare a normalized representation
-const parsed = parseDisplayDate(dateText);   // returns Date
-expect(parsed.toISOString()).toBe('2026-03-05T13:30:00.000Z');</code></pre>
-<p>Other date traps:</p>
-<ul>
-<li><strong>Midnight rollover</strong>: a test that filters "today" fails when run at 23:59 in a timezone that's 00:00 elsewhere.</li>
-<li><strong>DST transitions</strong>: subtracting 24h doesn't always give "yesterday at the same time".</li>
-<li><strong>Locale</strong>: <code>"Mar 5"</code> vs <code>"5 Mar"</code> vs <code>"05/03"</code> vs <code>"03/05"</code>. Pin <code>locale</code> too.</li>
-<li><strong>Server clock skew</strong>: if your test sets <code>createdAt = new Date()</code> and the server records its own clock, the values won't match. Compare with tolerance, or stub the server clock.</li>
-</ul>`,
-    },
-    {
-      id: "0ce7d503-e98a-4897-bf96-fc64ae2887ba",
-      q: "Assert a table row contains specific data across multiple columns.",
-      diff: "mid",
-      tags: ["assertions", "tables"],
-      answer: `<p>Find the row by a <strong>stable cell value</strong>, then assert on its other cells. Never identify rows by position.</p>
-<pre class="code"><code>// ✅ Find by content, assert the rest
-const row = page.getByRole('row', { name: /ord-1234/i });
-await expect(row).toContainText(['ord-1234', 'Maria', '€450.00', 'Shipped']);
-
-// ✅ Exact cell-by-cell if you need it
-await expect(row.getByRole('cell').nth(1)).toHaveText('Maria');
-await expect(row.getByRole('cell', { name: 'Status' })).toHaveText('Shipped');
-
-// ❌ Anti-pattern — row index is fragile (re-sort, filter, pagination)
-await expect(page.locator('tr:nth-child(3)')).toHaveText(/.../);</code></pre>
-<p><strong>Multi-row equality</strong> — when you need to verify the whole visible table:</p>
-<pre class="code"><code>// Read rows as arrays of cell text
-const rows = await page.getByRole('row').evaluateAll(els =&gt;
-  els.map(r =&gt; Array.from(r.querySelectorAll('td')).map(c =&gt; c.textContent?.trim() ?? ''))
-);
-expect(rows).toEqual([
-  ['ord-1234', 'Maria', '€450.00', 'Shipped'],
-  ['ord-1235', 'Tom',   '€90.00',  'Pending'],
-]);</code></pre>`,
-    },
-    {
-      id: "78fb1e00-5689-4347-81e9-f6af86de59f6",
-      q: "Assert URL query params without depending on their order.",
-      diff: "easy",
-      tags: ["assertions", "routing"],
-      answer: `<pre class="code"><code>// ❌ Order-dependent — fails if router emits params in a different order
-expect(page.url()).toBe('https://app/orders?status=open&amp;page=2');
-
-// ✅ Parse and compare key by key
-const url = new URL(page.url());
-expect(url.pathname).toBe('/orders');
-expect(url.searchParams.get('status')).toBe('open');
-expect(url.searchParams.get('page')).toBe('2');
-
-// ✅ With Playwright's toHaveURL + a regex
-await expect(page).toHaveURL(/\\/orders\\?(?=.*status=open)(?=.*page=2)/);</code></pre>
-<p>Bonus traps:</p>
-<ul>
-<li><strong>Encoded values</strong>: <code>%20</code> vs <code>+</code> vs space. Compare decoded.</li>
-<li><strong>Trailing slash</strong>: <code>/orders/</code> vs <code>/orders</code>. <code>URL.pathname</code> preserves it; routers don't always.</li>
-<li><strong>Hash fragments</strong>: <code>#tab=overview</code> isn't in <code>searchParams</code>. Use <code>url.hash</code>.</li>
-</ul>`,
-    },
-    {
-      id: "b2013ac3-0a07-489c-ba0c-9550fb0278c5",
-      q: "Assert that a button triggers a CSV download with the right contents.",
-      diff: "mid",
-      tags: ["assertions", "files"],
-      answer: `<pre class="code"><code>import { readFile } from 'node:fs/promises';
-
-// ✅ Use Playwright's download event
-const downloadPromise = page.waitForEvent('download');
-await page.getByRole('button', { name: 'Export CSV' }).click();
-const download = await downloadPromise;
-
-// Filename pattern
-expect(download.suggestedFilename()).toMatch(/^orders-\\d{4}-\\d{2}-\\d{2}\\.csv$/);
-
-// Content (small files only)
-const path = await download.path();
-const content = await readFile(path!, 'utf-8');
-const [header, ...rows] = content.split(/\\r?\\n/).filter(Boolean);
-expect(header).toBe('order_id,date,total');
-expect(rows).toHaveLength(3);
-expect(rows[0]).toMatch(/^ord-1234,2026-/);</code></pre>
-<p><strong>Gotchas:</strong></p>
-<ul>
-<li>Read from <code>download.path()</code> — a temp location. Don't assume the user's Downloads folder.</li>
-<li>Arm the <code>waitForEvent('download')</code> promise <em>before</em> the click.</li>
-<li>CSV parsing: handle quoted fields containing commas (<code>"$1,234.00"</code>) and CRLF vs LF line endings.</li>
-<li>For Excel <code>.xlsx</code>, use a library (e.g., <code>exceljs</code>) — Playwright only handles the transport.</li>
-</ul>`,
-    },
-    {
-      id: "a87b5a5e-578e-4fcc-a8ea-2d5103591fe1",
-      q: "Assert that a validation error is attached to the right field, not just visible somewhere on the page.",
-      diff: "hard",
-      tags: ["assertions", "a11y"],
-      answer: `<pre class="code"><code>// ❌ Passes even if the error is shown on the wrong field
-await expect(page.getByText('Email is required')).toBeVisible();
-
-// ✅ Assert the linkage between field and error (also validates accessibility)
-const emailField = page.getByLabel('Email');
-await expect(emailField).toHaveAttribute('aria-invalid', 'true');
-
-const errorId = await emailField.getAttribute('aria-describedby');
-expect(errorId, 'email field must reference an error via aria-describedby').toBeTruthy();
-await expect(page.locator(\`#\${errorId}\`)).toHaveText('Email is required');</code></pre>
-<p><strong>Why this matters:</strong></p>
-<ul>
-<li>A test that only checks "the text exists" passes even if the error is misplaced (visually attached to the wrong field, or in an aria-live region screen readers can't link back).</li>
-<li>Asserting via <code>aria-describedby</code> doubles as an accessibility test. If the linkage is missing, screen-reader users have no idea which field is broken.</li>
-<li>Form libraries sometimes render errors in two places (inline + summary). Assert the inline one is the one your assertion grabs.</li>
-</ul>`,
-    },
-    {
-      id: "faf4eb8b-d0cd-4846-b1e3-684b6be12b6d",
-      q: "Assert pagination works end-to-end across pages.",
-      diff: "mid",
-      tags: ["assertions", "pagination"],
-      answer: `<pre class="code"><code>const rows = page.getByTestId('row');
-const counter = page.getByTestId('pagination-counter');
-
-// Page 1
-await expect(rows).toHaveCount(20);
-await expect(counter).toHaveText('1 of 5');
-
-// Capture an identifier to prove the next page shows different data
-const firstId = await rows.first().getAttribute('data-id');
-
-await page.getByRole('button', { name: 'Next' }).click();
-await expect(counter).toHaveText('2 of 5');                       // page indicator advanced
-await expect(rows.first()).not.toHaveAttribute('data-id', firstId!); // data actually changed
-
-// Last page edge case — usually has fewer rows
-await page.getByRole('button', { name: 'Last' }).click();
-await expect(rows.count()).resolves.toBeLessThanOrEqual(20);
-await expect(page.getByRole('button', { name: 'Next' })).toBeDisabled();</code></pre>
-<p><strong>Trap:</strong> tests that only check the page <em>indicator</em> miss the bug where "Next" updates the counter but leaves the table data unchanged. Always assert on both the indicator <em>and</em> the rendered content.</p>
-<p><strong>Other edges to cover:</strong> empty state (0 rows), single page (Next disabled from page 1), URL is updated to <code>?page=2</code> for shareable links.</p>`,
-    },
-    {
-      id: "5b5858df-3be1-4ef0-9dc9-71b88a4e4ee5",
-      q: "Assert that drag-and-drop actually reorders items and the new order is persisted.",
-      diff: "hard",
-      tags: ["assertions", "drag-drop"],
-      answer: `<pre class="code"><code>const items = page.getByTestId('list-item');
-
-// Capture order before
-const before = await items.allTextContents();
-
-// Drag item 0 to position 2
-await items.nth(0).dragTo(items.nth(2));
-
-// 1) Visual order changed correctly
-await expect(items).toHaveText([before[1], before[2], before[0], ...before.slice(3)]);
-
-// 2) Persisted — assert via API or by reloading
-await page.reload();
-await expect(items).toHaveText([before[1], before[2], before[0], ...before.slice(3)]);</code></pre>
-<p><strong>Gotchas:</strong></p>
-<ul>
-<li><strong>HTML5 drag-and-drop is unreliable in headless browsers.</strong> Many apps use mouse events under the hood (react-dnd, dnd-kit). If <code>dragTo</code> doesn't trigger anything, fall back to manual <code>mouse.down() → mouse.move() → mouse.up()</code> with intermediate positions.</li>
-<li><strong>Animations</strong> can lie. The DOM may update before the visual transition finishes. Wait on the underlying state (data-id attribute, persisted API response), not the animation.</li>
-<li><strong>Persistence</strong> is the bug you're really hunting. Visual reorder without an API call = bug. Always verify the server agrees.</li>
-<li><strong>Mobile</strong>: touch events differ from mouse events. If your app supports both, test both.</li>
-</ul>`,
     },
   ]
 };
@@ -1397,44 +921,6 @@ return result;</code></pre>
 <p>Test: first, middle, last, empty, beyond range, varying sizes, sort + paginate combos.</p>`
     },
     {
-      id: "2d1170f0-cf9d-44e0-b2eb-f4b9510689da",
-      q: "Path parameters vs. query parameters — when do you use each?",
-      diff: "easy",
-      tags: ["http", "rest"],
-      answer: `<div class="illus">
-<svg viewBox="0 0 520 170" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="URL anatomy: path vs query params">
-  <style>
-    .url { font: 600 16px ui-monospace, "SF Mono", Menlo, Consolas, monospace; fill: currentColor; }
-    .lbl { font: 600 11px ui-sans-serif, system-ui; fill: currentColor; }
-    .sub { font: 11px ui-sans-serif, system-ui; fill: var(--fg-dim); }
-    .path { fill: #0a3d6e; }
-    .query { fill: #2a9d8f; }
-    .id { fill: #e9c46a; }
-    .arrow { stroke: currentColor; stroke-width: 1; fill: none; opacity: 0.5; }
-  </style>
-  <text x="20" y="35" class="url">GET /users/<tspan class="lbl" fill="#e9c46a">123</tspan>/orders?<tspan class="lbl" fill="#2a9d8f">status=active</tspan>&amp;<tspan class="lbl" fill="#2a9d8f">sort=name</tspan></text>
-  <line x1="115" y1="42" x2="115" y2="62" class="arrow"/>
-  <line x1="158" y1="42" x2="158" y2="62" class="arrow"/>
-  <rect x="92" y="64" width="92" height="18" rx="3" class="id"/>
-  <text x="138" y="77" text-anchor="middle" class="lbl" fill="#222">PATH PARAM</text>
-  <text x="138" y="100" text-anchor="middle" class="sub">identifies the resource</text>
-  <text x="138" y="112" text-anchor="middle" class="sub">required for the URL to make sense</text>
-  <line x1="260" y1="42" x2="260" y2="124" class="arrow"/>
-  <line x1="430" y1="42" x2="430" y2="124" class="arrow"/>
-  <rect x="240" y="126" width="220" height="18" rx="3" class="query"/>
-  <text x="350" y="139" text-anchor="middle" class="lbl" fill="#fff">QUERY PARAMS</text>
-  <text x="350" y="160" text-anchor="middle" class="sub">filter / sort / paginate · optional · removable</text>
-</svg>
-<div class="illus-caption">Rule: if removing the value points to a different resource → path. If it just relaxes a filter → query.</div>
-</div>
-<ul>
-<li><strong>Path</strong> — identify a specific resource. <code>GET /users/123</code>.</li>
-<li><strong>Query</strong> — filter, sort, paginate. <code>GET /users?status=active&amp;sort=name</code>.</li>
-</ul>
-<p>Rule: if removing the value points to a different resource, it's a path param. If it just relaxes a filter, it's a query param.</p>
-<p><strong>Avoid:</strong> PII or secrets in query params — they appear in logs, history, Referer headers.</p>`
-    },
-    {
       id: "b27c915a-c51c-420d-a72a-fad511a61ca0",
       q: "How do you test rate limiting without hammering production?",
       diff: "hard",
@@ -1592,88 +1078,6 @@ expect(recovery.status()).toBe(200);</code></pre>
 };</code></pre>`
     },
     {
-      id: "4d4dcc35-896d-41af-8aad-a6ccdfbe771c",
-      q: "REST vs. GraphQL from a tester's perspective?",
-      diff: "mid",
-      tags: ["api"],
-      answer: `<p><strong>REST:</strong> many endpoints (one per resource), status codes convey result, versioning via URL (v1, v2), test cases per endpoint × method.</p>
-<p><strong>GraphQL:</strong> single endpoint (<code>/graphql</code>), always returns 200 (errors in body), schema evolution via deprecation, test cases per query/mutation shape.</p>
-<p>For GraphQL: schema introspection lets you generate test cases. Watch <strong>partial errors</strong> (200 OK with errors in response body) — easy to miss in assertions.</p>`
-    },
-    {
-      id: "4fcd8c76-109f-46e4-a692-75410bfda4a1",
-      q: "What status code should a successful DELETE return?",
-      diff: "easy",
-      tags: ["http"],
-      answer: `<ul>
-<li><strong>204 No Content</strong> — success, no body. Most common.</li>
-<li><strong>200 OK</strong> — success, with body (the deleted resource).</li>
-<li><strong>202 Accepted</strong> — async deletion, not yet complete.</li>
-</ul>
-<p>Calling DELETE again should return <strong>404</strong>, not 500. Proves DELETE is idempotent.</p>`
-    },
-    {
-      id: "03fd9e55-0435-4055-a0a6-15653460b4c7",
-      q: "What is HATEOAS? Should you actually test for it?",
-      diff: "hard",
-      tags: ["api", "rest"],
-      answer: `<p>Hypermedia As The Engine Of Application State — REST level 3 (Richardson maturity model). Responses include links to related actions.</p>
-<pre class="code"><code>{
-  "id": "ord-123",
-  "status": "shipped",
-  "_links": {
-    "self": { "href": "/orders/ord-123" },
-    "cancel": { "href": "/orders/ord-123/cancel" },
-    "tracking": { "href": "/orders/ord-123/tracking" }
-  }
-}</code></pre>
-<p><strong>Reality:</strong> few APIs implement true HATEOAS. If yours does, validate <code>_links</code> as part of schema. Test that allowed actions match the resource state (a shipped order shouldn't have a "cancel" link). If your API isn't HATEOAS, don't pretend it is — test what's there.</p>`
-    },
-    {
-      id: "307a8551-ecd2-4284-bf69-e8eddaf5944b",
-      q: "How do you test API versioning?",
-      diff: "mid",
-      tags: ["api"],
-      answer: `<p>Three common versioning strategies and how to test each:</p>
-<ul>
-<li><strong>URL versioning</strong> — <code>/v1/orders</code> vs <code>/v2/orders</code>. Test both versions exist, breaking changes only in new versions.</li>
-<li><strong>Header versioning</strong> — <code>Accept: application/vnd.api+json; version=2</code>. Test default version, missing header behavior, deprecated version warnings.</li>
-<li><strong>Query param versioning</strong> — <code>?version=2</code>. Same approach as header.</li>
-</ul>
-<p>Critical test: <strong>backward compatibility</strong>. Old clients on v1 must keep working when v2 ships. Run v1 contract tests against the live system after every deploy.</p>`
-    },
-    {
-      id: "d9a6c3c7-581b-44d0-8e1b-1fd280a11091",
-      q: "What is CORS and how do you test it?",
-      diff: "mid",
-      tags: ["api", "security"],
-      diagram: `sequenceDiagram
-  participant B as Browser (app.example.com)
-  participant API as api.example.com
-  Note over B,API: Non-simple request (POST + JSON / Auth header)
-  B->>API: OPTIONS /data<br/>Origin: app.example.com<br/>Access-Control-Request-Method: POST
-  API-->>B: 200<br/>Access-Control-Allow-Origin: app.example.com<br/>Allow-Methods: GET, POST<br/>Allow-Headers: Content-Type
-  Note over B: Browser checks: allowed?
-  alt allowed
-    B->>API: POST /data (real request)
-    API-->>B: 200 data
-  else not allowed
-    B-->>B: blocked by browser<br/>(server never called)
-  end`,
-      answer: `<p>Cross-Origin Resource Sharing. Browsers block JS from one origin calling APIs on another origin unless the server explicitly allows it via headers.</p>
-<pre class="code"><code>// Preflight request from browser
-OPTIONS /api/data
-Origin: https://app.example.com
-Access-Control-Request-Method: POST
-
-// Server response
-HTTP/1.1 200 OK
-Access-Control-Allow-Origin: https://app.example.com
-Access-Control-Allow-Methods: GET, POST
-Access-Control-Allow-Headers: Content-Type, Authorization</code></pre>
-<p>Test cases: allowed origin works, disallowed origin gets blocked, wildcard <code>*</code> not used in production with credentials, OPTIONS preflight returns correct allowed methods.</p>`
-    },
-    {
       id: "1c112ddb-eb7a-4095-90e9-69adf8e41648",
       q: "How do you test an API for SQL injection?",
       diff: "hard",
@@ -1690,32 +1094,6 @@ POST /login
 GET /users?id=1;%20WAITFOR%20DELAY%20'00:00:05'</code></pre>
 <p>Expected: server rejects with 400 or sanitizes input. Red flags: 500 errors with SQL exception messages in the response (information leak), unexpected 200 responses, response time spikes (blind injection).</p>
 <p>This is QA + security overlap. Coordinate with the security team — never run injection tests against production without authorization.</p>`
-    },
-    {
-      id: "585d5f71-8728-49f5-9b6e-230fd8302107",
-      q: "Explain JWT structure and what to test about it.",
-      diff: "mid",
-      tags: ["security", "auth"],
-      diagram: `graph LR
-  T["xxxxx.yyyyy.zzzzz"] --> H["Header<br/>alg, typ"]
-  T --> P["Payload<br/>sub, exp, role, iat"]
-  T --> S["Signature<br/>HMAC(header+payload, secret)"]
-  H -.base64.-> T
-  P -.base64.-> T
-  S -.verifies.-> P`,
-      answer: `<p>JWT = three base64-encoded parts joined by dots: <code>header.payload.signature</code></p>
-<pre class="code"><code>// Header: { "alg": "HS256", "typ": "JWT" }
-// Payload: { "sub": "user123", "exp": 1736000000, "role": "admin" }
-// Signature: HMAC(header + payload, secret)</code></pre>
-<p><strong>What to test:</strong></p>
-<ul>
-<li>Valid token → 200.</li>
-<li>Expired token → 401.</li>
-<li>Invalid signature (tampered payload) → 401.</li>
-<li>Algorithm "none" → 401 (CVE category — server must reject).</li>
-<li>Token with admin role from non-admin user → 403 (or refused at issuance).</li>
-<li>Token reuse after logout → 401 (server-side blacklist or short TTL).</li>
-</ul>`
     },
     {
       id: "e145c41c-5036-4f16-b58f-785cc8651634",
@@ -1745,32 +1123,6 @@ GET /users?id=1;%20WAITFOR%20DELAY%20'00:00:05'</code></pre>
 <li>App calls API with <code>Authorization: Bearer &lt;token&gt;</code>.</li>
 </ol>
 <p><strong>Testing without testing the IdP itself:</strong> mock the authorization server in tests, or use a local Keycloak/Hydra in Docker. Inject a known JWT directly. Test your app's: token validation, refresh flow, expiry handling, scope enforcement. Don't re-test Google's login UI — that's their job.</p>`
-    },
-    {
-      id: "904618f5-cd63-4590-9da6-d8cdc4dd5a00",
-      q: "How do you test API performance and what budgets do you set?",
-      diff: "hard",
-      tags: ["performance", "api"],
-      answer: `<p>Three layers:</p>
-<ul>
-<li><strong>Smoke perf</strong> — single request latency. P95 &lt; 500ms for read, &lt; 1s for write.</li>
-<li><strong>Load tests</strong> — sustained traffic. Tool: k6, Locust, JMeter. Measure: throughput, error rate, P95/P99 latency under target QPS.</li>
-<li><strong>Stress tests</strong> — find breaking point. Increase load until errors spike. Document the cliff.</li>
-</ul>
-<pre class="code"><code>// k6 example
-import http from 'k6/http';
-export const options = {
-  vus: 50,           // 50 concurrent users
-  duration: '5m',
-  thresholds: {
-    http_req_duration: ['p(95)&lt;500'],
-    http_req_failed: ['rate&lt;0.01'],
-  },
-};
-export default function () {
-  http.get('https://api.example.com/orders');
-}</code></pre>
-<p>Set budgets per endpoint, not globally. Run perf in CI nightly against a staging environment with realistic data volume. Compare against baseline to detect regressions.</p>`
     },
   ]
 };
