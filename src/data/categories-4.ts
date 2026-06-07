@@ -401,6 +401,81 @@ const total = defined(order, 'order').total;
 expect(total).toBeGreaterThan(0);</code></pre>
 <p><strong>Rule:</strong> never use <code>?.</code> inside <code>expect()</code>. It turns missing values into <code>undefined</code> and some matchers accept that, producing a test that passes when the data is completely absent.</p>`
     },
+    {
+      id: "2daa11d5-8ca3-41e7-8041-7ff0f0626b15",
+      q: "Walk through the event loop. In what order does this code print?",
+      diff: "hard",
+      tags: ["javascript", "async"],
+      diagram: `graph LR
+  STACK["Call stack<br/>(sync code)"] -->|"empty"| MICRO["Microtask queue<br/>Promise.then, queueMicrotask, await"]
+  MICRO -->|"drain ALL<br/>before next macro"| MACRO["Macrotask queue<br/>setTimeout, setInterval, I/O"]
+  MACRO -->|"pick one"| STACK
+  RENDER["Browser render<br/>(between macrotasks)"] -.-> MACRO`,
+      answer: `<pre class="code"><code>console.log('1');
+setTimeout(() =&gt; console.log('2'), 0);
+Promise.resolve().then(() =&gt; console.log('3'));
+queueMicrotask(() =&gt; console.log('4'));
+console.log('5');</code></pre>
+<p><strong>Output: 1, 5, 3, 4, 2</strong></p>
+<ol>
+<li><strong>Synchronous code first</strong>: <code>1</code>, <code>5</code> print immediately.</li>
+<li><strong>Microtasks drain next</strong>: <code>3</code> (Promise.then) and <code>4</code> (queueMicrotask) run before any macrotask. They run in order queued.</li>
+<li><strong>Macrotasks (timers, I/O) last</strong>: <code>2</code> prints after the microtask queue is empty.</li>
+</ol>
+<p>Key rules:</p>
+<ul>
+<li>After each macrotask, the engine drains the <em>entire</em> microtask queue before picking the next macrotask.</li>
+<li><code>setTimeout(fn, 0)</code> is not 0ms — it's "as soon as the microtask queue is empty and we're on a fresh tick" (minimum ~4ms in many browsers).</li>
+<li><code>await</code> is sugar for a Promise microtask — code after <code>await</code> runs as a microtask.</li>
+<li>Tests that use <code>setTimeout(0)</code> to "let React render" are racing — use <code>Promise.resolve()</code> or framework-specific <code>act()</code>/<code>flushSync()</code>.</li>
+</ul>`,
+    },
+    {
+      id: "d7978698-c92e-41ed-8095-f8861f4d3408",
+      q: "Implement retry with exponential backoff and jitter.",
+      diff: "hard",
+      tags: ["javascript", "async", "qa"],
+      diagram: `flowchart TD
+  START["Call fn()"] --> TRY{"Success?"}
+  TRY -->|yes| OK["return result"]
+  TRY -->|no| RETRYABLE{"Retryable error?<br/>(network / 5xx, NOT 4xx)"}
+  RETRYABLE -->|no| FAIL["throw immediately"]
+  RETRYABLE -->|yes| MAX{"attempts left?"}
+  MAX -->|no| FAIL
+  MAX -->|yes| WAIT["wait: base * 2^n<br/>+ random jitter"]
+  WAIT --> START`,
+      answer: `<p>The senior version handles: backoff growth, max retries, jitter (to avoid thundering herds), and a predicate that decides which errors are retryable.</p>
+<pre class="code"><code>interface RetryOpts {
+  attempts?: number;       // default 3
+  baseMs?: number;         // default 200
+  maxMs?: number;          // cap on each delay (default 5000)
+  shouldRetry?: (err: unknown) =&gt; boolean;
+}
+
+async function retry&lt;T&gt;(fn: () =&gt; Promise&lt;T&gt;, opts: RetryOpts = {}): Promise&lt;T&gt; {
+  const { attempts = 3, baseMs = 200, maxMs = 5000, shouldRetry = () =&gt; true } = opts;
+  let lastErr: unknown;
+  for (let i = 0; i &lt; attempts; i++) {
+    try { return await fn(); }
+    catch (err) {
+      lastErr = err;
+      if (i === attempts - 1 || !shouldRetry(err)) break;
+      const exp = Math.min(baseMs * 2 ** i, maxMs);
+      const jitter = Math.random() * exp * 0.3;     // ±30% jitter
+      await new Promise(r =&gt; setTimeout(r, exp + jitter));
+    }
+  }
+  throw lastErr;
+}
+
+// Use it
+const order = await retry(() =&gt; fetchOrder(id), {
+  attempts: 5,
+  shouldRetry: e =&gt; e instanceof NetworkError || (e as any)?.status &gt;= 500,
+});</code></pre>
+<p><strong>Why jitter:</strong> if 1000 clients all retry after a deterministic 1s, they all hit the failing server at once. Jitter spreads the load.</p>
+<p><strong>QA angle:</strong> don't blanket-retry tests. Retrying tests masks flakiness. Retry network operations <em>inside</em> the test (real-world resilience) but assert pass/fail on a single run — that's how you find flakes.</p>`,
+    },
   ],
 };
 
@@ -1484,697 +1559,7 @@ test.afterEach(async ({ flags }) =&gt; {
   ],
 };
 
-const trickyAssertions: Category = {
-  id: "tricky-assertions",
-  label: "Tricky assertions",
-  desc: "Real test-design traps: sorted columns, transient toasts, floating-point totals, timezone-sensitive dates — and the senior-grade pattern for each.",
-  questions: [
-    {
-      id: "ad8ba591-c99e-49dd-b970-c5d1fe5aefe6",
-      q: "A column has sort capability. How do you assert it's actually sorted?",
-      diff: "mid",
-      tags: ["assertions", "tables"],
-      answer: `<p>Don't just check first vs. last value. Validate the full sequence with the <strong>right comparator for the data type</strong>.</p>
-<pre class="code"><code>function isSorted&lt;T&gt;(arr: T[], cmp: (a: T, b: T) =&gt; number, dir: 'asc' | 'desc' = 'asc') {
-  for (let i = 1; i &lt; arr.length; i++) {
-    const c = cmp(arr[i - 1], arr[i]);
-    if (dir === 'asc' ? c &gt; 0 : c &lt; 0) return false;
-  }
-  return true;
-}
 
-// Click the header, wait for the sort to actually apply (not the click)
-await page.getByRole('columnheader', { name: 'Price' }).click();
-await expect(page.getByTestId('row-loading')).toHaveCount(0);
-
-// Numbers — strip currency symbols, parse, numeric compare
-const prices = (await page.getByTestId('price-cell').allTextContents())
-  .map(s =&gt; parseFloat(s.replace(/[^0-9.-]/g, '')));
-expect(isSorted(prices, (a, b) =&gt; a - b)).toBe(true);
-
-// Strings — locale-aware
-const names = await page.getByTestId('name-cell').allTextContents();
-expect(isSorted(names, (a, b) =&gt; a.localeCompare(b, 'en', { sensitivity: 'base' }))).toBe(true);
-
-// Dates — parse to epoch, compare numerically
-const dates = (await page.getByTestId('date-cell').allTextContents()).map(d =&gt; Date.parse(d));
-expect(isSorted(dates, (a, b) =&gt; a - b)).toBe(true);</code></pre>
-<p><strong>Gotchas:</strong></p>
-<ul>
-<li>Don't compare with <code>[...arr].sort()</code>. JS <code>.sort()</code> defaults to string compare, so numbers sort lexicographically (1, 10, 2).</li>
-<li>Toggle direction: click again, assert <em>reverse</em>-sorted. A test that only checks asc misses broken desc.</li>
-<li>Need 3+ rows for the assertion to mean something. With 0–1 rows it's vacuously true.</li>
-<li>If the sort is server-side: wait on the network response (<code>page.waitForResponse</code>) before reading rows, not just the visual loader.</li>
-</ul>`,
-    },
-    {
-      id: "33c58ff9-cf6c-4e3c-9b96-b28a287383e4",
-      q: "Assert two lists contain the same items regardless of order.",
-      diff: "easy",
-      tags: ["assertions"],
-      answer: `<pre class="code"><code>const expected = ['admin', 'viewer', 'editor'];
-const actual = await page.getByTestId('role-chip').allTextContents();
-
-// ❌ Brittle — order-sensitive
-expect(actual).toEqual(expected);
-
-// ✅ Subset check — but you also need length
-expect(actual).toEqual(expect.arrayContaining(expected));
-expect(actual).toHaveLength(expected.length);
-
-// ✅ Cleanest — symmetric, handles duplicates
-expect([...actual].sort()).toEqual([...expected].sort());</code></pre>
-<p>For object arrays:</p>
-<pre class="code"><code>// Normalize, then compare
-const norm = (o: Order) =&gt; ({ id: o.id, total: o.total });
-expect(actual.map(norm).sort((a, b) =&gt; a.id.localeCompare(b.id)))
-  .toEqual(expected.map(norm).sort((a, b) =&gt; a.id.localeCompare(b.id)));</code></pre>
-<p><strong>Trap:</strong> <code>arrayContaining</code> is a subset check — <code>['a','a']</code> passes against expected <code>['a']</code>. Always pair it with a length assertion.</p>`,
-    },
-    {
-      id: "7111cc0d-89dd-408b-bf5d-4e16574cdeae",
-      q: "Assert a toast appears AND auto-dismisses without flaking.",
-      diff: "mid",
-      tags: ["assertions", "flakiness"],
-      answer: `<p>The trap: by the time <code>expect(toast).toBeVisible()</code> runs, the toast may have already auto-dismissed. The window is narrow.</p>
-<pre class="code"><code>// ❌ Race condition
-await saveBtn.click();
-await expect(toast).toBeVisible();   // may already be gone
-await expect(toast).toBeHidden();
-
-// ✅ Tight timeout on the appearance, generous one on the disappearance
-await saveBtn.click();
-await expect(toast).toBeVisible({ timeout: 1500 });
-await expect(toast).toHaveText(/saved/i);
-await expect(toast).toBeHidden({ timeout: 6000 });
-
-// ✅ Even safer for very short-lived UI — arm the waiter BEFORE the action
-const appeared = toast.waitFor({ state: 'visible' });
-await saveBtn.click();
-await appeared;
-const text = await toast.textContent();
-expect(text).toMatch(/saved/i);</code></pre>
-<p><strong>Pattern:</strong> for any transient UI (toasts, snackbars, flash messages), set up the listener <em>before</em> the trigger.</p>`,
-    },
-    {
-      id: "45f5d74a-40a2-4f69-9692-c00a0a0139ef",
-      q: "Assert that an element does NOT appear — without resorting to sleep().",
-      diff: "mid",
-      tags: ["assertions", "flakiness"],
-      answer: `<pre class="code"><code>// ❌ Anti-pattern: hopeful waiting
-await page.waitForTimeout(3000);
-expect(await errorBanner.isVisible()).toBe(false);
-
-// ❌ Too eager — checks before rendering pipeline runs
-expect(await errorBanner.count()).toBe(0);
-
-// ✅ Web-first negative assertion with an explicit timeout
-await expect(errorBanner).toHaveCount(0, { timeout: 3000 });
-// or
-await expect(errorBanner).toBeHidden({ timeout: 3000 });</code></pre>
-<p>The smarter pattern: wait on the <em>actual signal</em> that "the work is done", then assert.</p>
-<pre class="code"><code>// Wait on the API call, then assert no error showed
-const resp = page.waitForResponse(r =&gt; r.url().includes('/api/save'));
-await saveBtn.click();
-await resp;
-await expect(errorBanner).toBeHidden();</code></pre>
-<p>Why this works: you're tying the negative assertion to a deterministic event (the response landed), not guessing at a duration.</p>`,
-    },
-    {
-      id: "f6ce0d76-d13a-4154-88de-ca85d5a7f180",
-      q: "Assert a calculated price total when the math involves floats.",
-      diff: "mid",
-      tags: ["assertions", "currency"],
-      answer: `<p>Floating-point is not your friend. <code>0.1 + 0.2 === 0.30000000000000004</code>.</p>
-<pre class="code"><code>// ❌ Will randomly fail
-expect(total).toBe(expected);
-
-// ✅ Tolerance
-expect(total).toBeCloseTo(expected, 2);  // 2 decimal places
-
-// ✅ Best: work in integer minor units (cents) and avoid the problem
-expect(Math.round(total * 100)).toBe(Math.round(expected * 100));</code></pre>
-<p>If you're asserting against the UI string (e.g., <code>"€12.34"</code>), the float issue is hidden by formatting — but new traps appear:</p>
-<ul>
-<li>Locale: <code>"12,34"</code> in DE/FR vs <code>"12.34"</code> in EN.</li>
-<li>Currency symbol position: <code>"€12.34"</code> vs <code>"12.34 €"</code>.</li>
-<li>Trailing zeros: <code>"12.30"</code> vs <code>"12.3"</code>.</li>
-</ul>
-<p>Normalize before comparing: strip non-numeric characters, parse, use <code>toBeCloseTo</code>.</p>
-<p><strong>Senior signal:</strong> mention that real-world payment systems should never do float arithmetic — currency must be stored and computed in integer minor units. The bug is often in the system under test, not the assertion.</p>`,
-    },
-    {
-      id: "39e1b565-a3ea-4358-8473-d7e5ecb099de",
-      q: "Tests pass locally but fail in CI on a date assertion. What's wrong?",
-      diff: "hard",
-      tags: ["assertions", "timezones"],
-      answer: `<p>Almost always a timezone mismatch. Your laptop is in Europe/Berlin; CI runs in UTC; the server returns UTC; the UI renders in the browser's local timezone.</p>
-<pre class="code"><code>// ❌ Will pass locally, fail in CI
-expect(dateText).toBe('Mar 5, 2026, 14:30');
-
-// ✅ Pin the browser timezone in Playwright
-test.use({ timezoneId: 'Europe/Berlin' });
-
-// ✅ Or, compare a normalized representation
-const parsed = parseDisplayDate(dateText);   // returns Date
-expect(parsed.toISOString()).toBe('2026-03-05T13:30:00.000Z');</code></pre>
-<p>Other date traps:</p>
-<ul>
-<li><strong>Midnight rollover</strong>: a test that filters "today" fails when run at 23:59 in a timezone that's 00:00 elsewhere.</li>
-<li><strong>DST transitions</strong>: subtracting 24h doesn't always give "yesterday at the same time".</li>
-<li><strong>Locale</strong>: <code>"Mar 5"</code> vs <code>"5 Mar"</code> vs <code>"05/03"</code> vs <code>"03/05"</code>. Pin <code>locale</code> too.</li>
-<li><strong>Server clock skew</strong>: if your test sets <code>createdAt = new Date()</code> and the server records its own clock, the values won't match. Compare with tolerance, or stub the server clock.</li>
-</ul>`,
-    },
-    {
-      id: "0ce7d503-e98a-4897-bf96-fc64ae2887ba",
-      q: "Assert a table row contains specific data across multiple columns.",
-      diff: "mid",
-      tags: ["assertions", "tables"],
-      answer: `<p>Find the row by a <strong>stable cell value</strong>, then assert on its other cells. Never identify rows by position.</p>
-<pre class="code"><code>// ✅ Find by content, assert the rest
-const row = page.getByRole('row', { name: /ord-1234/i });
-await expect(row).toContainText(['ord-1234', 'Maria', '€450.00', 'Shipped']);
-
-// ✅ Exact cell-by-cell if you need it
-await expect(row.getByRole('cell').nth(1)).toHaveText('Maria');
-await expect(row.getByRole('cell', { name: 'Status' })).toHaveText('Shipped');
-
-// ❌ Anti-pattern — row index is fragile (re-sort, filter, pagination)
-await expect(page.locator('tr:nth-child(3)')).toHaveText(/.../);</code></pre>
-<p><strong>Multi-row equality</strong> — when you need to verify the whole visible table:</p>
-<pre class="code"><code>// Read rows as arrays of cell text
-const rows = await page.getByRole('row').evaluateAll(els =&gt;
-  els.map(r =&gt; Array.from(r.querySelectorAll('td')).map(c =&gt; c.textContent?.trim() ?? ''))
-);
-expect(rows).toEqual([
-  ['ord-1234', 'Maria', '€450.00', 'Shipped'],
-  ['ord-1235', 'Tom',   '€90.00',  'Pending'],
-]);</code></pre>`,
-    },
-    {
-      id: "78fb1e00-5689-4347-81e9-f6af86de59f6",
-      q: "Assert URL query params without depending on their order.",
-      diff: "easy",
-      tags: ["assertions", "routing"],
-      answer: `<pre class="code"><code>// ❌ Order-dependent — fails if router emits params in a different order
-expect(page.url()).toBe('https://app/orders?status=open&amp;page=2');
-
-// ✅ Parse and compare key by key
-const url = new URL(page.url());
-expect(url.pathname).toBe('/orders');
-expect(url.searchParams.get('status')).toBe('open');
-expect(url.searchParams.get('page')).toBe('2');
-
-// ✅ With Playwright's toHaveURL + a regex
-await expect(page).toHaveURL(/\\/orders\\?(?=.*status=open)(?=.*page=2)/);</code></pre>
-<p>Bonus traps:</p>
-<ul>
-<li><strong>Encoded values</strong>: <code>%20</code> vs <code>+</code> vs space. Compare decoded.</li>
-<li><strong>Trailing slash</strong>: <code>/orders/</code> vs <code>/orders</code>. <code>URL.pathname</code> preserves it; routers don't always.</li>
-<li><strong>Hash fragments</strong>: <code>#tab=overview</code> isn't in <code>searchParams</code>. Use <code>url.hash</code>.</li>
-</ul>`,
-    },
-    {
-      id: "b2013ac3-0a07-489c-ba0c-9550fb0278c5",
-      q: "Assert that a button triggers a CSV download with the right contents.",
-      diff: "mid",
-      tags: ["assertions", "files"],
-      answer: `<pre class="code"><code>import { readFile } from 'node:fs/promises';
-
-// ✅ Use Playwright's download event
-const downloadPromise = page.waitForEvent('download');
-await page.getByRole('button', { name: 'Export CSV' }).click();
-const download = await downloadPromise;
-
-// Filename pattern
-expect(download.suggestedFilename()).toMatch(/^orders-\\d{4}-\\d{2}-\\d{2}\\.csv$/);
-
-// Content (small files only)
-const path = await download.path();
-const content = await readFile(path!, 'utf-8');
-const [header, ...rows] = content.split(/\\r?\\n/).filter(Boolean);
-expect(header).toBe('order_id,date,total');
-expect(rows).toHaveLength(3);
-expect(rows[0]).toMatch(/^ord-1234,2026-/);</code></pre>
-<p><strong>Gotchas:</strong></p>
-<ul>
-<li>Read from <code>download.path()</code> — a temp location. Don't assume the user's Downloads folder.</li>
-<li>Arm the <code>waitForEvent('download')</code> promise <em>before</em> the click.</li>
-<li>CSV parsing: handle quoted fields containing commas (<code>"$1,234.00"</code>) and CRLF vs LF line endings.</li>
-<li>For Excel <code>.xlsx</code>, use a library (e.g., <code>exceljs</code>) — Playwright only handles the transport.</li>
-</ul>`,
-    },
-    {
-      id: "a87b5a5e-578e-4fcc-a8ea-2d5103591fe1",
-      q: "Assert that a validation error is attached to the right field, not just visible somewhere on the page.",
-      diff: "hard",
-      tags: ["assertions", "a11y"],
-      answer: `<pre class="code"><code>// ❌ Passes even if the error is shown on the wrong field
-await expect(page.getByText('Email is required')).toBeVisible();
-
-// ✅ Assert the linkage between field and error (also validates accessibility)
-const emailField = page.getByLabel('Email');
-await expect(emailField).toHaveAttribute('aria-invalid', 'true');
-
-const errorId = await emailField.getAttribute('aria-describedby');
-expect(errorId, 'email field must reference an error via aria-describedby').toBeTruthy();
-await expect(page.locator(\`#\${errorId}\`)).toHaveText('Email is required');</code></pre>
-<p><strong>Why this matters:</strong></p>
-<ul>
-<li>A test that only checks "the text exists" passes even if the error is misplaced (visually attached to the wrong field, or in an aria-live region screen readers can't link back).</li>
-<li>Asserting via <code>aria-describedby</code> doubles as an accessibility test. If the linkage is missing, screen-reader users have no idea which field is broken.</li>
-<li>Form libraries sometimes render errors in two places (inline + summary). Assert the inline one is the one your assertion grabs.</li>
-</ul>`,
-    },
-    {
-      id: "faf4eb8b-d0cd-4846-b1e3-684b6be12b6d",
-      q: "Assert pagination works end-to-end across pages.",
-      diff: "mid",
-      tags: ["assertions", "pagination"],
-      answer: `<pre class="code"><code>const rows = page.getByTestId('row');
-const counter = page.getByTestId('pagination-counter');
-
-// Page 1
-await expect(rows).toHaveCount(20);
-await expect(counter).toHaveText('1 of 5');
-
-// Capture an identifier to prove the next page shows different data
-const firstId = await rows.first().getAttribute('data-id');
-
-await page.getByRole('button', { name: 'Next' }).click();
-await expect(counter).toHaveText('2 of 5');                       // page indicator advanced
-await expect(rows.first()).not.toHaveAttribute('data-id', firstId!); // data actually changed
-
-// Last page edge case — usually has fewer rows
-await page.getByRole('button', { name: 'Last' }).click();
-await expect(rows.count()).resolves.toBeLessThanOrEqual(20);
-await expect(page.getByRole('button', { name: 'Next' })).toBeDisabled();</code></pre>
-<p><strong>Trap:</strong> tests that only check the page <em>indicator</em> miss the bug where "Next" updates the counter but leaves the table data unchanged. Always assert on both the indicator <em>and</em> the rendered content.</p>
-<p><strong>Other edges to cover:</strong> empty state (0 rows), single page (Next disabled from page 1), URL is updated to <code>?page=2</code> for shareable links.</p>`,
-    },
-    {
-      id: "5b5858df-3be1-4ef0-9dc9-71b88a4e4ee5",
-      q: "Assert that drag-and-drop actually reorders items and the new order is persisted.",
-      diff: "hard",
-      tags: ["assertions", "drag-drop"],
-      answer: `<pre class="code"><code>const items = page.getByTestId('list-item');
-
-// Capture order before
-const before = await items.allTextContents();
-
-// Drag item 0 to position 2
-await items.nth(0).dragTo(items.nth(2));
-
-// 1) Visual order changed correctly
-await expect(items).toHaveText([before[1], before[2], before[0], ...before.slice(3)]);
-
-// 2) Persisted — assert via API or by reloading
-await page.reload();
-await expect(items).toHaveText([before[1], before[2], before[0], ...before.slice(3)]);</code></pre>
-<p><strong>Gotchas:</strong></p>
-<ul>
-<li><strong>HTML5 drag-and-drop is unreliable in headless browsers.</strong> Many apps use mouse events under the hood (react-dnd, dnd-kit). If <code>dragTo</code> doesn't trigger anything, fall back to manual <code>mouse.down() → mouse.move() → mouse.up()</code> with intermediate positions.</li>
-<li><strong>Animations</strong> can lie. The DOM may update before the visual transition finishes. Wait on the underlying state (data-id attribute, persisted API response), not the animation.</li>
-<li><strong>Persistence</strong> is the bug you're really hunting. Visual reorder without an API call = bug. Always verify the server agrees.</li>
-<li><strong>Mobile</strong>: touch events differ from mouse events. If your app supports both, test both.</li>
-</ul>`,
-    },
-  ],
-};
-
-const programmingFundamentals: Category = {
-  id: "programming-fundamentals",
-  label: "Programming fundamentals",
-  desc: "Classic JS/TS interview questions framed for QA: closures, event loop, debounce, Promise patterns, retries — the algorithms that show up in technical screens.",
-  questions: [
-    {
-      id: "a6d0d243-521f-4c77-8261-bb4be89c08d4",
-      q: "Explain closures with a concrete QA-flavored example.",
-      diff: "mid",
-      tags: ["javascript", "fundamentals"],
-      diagram: `graph TB
-  subgraph GLOBAL["Global scope"]
-    G["const retryFast = makeRetryer(3, 100)"]
-  end
-  subgraph OUTER["makeRetryer scope (finished)"]
-    A["maxAttempts = 3"]
-    B["baseDelayMs = 100"]
-  end
-  subgraph INNER["Returned retry() function"]
-    F["uses maxAttempts<br/>uses baseDelayMs"]
-  end
-  G --> INNER
-  INNER -.closes over.-> A
-  INNER -.closes over.-> B
-  NOTE["⚡ outer scope finished,<br/>but variables stay alive<br/>because inner refs them"] -.-> OUTER`,
-      answer: `<p>A <strong>closure</strong> is a function that retains access to variables from its lexical scope even after that scope has finished executing. The inner function "closes over" outer variables.</p>
-<pre class="code"><code>// QA example: build a retry helper that remembers its config
-function makeRetryer(maxAttempts: number, baseDelayMs: number) {
-  return async function retry&lt;T&gt;(fn: () =&gt; Promise&lt;T&gt;): Promise&lt;T&gt; {
-    // maxAttempts + baseDelayMs are captured from the enclosing scope
-    for (let i = 0; i &lt; maxAttempts; i++) {
-      try { return await fn(); }
-      catch (err) {
-        if (i === maxAttempts - 1) throw err;
-        await new Promise(r =&gt; setTimeout(r, baseDelayMs * 2 ** i));
-      }
-    }
-    throw new Error('unreachable');
-  };
-}
-
-const retryFast = makeRetryer(3, 100);  // closes over (3, 100)
-const retrySlow = makeRetryer(5, 1000); // closes over (5, 1000)
-await retryFast(() =&gt; fetchOrder(id));</code></pre>
-<p><strong>Classic interview trap — the loop closure bug:</strong></p>
-<pre class="code"><code>// ❌ Prints 3, 3, 3 — every closure shares the same i
-for (var i = 0; i &lt; 3; i++) setTimeout(() =&gt; console.log(i), 0);
-
-// ✅ Prints 0, 1, 2 — each iteration has its own i
-for (let i = 0; i &lt; 3; i++) setTimeout(() =&gt; console.log(i), 0);</code></pre>
-<p>Why: <code>var</code> is function-scoped; all three callbacks close over the same binding. <code>let</code> is block-scoped, creating a new binding per iteration.</p>`,
-    },
-    {
-      id: "2daa11d5-8ca3-41e7-8041-7ff0f0626b15",
-      q: "Walk through the event loop. In what order does this code print?",
-      diff: "hard",
-      tags: ["javascript", "async"],
-      diagram: `graph LR
-  STACK["Call stack<br/>(sync code)"] -->|"empty"| MICRO["Microtask queue<br/>Promise.then, queueMicrotask, await"]
-  MICRO -->|"drain ALL<br/>before next macro"| MACRO["Macrotask queue<br/>setTimeout, setInterval, I/O"]
-  MACRO -->|"pick one"| STACK
-  RENDER["Browser render<br/>(between macrotasks)"] -.-> MACRO`,
-      answer: `<pre class="code"><code>console.log('1');
-setTimeout(() =&gt; console.log('2'), 0);
-Promise.resolve().then(() =&gt; console.log('3'));
-queueMicrotask(() =&gt; console.log('4'));
-console.log('5');</code></pre>
-<p><strong>Output: 1, 5, 3, 4, 2</strong></p>
-<ol>
-<li><strong>Synchronous code first</strong>: <code>1</code>, <code>5</code> print immediately.</li>
-<li><strong>Microtasks drain next</strong>: <code>3</code> (Promise.then) and <code>4</code> (queueMicrotask) run before any macrotask. They run in order queued.</li>
-<li><strong>Macrotasks (timers, I/O) last</strong>: <code>2</code> prints after the microtask queue is empty.</li>
-</ol>
-<p>Key rules:</p>
-<ul>
-<li>After each macrotask, the engine drains the <em>entire</em> microtask queue before picking the next macrotask.</li>
-<li><code>setTimeout(fn, 0)</code> is not 0ms — it's "as soon as the microtask queue is empty and we're on a fresh tick" (minimum ~4ms in many browsers).</li>
-<li><code>await</code> is sugar for a Promise microtask — code after <code>await</code> runs as a microtask.</li>
-<li>Tests that use <code>setTimeout(0)</code> to "let React render" are racing — use <code>Promise.resolve()</code> or framework-specific <code>act()</code>/<code>flushSync()</code>.</li>
-</ul>`,
-    },
-    {
-      id: "8059a59f-27b3-457b-a94c-df5c0619e4d6",
-      q: "Implement debounce. When would you use throttle instead?",
-      diff: "mid",
-      tags: ["javascript", "async"],
-      diagram: `graph TB
-  subgraph RAW["User input — every keystroke"]
-    R1["k k k k k"]
-    R2["          k k k"]
-  end
-  subgraph DEB["Debounce(300ms) — fires after burst ends"]
-    D1["................🔥"]
-    D2["                  ......🔥"]
-  end
-  subgraph THR["Throttle(300ms) — fires at most every 300ms"]
-    T1["🔥..🔥..🔥..🔥"]
-    T2["       🔥..🔥..🔥"]
-  end
-  RAW --> DEB
-  RAW --> THR`,
-      answer: `<pre class="code"><code>function debounce&lt;A extends unknown[]&gt;(fn: (...args: A) =&gt; void, ms: number) {
-  let t: ReturnType&lt;typeof setTimeout&gt; | null = null;
-  return (...args: A) =&gt; {
-    if (t) clearTimeout(t);
-    t = setTimeout(() =&gt; { t = null; fn(...args); }, ms);
-  };
-}
-
-// Usage in a search box — fires once after the user stops typing for 300ms
-const onSearch = debounce((query: string) =&gt; doSearch(query), 300);</code></pre>
-<p><strong>Debounce</strong>: collapse a burst of calls into one, fired <em>after</em> the burst ends. Right for: search inputs, autosave, window resize handlers.</p>
-<p><strong>Throttle</strong>: cap the rate, fire at most once per N ms. Right for: scroll handlers, drag handlers, polling.</p>
-<pre class="code"><code>function throttle&lt;A extends unknown[]&gt;(fn: (...args: A) =&gt; void, ms: number) {
-  let last = 0;
-  return (...args: A) =&gt; {
-    const now = Date.now();
-    if (now - last &gt;= ms) { last = now; fn(...args); }
-  };
-}</code></pre>
-<p><strong>QA relevance:</strong> when testing debounced inputs, your test that types "abc" then immediately asserts on the API call will fail — the call doesn't fire until 300ms after the last keypress. Wait on the network response, don't <code>waitForTimeout(300)</code>.</p>`,
-    },
-    {
-      id: "1a0f39c1-27ec-42a9-9b3b-09f9b6d4fbcf",
-      q: "Promise.all vs allSettled vs race vs any — when do you use each?",
-      diff: "mid",
-      tags: ["javascript", "async"],
-      diagram: `graph TB
-  ALL["Promise.all<br/>resolve: all fulfill<br/>reject: first reject<br/>→ aborts on failure"]
-  SETTLED["Promise.allSettled<br/>resolve: ALL settle<br/>never rejects<br/>→ see every outcome"]
-  RACE["Promise.race<br/>resolve/reject:<br/>FIRST to settle<br/>→ timeout pattern"]
-  ANY["Promise.any<br/>resolve: first FULFILL<br/>reject: all reject<br/>→ failover pattern"]
-  ALL ~~~ SETTLED
-  RACE ~~~ ANY`,
-      answer: `<table>
-<thead><tr><th>API</th><th>Settles when</th><th>Use when</th></tr></thead>
-<tbody>
-<tr><td><code>Promise.all</code></td><td>All fulfill, or one rejects</td><td>You need every result; one failure should abort.</td></tr>
-<tr><td><code>Promise.allSettled</code></td><td>All settle (fulfilled or rejected)</td><td>You want to see every outcome, even partial failures.</td></tr>
-<tr><td><code>Promise.race</code></td><td>First settles (either way)</td><td>Timeout patterns; "first response wins".</td></tr>
-<tr><td><code>Promise.any</code></td><td>First fulfills (or all reject)</td><td>Failover: try multiple endpoints, take the first success.</td></tr>
-</tbody>
-</table>
-<pre class="code"><code>// Parallel fetches — one failure aborts (lose all data)
-const [user, orders] = await Promise.all([fetchUser(), fetchOrders()]);
-
-// Parallel fetches — see every result, even the failures
-const results = await Promise.allSettled([fetchUser(), fetchOrders()]);
-const failed = results.filter(r =&gt; r.status === 'rejected');
-
-// Timeout pattern
-const data = await Promise.race([
-  fetch('/api/slow'),
-  new Promise((_, reject) =&gt; setTimeout(() =&gt; reject(new Error('timeout')), 5000)),
-]);
-
-// Failover — try primary + replica, use whichever responds first
-const result = await Promise.any([fetch(primaryUrl), fetch(replicaUrl)]);</code></pre>
-<p><strong>Trap with <code>Promise.all</code>:</strong> rejecting doesn't cancel the other promises. They keep running in the background. If that matters (paid API calls, long DB queries), use <code>AbortController</code>.</p>`,
-    },
-    {
-      id: "d7978698-c92e-41ed-8095-f8861f4d3408",
-      q: "Implement retry with exponential backoff and jitter.",
-      diff: "hard",
-      tags: ["javascript", "async", "qa"],
-      diagram: `flowchart TD
-  START["Call fn()"] --> TRY{"Success?"}
-  TRY -->|yes| OK["return result"]
-  TRY -->|no| RETRYABLE{"Retryable error?<br/>(network / 5xx, NOT 4xx)"}
-  RETRYABLE -->|no| FAIL["throw immediately"]
-  RETRYABLE -->|yes| MAX{"attempts left?"}
-  MAX -->|no| FAIL
-  MAX -->|yes| WAIT["wait: base * 2^n<br/>+ random jitter"]
-  WAIT --> START`,
-      answer: `<p>The senior version handles: backoff growth, max retries, jitter (to avoid thundering herds), and a predicate that decides which errors are retryable.</p>
-<pre class="code"><code>interface RetryOpts {
-  attempts?: number;       // default 3
-  baseMs?: number;         // default 200
-  maxMs?: number;          // cap on each delay (default 5000)
-  shouldRetry?: (err: unknown) =&gt; boolean;
-}
-
-async function retry&lt;T&gt;(fn: () =&gt; Promise&lt;T&gt;, opts: RetryOpts = {}): Promise&lt;T&gt; {
-  const { attempts = 3, baseMs = 200, maxMs = 5000, shouldRetry = () =&gt; true } = opts;
-  let lastErr: unknown;
-  for (let i = 0; i &lt; attempts; i++) {
-    try { return await fn(); }
-    catch (err) {
-      lastErr = err;
-      if (i === attempts - 1 || !shouldRetry(err)) break;
-      const exp = Math.min(baseMs * 2 ** i, maxMs);
-      const jitter = Math.random() * exp * 0.3;     // ±30% jitter
-      await new Promise(r =&gt; setTimeout(r, exp + jitter));
-    }
-  }
-  throw lastErr;
-}
-
-// Use it
-const order = await retry(() =&gt; fetchOrder(id), {
-  attempts: 5,
-  shouldRetry: e =&gt; e instanceof NetworkError || (e as any)?.status &gt;= 500,
-});</code></pre>
-<p><strong>Why jitter:</strong> if 1000 clients all retry after a deterministic 1s, they all hit the failing server at once. Jitter spreads the load.</p>
-<p><strong>QA angle:</strong> don't blanket-retry tests. Retrying tests masks flakiness. Retry network operations <em>inside</em> the test (real-world resilience) but assert pass/fail on a single run — that's how you find flakes.</p>`,
-    },
-    {
-      id: "54dc9969-a5ab-4774-b480-78819f14cc4e",
-      q: "How do you deep-clone an object? Compare the approaches.",
-      diff: "mid",
-      tags: ["javascript", "fundamentals"],
-      answer: `<table>
-<thead><tr><th>Approach</th><th>Pros</th><th>Cons</th></tr></thead>
-<tbody>
-<tr><td><code>structuredClone(obj)</code></td><td>Native, fast, handles Date, Map, Set, RegExp, typed arrays, cycles</td><td>Throws on functions, symbols, DOM nodes</td></tr>
-<tr><td><code>JSON.parse(JSON.stringify(obj))</code></td><td>Works everywhere, simple</td><td>Loses Date (→ string), Map/Set (→ {}), undefined values, functions; throws on cycles</td></tr>
-<tr><td><code>_.cloneDeep(obj)</code> (lodash)</td><td>Extensive type support, customizable</td><td>External dependency, slower than native</td></tr>
-<tr><td>Manual recursion</td><td>Full control</td><td>Easy to miss edge cases</td></tr>
-</tbody>
-</table>
-<p><strong>Default:</strong> <code>structuredClone</code> for modern Node 17+ and all current browsers. Falls back to lodash if you need to clone functions or DOM. Avoid <code>JSON.parse(JSON.stringify())</code> unless you're certain the input is pure JSON.</p>
-<pre class="code"><code>// Quick demo of the JSON pitfall
-const original = { date: new Date(), tags: new Set([1, 2]), nested: { x: undefined } };
-const bad = JSON.parse(JSON.stringify(original));
-// bad.date is a string, bad.tags is {}, bad.nested has no x
-
-const good = structuredClone(original);
-// good.date is a Date, good.tags is a Set, good.nested.x is undefined ✓</code></pre>
-<p><strong>QA test fixture trap:</strong> sharing a mutable fixture object across tests causes spooky-action-at-a-distance bugs. Clone the fixture inside the factory, not at module scope.</p>`,
-    },
-    {
-      id: "efdb71e7-0693-4d0b-ab66-3a4f29981464",
-      q: "Group an array of objects by a key. Show three ways.",
-      diff: "easy",
-      tags: ["javascript", "fundamentals"],
-      answer: `<pre class="code"><code>const orders = [
-  { id: 1, status: 'shipped' },
-  { id: 2, status: 'pending' },
-  { id: 3, status: 'shipped' },
-];
-
-// ✅ Native Object.groupBy (Node 21+, modern browsers)
-const byStatus = Object.groupBy(orders, o =&gt; o.status);
-// { shipped: [...], pending: [...] }
-
-// ✅ Reduce — works everywhere
-const byStatusReduce = orders.reduce&lt;Record&lt;string, typeof orders&gt;&gt;((acc, o) =&gt; {
-  (acc[o.status] ??= []).push(o);
-  return acc;
-}, {});
-
-// ✅ Map-based — handles non-string keys, preserves insertion order
-const byStatusMap = orders.reduce((acc, o) =&gt; {
-  const list = acc.get(o.status) ?? [];
-  list.push(o);
-  acc.set(o.status, list);
-  return acc;
-}, new Map&lt;string, typeof orders&gt;());</code></pre>
-<p><strong>When to use which:</strong></p>
-<ul>
-<li><code>Object.groupBy</code>: cleanest, but check your runtime support.</li>
-<li>Reduce-to-object: portable, the standard answer in interviews pre-Node-21.</li>
-<li>Map: when the key isn't a string, or when iteration order matters, or to avoid the <code>__proto__</code> footgun (object keys can collide with prototype properties).</li>
-</ul>`,
-    },
-    {
-      id: "dd1e6322-0508-484b-b171-4dc9f6059538",
-      q: "Find duplicates in an array. Explain the time complexity of each approach.",
-      diff: "mid",
-      tags: ["algorithms", "fundamentals"],
-      answer: `<pre class="code"><code>// ✅ O(n) time, O(n) space — the standard answer
-function duplicates&lt;T&gt;(arr: T[]): T[] {
-  const seen = new Set&lt;T&gt;();
-  const dupes = new Set&lt;T&gt;();
-  for (const x of arr) {
-    if (seen.has(x)) dupes.add(x);
-    else seen.add(x);
-  }
-  return [...dupes];
-}
-
-// ✅ Count-based — gives frequency info for free
-function duplicatesWithCount&lt;T&gt;(arr: T[]): Map&lt;T, number&gt; {
-  const counts = new Map&lt;T, number&gt;();
-  for (const x of arr) counts.set(x, (counts.get(x) ?? 0) + 1);
-  for (const [k, v] of counts) if (v &lt; 2) counts.delete(k);
-  return counts;
-}
-
-// ❌ O(n²) — readable but slow
-const slow = arr.filter((x, i) =&gt; arr.indexOf(x) !== i);</code></pre>
-<p><strong>Senior signal:</strong> mention the trade-off without prompting. "O(n²) is fine for n &lt; 1000; for anything bigger, use a Set."</p>
-<p><strong>Sorted-input trick:</strong> if the array is already sorted (or you can sort it), you can find duplicates in O(n) time with O(1) extra space by comparing adjacent elements.</p>
-<p><strong>For objects:</strong> Sets compare by reference. Use a key extractor (e.g., <code>obj.id</code>) and put the keys in the Set, not the objects.</p>`,
-    },
-    {
-      id: "fc15fd82-e9f2-43c1-9fc8-d241dcd084e8",
-      q: "Predict the value of `this` in each of these contexts.",
-      diff: "hard",
-      tags: ["javascript", "fundamentals"],
-      answer: `<pre class="code"><code>const obj = {
-  name: 'Alice',
-  greet() { return this.name; },
-  greetArrow: () =&gt; this?.name,
-};
-
-// 1. Method call
-obj.greet();                          // 'Alice' — this = obj
-
-// 2. Detached
-const fn = obj.greet;
-fn();                                 // undefined (strict) / global.name (sloppy)
-
-// 3. Arrow function
-obj.greetArrow();                     // undefined — arrow has no own this, uses enclosing
-
-// 4. Explicit binding
-fn.call({ name: 'Bob' });             // 'Bob'
-fn.bind({ name: 'Bob' })();           // 'Bob'
-
-// 5. setTimeout
-setTimeout(obj.greet, 0);             // undefined — detached
-
-// 6. setTimeout with arrow
-setTimeout(() =&gt; obj.greet(), 0);     // 'Alice' — call site is obj.greet()
-
-// 7. Event handler
-button.addEventListener('click', obj.greet);  // 'Alice' if button.name, else the button</code></pre>
-<p><strong>The rules:</strong></p>
-<ol>
-<li><strong>Arrow functions</strong> inherit <code>this</code> from their lexical scope. They have no own <code>this</code>.</li>
-<li><strong>Regular functions</strong> get <code>this</code> from the call site, not the definition site. <code>obj.fn()</code> sets <code>this = obj</code>; <code>const f = obj.fn; f()</code> loses it.</li>
-<li><strong>Explicit binding</strong> (<code>.call</code>, <code>.apply</code>, <code>.bind</code>) wins over implicit.</li>
-<li><strong>Strict mode</strong> matters: in non-strict, detached <code>this</code> is the global object; in strict (which all modules and classes use), it's <code>undefined</code>.</li>
-</ol>
-<p><strong>Common test bug:</strong> passing a class method directly as a callback. <code>page.on('console', obj.handle)</code> loses <code>this</code>. Use <code>obj.handle.bind(obj)</code> or <code>(...args) =&gt; obj.handle(...args)</code>.</p>`,
-    },
-    {
-      id: "0fd28753-484c-469f-b472-49ac51342233",
-      q: "Implement currying. Where is it actually useful in a real codebase?",
-      diff: "mid",
-      tags: ["javascript", "fundamentals"],
-      answer: `<p><strong>Currying</strong>: transform a function that takes <code>(a, b, c)</code> into one that takes <code>(a)(b)(c)</code>. Useful when you want to "pre-bake" some arguments and pass the rest later.</p>
-<pre class="code"><code>// Manual currying for a fixed arity
-const curry3 = &lt;A, B, C, R&gt;(fn: (a: A, b: B, c: C) =&gt; R) =&gt;
-  (a: A) =&gt; (b: B) =&gt; (c: C) =&gt; fn(a, b, c);
-
-// Real-world: test data factories
-const makeOrder = (status: string) =&gt; (userId: string) =&gt; (total: number): Order =&gt; ({
-  id: uuid(), status, userId, total, createdAt: new Date(),
-});
-
-const shippedFor = makeOrder('shipped');
-const aliceShipped = shippedFor('user-alice');
-const orders = [100, 200, 50].map(aliceShipped);
-// 3 shipped orders for Alice with different totals</code></pre>
-<p><strong>More commonly, partial application</strong> (close cousin) using <code>.bind</code> or arrow functions:</p>
-<pre class="code"><code>const log = (level: string, scope: string, msg: string) =&gt; console.log(\`[\${level}][\${scope}]\`, msg);
-const error = log.bind(null, 'ERROR');               // partially applied
-const apiError = error.bind(null, 'api');            // further partial
-apiError('request failed');                          // → [ERROR][api] request failed</code></pre>
-<p><strong>Where it earns its keep:</strong></p>
-<ul>
-<li>Test factories that share a base config.</li>
-<li>Middleware chains (Redux, Koa) where each layer is curried.</li>
-<li>Building reusable HTTP clients with pre-bound base URLs / headers.</li>
-<li>Functional pipelines: <code>pipe(filter(isShipped), map(toSummary))(orders)</code>.</li>
-</ul>
-<p><strong>When NOT to use:</strong> if you're calling the function once with all args, currying just adds noise. Prefer regular calls unless you'll reuse the partially-applied version.</p>`,
-    },
-  ],
-};
 
 /* ============================================================================
    ASSEMBLE
@@ -2186,6 +1571,4 @@ export const PART_4_CATEGORIES: Category[] = [
   projectStructure,
   visualRegression,
   featureFlags,
-  trickyAssertions,
-  programmingFundamentals,
 ];

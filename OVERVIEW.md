@@ -3,8 +3,9 @@
 ## What it is
 
 A browser-only study tool for senior QA Automation Engineer interviews.
-143 questions across 8 categories, each with a full model answer covering
-the *why* (trade-offs, anti-patterns, interviewer intent) — not just the *what*.
+~260 questions across 18 categories (8 core + 10 specialty), each with a
+full model answer covering the *why* (trade-offs, anti-patterns,
+interviewer intent) — not just the *what*.
 
 No backend, no accounts, no telemetry.
 
@@ -12,16 +13,23 @@ No backend, no accounts, no telemetry.
 
 ## Categories
 
+**Core (8):**
+
 | # | Category | Questions |
 |---|---|---|
-| 1 | Playwright + TypeScript | 33 |
-| 2 | REST API testing | 22 |
+| 1 | Playwright + TypeScript (incl. assertion pitfalls) | 44 |
+| 2 | REST API testing | 21 |
 | 3 | SQL fundamentals | 19 |
 | 4 | Framework & architecture | 12 |
-| 5 | CI/CD & flakiness | 18 |
-| 6 | Testing theory | 14 |
+| 5 | CI/CD & flakiness | 17 |
+| 6 | Testing theory | 27 |
 | 7 | Real scenarios | 15 |
-| 8 | Behavioral (STAR-format) | 14 |
+| 8 | Behavioral (STAR-format) | 13 |
+
+**Specialty (10):** TypeScript programming, GraphQL & contracts, project
+structure, visual regression, feature flags, test management, testing
+strategy, automation frameworks survey, API & DB integration, driving
+improvements.
 
 ---
 

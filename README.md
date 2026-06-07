@@ -1,6 +1,6 @@
 # QA Interview Prep — Senior Automation
 
-A personal study app for senior QA Automation Engineer interviews. **143 questions across 8 categories with full model answers** including TypeScript / Playwright / SQL code examples. Built as a Vite + React + TypeScript single-page app — runs in any modern browser, deploys anywhere static.
+A personal study app for senior QA Automation Engineer interviews. **~260 questions across 18 categories with full model answers** including TypeScript / Playwright / SQL code examples. Built as a Vite + React + TypeScript single-page app — runs in any modern browser, deploys anywhere static.
 
 ![Tech](https://img.shields.io/badge/React-18.3-61dafb?logo=react)
 ![Tech](https://img.shields.io/badge/TypeScript-5.6-3178c6?logo=typescript)
@@ -28,18 +28,20 @@ A personal study app for senior QA Automation Engineer interviews. **143 questio
 
 A browsable, searchable interview-prep reference. Pick a category, scan questions, expand to read the model answer, mark as reviewed. Progress persists in your browser. No accounts, no servers, no telemetry.
 
-**8 categories:**
+**8 core categories:**
 
 | # | Category | Questions | Focus |
 |---|---|---|---|
-| 1 | Playwright + TS | 33 | Locators, fixtures, auto-waiting, sharding, real framework code |
-| 2 | REST API testing | 22 | HTTP semantics, idempotency, schema validation, security |
+| 1 | Playwright + TS | 44 | Locators, fixtures, auto-waiting, sharding, real framework code, assertion pitfalls |
+| 2 | REST API testing | 21 | HTTP semantics, idempotency, schema validation, security |
 | 3 | SQL fundamentals | 19 | Joins, indexes, window functions, data-integrity queries |
 | 4 | Framework & architecture | 12 | POM, fixture composition, scaling test code |
-| 5 | CI/CD & flakiness | 18 | GitHub Actions, sharding, flake reduction, metrics |
-| 6 | Testing theory | 14 | Verification vs validation, coverage, mutation testing |
+| 5 | CI/CD & flakiness | 17 | GitHub Actions, sharding, flake reduction, metrics |
+| 6 | Testing theory | 27 | Verification vs validation, coverage, mutation testing, ISTQB principles |
 | 7 | Real scenarios | 15 | P0 incidents, stakeholder pushback, escape rate |
-| 8 | Behavioral | 14 | STAR-format answers with concrete patterns |
+| 8 | Behavioral | 13 | STAR-format answers with concrete patterns |
+
+**Plus 10 specialty categories** — TypeScript programming, GraphQL & contracts, project structure, visual regression, feature flags, test management, testing strategy, automation frameworks survey, API & DB integration, driving improvements.
 
 Every answer includes the *why* — trade-offs, anti-patterns, what interviewers are signaling for — not just the *what*.
 
@@ -48,7 +50,7 @@ Every answer includes the *why* — trade-offs, anti-patterns, what interviewers
 ## Tech stack
 
 ### Runtime
-- **[React 18.3](https://react.dev/)** — UI library. Function components and hooks throughout, no class components.
+- **[React 19.2](https://react.dev/)** — UI library. Function components and hooks throughout, no class components.
 - **[TypeScript 5.6](https://www.typescriptlang.org/)** — strict mode enabled. `noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch` all on.
 - **HTML5 + CSS3** — no UI library. Pure CSS with custom properties for theming.
 
@@ -100,7 +102,7 @@ qa-app/
 ├── .gitignore
 ├── README.md
 └── src/
-    ├── main.tsx            # React 18 createRoot entry
+    ├── main.tsx            # React 19 createRoot entry
     ├── App.tsx             # Main app shell, state, keyboard shortcuts
     ├── types/
     │   └── index.ts        # Shared TypeScript types (Question, Category, Theme, etc.)
@@ -291,7 +293,7 @@ For code snippets, escape angle brackets: `&lt;` and `&gt;`. The TypeScript file
 
 ## Features
 
-- **143 senior-level questions** across 8 categories
+- **~260 senior-level questions** across 18 categories (8 core + 10 specialty)
 - **Per-category search** — searches question text, tags, and answer content
 - **Difficulty filter** — easy / mid / hard
 - **Mark-as-reviewed** — checkbox on each question, persists in localStorage
@@ -359,7 +361,7 @@ Lets the built site work at any URL — root domain, subpath, file:// protocol. 
 
 ### Why Set instead of Array for reviewed/open IDs?
 
-O(1) `has()` lookup. With 143 questions × hundreds of expand/collapse toggles per session, array search would noticeably affect frame rate. Custom JSON serialization handles persistence.
+O(1) `has()` lookup. With ~260 questions × hundreds of expand/collapse toggles per session, array search would noticeably affect frame rate. Custom JSON serialization handles persistence.
 
 ---
 
