@@ -541,7 +541,7 @@ const testingTheory: Category = {
   classDef bad fill:#e76f51,color:#fff
   class KILL good
   class SUR bad`,
-      answer: `<p>Mutation testing introduces small code changes (mutate <code>==</code> to <code>!=</code>, <code>true</code> to <code>false</code>, remove <code>+1</code>). Re-runs your tests. If they still pass, your assertions are weak.</p>
+      answer: `<p>Mutation testing introduces small code changes ("mutants") and re-runs your tests. If they still pass, your assertions are weak — line coverage was fooling you. Stryker (JS/TS) and Pitest (Java) are the canonical tools. ThoughtWorks Tech Radar (April 2026) flagged mutation testing as the way to "shift focus from how much code is executed to how much code is actually verified."</p>
 <pre class="code"><code>function calculateTotal(items: Item[]) {
   return items.reduce((sum, i) =&gt; sum + i.price * i.quantity, 0);
 }
@@ -550,9 +550,28 @@ const testingTheory: Category = {
 test('returns a number', () =&gt; {
   expect(calculateTotal([{ price: 10, quantity: 2 }])).toBeTypeOf('number');
 });
-// Stryker mutates "+ i.price * i.quantity" to "- i.price * i.quantity"
-// Test still passes. Mutation survived = weak coverage.</code></pre>
-<p>Tools: <strong>Stryker</strong> (JS/TS), Pitest (Java). Run periodically — expensive. Score = % mutations killed.</p>`
+// Stryker mutates "+ i.price * i.quantity" → "- i.price * i.quantity"
+// Test still passes. Mutation SURVIVED = weak coverage.
+
+// Strong — exact value, multiple cases
+test('multiplies price × quantity per item, sums across items', () =&gt; {
+  expect(calculateTotal([{ price: 10, quantity: 2 }])).toBe(20);
+  expect(calculateTotal([
+    { price: 10, quantity: 2 },
+    { price: 5,  quantity: 3 },
+  ])).toBe(35);
+  expect(calculateTotal([])).toBe(0);
+});
+// Now arithmetic and conditional-boundary mutants are all KILLED.</code></pre>
+<p><strong>Mutation operators that catch the most:</strong></p>
+<ul>
+<li><strong>Conditional boundary</strong>: <code>&gt;</code> → <code>&gt;=</code>. Catches off-by-one assertions.</li>
+<li><strong>Conditional negation</strong>: <code>if (x)</code> → <code>if (!x)</code>. Catches "I tested true but never false".</li>
+<li><strong>Arithmetic</strong>: <code>+</code> → <code>-</code>. Catches "I asserted non-zero but never the actual value".</li>
+<li><strong>String / boolean literal</strong>: <code>'PENDING'</code> → <code>""</code>, <code>return true</code> → <code>return false</code>. Catches "I assert the field exists but not its value".</li>
+</ul>
+<p><strong>Why line coverage lies</strong>: a test that runs the function and asserts <code>toBeTypeOf('number')</code> hits 100% of the lines in <code>calculateTotal</code>. Mutation testing surfaces the truth: 0% of the <em>behaviour</em> is verified.</p>
+<p><strong>Senior heuristic</strong>: target a mutation score 60–80% on critical-path code (payments, auth, pricing). Don't chase 100% — the last 10% is usually <em>equivalent mutants</em> Stryker can't distinguish from the original semantically. Disable them via <code>StrykerIgnore</code> comments and move on. See the practical "Stryker mutation report" Q under Automation Frameworks for CI integration and how to walk a survived mutant to a fix.</p>`
     },
     {
       id: "33e4f814-2609-4f66-8798-0c2e4d1f5bcf",

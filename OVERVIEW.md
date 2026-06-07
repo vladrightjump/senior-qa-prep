@@ -3,7 +3,7 @@
 ## What it is
 
 A browser-only study tool for senior QA Automation Engineer interviews.
-~155 questions across 18 categories (8 core + 10 specialty), each with a
+~180 questions across 18 categories (8 core + 10 specialty) — sized for actual study, anchored to interview-validated feedback, each with a
 full model answer covering the *why* (trade-offs, anti-patterns,
 interviewer intent) — not just the *what*.
 

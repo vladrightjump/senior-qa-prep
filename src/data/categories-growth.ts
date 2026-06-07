@@ -56,15 +56,33 @@ Expected:
       q: "What is requirements traceability and why does it matter?",
       diff: "mid",
       tags: ["test-management", "traceability"],
-      answer: `<p>Every requirement maps to one or more tests; every test traces back to a requirement (or an explicit risk). A traceability matrix typically links: requirement → test case → automation script → defect.</p>
-<p><strong>Why it matters:</strong></p>
+      answer: `<p>Every requirement maps to one or more tests; every test traces back to a requirement (or an explicit risk). The matrix is the link between "what the product must do" and "what we've actually verified".</p>
+<p>The chain is: <strong>requirement → acceptance criteria → test case → automation script → defect</strong>. Each link is queryable in both directions.</p>
+<h4>A worked matrix — what coverage gaps actually look like</h4>
+<p>Feature: <em>password reset for a B2C app</em>. Five requirements, mapped against the existing test suite:</p>
+<table>
+<tr><th>Req ID</th><th>Requirement</th><th>Test cases</th><th>Automation</th><th>Last defect</th><th>Coverage</th></tr>
+<tr><td>REQ-101</td><td>User can request reset via email</td><td>TC-201, TC-202</td><td>auth.spec.ts:34</td><td>DEF-512 (closed)</td><td>✓ full</td></tr>
+<tr><td>REQ-102</td><td>Reset link expires after 30 min</td><td>TC-203</td><td>auth.spec.ts:55</td><td>—</td><td>✓ full</td></tr>
+<tr><td>REQ-103</td><td>Reused token returns clear error</td><td><strong>—</strong></td><td><strong>—</strong></td><td><strong>DEF-617 (open)</strong></td><td><strong>✗ gap</strong></td></tr>
+<tr><td>REQ-104</td><td>Rate limit: 3 requests / hour / user</td><td>TC-204</td><td>(manual)</td><td>—</td><td>△ manual only</td></tr>
+<tr><td>REQ-105</td><td>Email template renders in EN/DE/FR/RO</td><td>TC-205</td><td>email.spec.ts:12 (EN only)</td><td>—</td><td>△ partial — DE/FR/RO untested</td></tr>
+</table>
+<p>The matrix surfaces three things you cannot see by reading the test suite or the spec alone:</p>
+<ol>
+<li><strong>REQ-103 has an open defect but no test.</strong> The bug was found in prod and never had a test added — exactly the regression risk traceability exists to prevent. Action: write TC-206, add an automated assertion, link the defect resolution to the new test.</li>
+<li><strong>REQ-104 is automated as "manual" — meaning skipped in CI.</strong> A rate-limit regression ships silently. Action: convert to a programmatic test against the staging environment.</li>
+<li><strong>REQ-105 is partially covered.</strong> EN tested, three locales untested. Action: parametrise the email test by locale.</li>
+</ol>
+<h4>Why it matters</h4>
 <ul>
 <li>Coverage gaps surface immediately — requirements without tests are visible.</li>
 <li>Change impact is scoped — when REQ-42 changes, you know which tests to update.</li>
-<li>Audits / regulated industries demand it (medical, automotive, finance).</li>
+<li>Audits / regulated industries demand it (medical, automotive, finance). ISO 26262 / IEC 62304 require it explicitly.</li>
 <li>Defect triage is faster — bug → failing test → original requirement.</li>
 </ul>
-<p>Tools: TestRail, Xray, Zephyr, qTest all generate this matrix automatically when cases reference requirement IDs.</p>`
+<p><strong>Tools</strong>: TestRail, Xray, Zephyr, qTest generate the matrix automatically when test cases reference requirement IDs (most commonly via JIRA's <code>Issue Link: tests/tested by</code>). For lighter setups, a single CSV maintained in the repo works — the matrix is the discipline, not the tool.</p>
+<p><strong>Senior signal</strong>: when an interviewer asks about traceability, show a small matrix with at least one ✗ row and one △ row. Anyone can say "every requirement should have a test"; only someone who's actually maintained one can show how the matrix surfaces the gap and what the next action is.</p>`
     },
     {
       id: "3c152b2c-8ece-4467-8af0-c8d7324e4d10",
@@ -136,6 +154,219 @@ Expected:
 <p><strong>Language to avoid:</strong> "I'll add more tests." (Vague, defensive, doesn't address class of issue.)</p>
 <p>Senior QA framing: bugs in prod are <em>process signals</em>. The interview win is showing you treat them as data, not as personal failures or QA-vs-dev fights.</p>`
     },
+    {
+      id: "b3f1c001-2026-4000-8000-000000000101",
+      q: "Define measurable exit criteria for a payment feature release. What metrics, what thresholds, who signs off?",
+      diff: "mid",
+      tags: ["exit-criteria", "release"],
+      answer: `<p>"Exit criteria" without numbers is decoration. Senior QA picks measurable thresholds before the release, gets sign-off on the numbers (not the wording), and lets the gate make the call.</p>
+<h4>Concrete exit criteria for a payment feature</h4>
+<table>
+<tr><th>Criterion</th><th>Metric</th><th>Threshold</th><th>Source of truth</th></tr>
+<tr><td>Functional coverage</td><td>% of acceptance criteria with ≥ 1 automated test</td><td>100% of P0/P1 ACs</td><td>traceability report</td></tr>
+<tr><td>Defect escape</td><td>open defects in the affected paths</td><td>0 P0, 0 P1, ≤ 2 P2 with documented workaround</td><td>JIRA / Linear filter</td></tr>
+<tr><td>Stability</td><td>flakiness on the new tests (10-run rolling)</td><td>≤ 1% individual, ≤ 3% suite</td><td>CI dashboard</td></tr>
+<tr><td>Performance</td><td>p95 of <code>POST /charges</code> at 100 RPS</td><td>≤ 800 ms (SLO 1 s)</td><td>k6 nightly</td></tr>
+<tr><td>Resilience</td><td>system recovers from provider 5xx within retry budget</td><td>0 stuck charges in chaos run</td><td>chaos-engineering job</td></tr>
+<tr><td>Security</td><td>SAST + dependency scan</td><td>0 high/critical, all moderate triaged with date</td><td>Snyk / Semgrep report</td></tr>
+<tr><td>Observability</td><td>dashboards + alerts deployed for new endpoints</td><td>all dashboards reviewed with on-call</td><td>Grafana folder + PagerDuty</td></tr>
+<tr><td>Rollback</td><td>feature flag verified to disable new path</td><td>flag-off test passes in staging</td><td>release rehearsal report</td></tr>
+</table>
+<h4>Who signs off — RACI</h4>
+<ul>
+<li><strong>Responsible</strong>: feature lead engineer + senior QA — they show the dashboard meets every threshold.</li>
+<li><strong>Accountable</strong>: engineering manager — owns the go/no-go decision.</li>
+<li><strong>Consulted</strong>: SRE (resilience + observability rows), security (SAST row), payments product manager (defect-class triage).</li>
+<li><strong>Informed</strong>: customer success, finance reconciliation, support on-call.</li>
+</ul>
+<h4>The senior moves</h4>
+<ul>
+<li><strong>Negotiate the numbers BEFORE coding starts</strong>, not the night before release. Once you're at sign-off the leverage to push back has evaporated.</li>
+<li><strong>Distinguish blockers from "ship with risk"</strong>. P2 with workaround documented + customer success briefed = ship. P1 with no workaround = stop, regardless of schedule pressure.</li>
+<li><strong>Keep a "missed exit criterion" ledger</strong> per release. After 3 releases you can show "we skipped the chaos check on the last 2 releases and both had incidents" — that's how you move from negotiated thresholds to enforced thresholds.</li>
+</ul>
+<p><strong>Anti-pattern</strong>: "QA sign-off pending" as a tracker field with no numeric meaning. If the PM can ship by overriding the field without changing anyone's metric, the gate is theatre.</p>`
+    },
+    {
+      id: "b3f1c002-2026-4000-8000-000000000102",
+      q: "You inherit 5,000 test cases. Only 1,200 ran last cycle. How do you clean this up without breaking trust?",
+      diff: "hard",
+      tags: ["test-portfolio", "governance", "scenario"],
+      answer: `<p>This is a real situation at almost every shop over 3 years old. The temptation is to nuke the unused 3,800; the senior move is to <em>classify before deleting</em> and use the cleanup as a trust-builder, not a fight.</p>
+<h4>30-day classification — no deletions yet</h4>
+<ol>
+<li><strong>Tag every case by last-run + outcome.</strong> Pull from your test management tool (TestRail / Xray / Zephyr) or the CI log. Build a CSV: <code>id, area, owner, last_run, last_result, flaky_count_30d</code>.</li>
+<li><strong>Bucket them.</strong>
+<ul>
+<li><strong>Active (≥ 1 run in last 30d, passing)</strong>: keep, no action.</li>
+<li><strong>Flaky (run but failing ≥ 10% non-deterministically)</strong>: quarantine pile.</li>
+<li><strong>Stale (no run in 90+ days)</strong>: candidates — needs an owner to vouch.</li>
+<li><strong>Orphan (no clear owner, ambiguous area)</strong>: detective work pile.</li>
+<li><strong>Duplicate (text-similar to another case in the same area)</strong>: merge candidate.</li>
+</ul>
+</li>
+<li><strong>Publish the numbers</strong> to the team. "We have 5,000 cases. 1,200 ran. 2,300 are stale &gt; 90 days. 400 are duplicates. 350 are flaky. 750 are orphans." That conversation alone moves people.</li>
+</ol>
+<h4>60-day cleanup — with explicit ownership</h4>
+<ul>
+<li><strong>Stale</strong>: send a per-team report listing their stale cases. Default = archive in 14 days if no objection. Anyone can reclaim with a "yes still relevant, last needed for X". Archive ≠ delete; the file moves to a <code>__archive/</code> folder with last-known-good metadata. Recoverable.</li>
+<li><strong>Duplicates</strong>: merge to the better-written one; redirect the IDs in the traceability matrix.</li>
+<li><strong>Flaky</strong>: triage with the test author. Fix or quarantine on a clock. Quarantine + ticket + 30-day SLA: fix or delete.</li>
+<li><strong>Orphans</strong>: ask the team. After two reminders with no claim, archive — owner-of-last-resort is the QA lead.</li>
+</ul>
+<h4>The trust mechanics</h4>
+<ul>
+<li><strong>Nothing is permanently deleted.</strong> Archive is reversible. People are far more willing to let a test go when "archived" is the wording.</li>
+<li><strong>Per-team accountability, not blame.</strong> The report shows stale counts per team without naming individuals. The conversation is "your area has 400 stale cases" not "you wrote bad tests".</li>
+<li><strong>Show the cost, not the bloat.</strong> "These 350 flakies cost the org 47 hours of dev attention last month rerunning CI." Cost framing changes minds; bloat-framing makes people defensive.</li>
+</ul>
+<h4>90-day target state</h4>
+<ul>
+<li>Active suite: ~1,500–1,800 cases (the 1,200 + recovered + new replacements).</li>
+<li>Archived: ~3,000 cases, recoverable, indexed.</li>
+<li>Living governance: monthly stale-report, per-team owners, flake SLA in place.</li>
+</ul>
+<p><strong>Anti-pattern</strong>: a "test cleanup sprint" announced top-down with mass deletion. You lose institutional knowledge embedded in old tests, and you lose trust because half the team finds out their case is gone after a regression slips. Slow, transparent, reversible beats fast every time.</p>`
+    },
+    {
+      id: "b3f1c003-2026-4000-8000-000000000103",
+      q: "Severity vs priority: define both, give a worked rubric, defend a P1 call against a PM who wants it downgraded.",
+      diff: "mid",
+      tags: ["triage", "defect-management"],
+      answer: `<p>These two get conflated in every bug tracker in the industry. They are not the same thing — confusing them creates fights between QA and product.</p>
+<table>
+<tr><th></th><th>Severity</th><th>Priority</th></tr>
+<tr><td><strong>Asks</strong></td><td>"How bad is the technical impact when this fires?"</td><td>"How urgently must we fix this relative to everything else?"</td></tr>
+<tr><td><strong>Owner</strong></td><td>QA / engineering (objective)</td><td>Product / business (contextual)</td></tr>
+<tr><td><strong>Inputs</strong></td><td>data loss, security, blast radius, workaround</td><td>customer impact, revenue, contractual SLA, strategic importance</td></tr>
+<tr><td><strong>Stable across releases?</strong></td><td>Mostly yes</td><td>No — depends on what else is in flight</td></tr>
+</table>
+<h4>Severity rubric</h4>
+<ul>
+<li><strong>S1 — Critical</strong>: data loss / corruption, security breach, system down for &gt; 50% of users, no workaround.</li>
+<li><strong>S2 — Major</strong>: core function broken for a sub-segment, workaround exists but degrades UX significantly.</li>
+<li><strong>S3 — Moderate</strong>: feature works but with wrong output / unclear messaging, workaround is reasonable.</li>
+<li><strong>S4 — Minor</strong>: cosmetic, edge case, no functional impact.</li>
+</ul>
+<h4>Priority rubric (independent axis)</h4>
+<ul>
+<li><strong>P0 — Now</strong>: fix immediately, hotfix path, may pull a release.</li>
+<li><strong>P1 — Next release</strong>: in scope for the upcoming release; blocks release if unresolved.</li>
+<li><strong>P2 — Soon</strong>: scheduled within 2 sprints.</li>
+<li><strong>P3 — Backlog</strong>: triaged in, no commitment.</li>
+</ul>
+<h4>The conversation when a PM wants P1 → P2</h4>
+<p>Worked example: a payment confirmation email is missing the order total. Severity S2 (functional output is wrong; workaround is "user opens the dashboard"). You labelled it P1. PM wants P2 because "no one complained yet".</p>
+<p>The senior response uses data, not opinion:</p>
+<ol>
+<li><strong>"Who is affected?"</strong> — 100% of orders, every email. Not a sampled segment.</li>
+<li><strong>"What is the user's recovery cost?"</strong> — they log in to find the total. Friction, support tickets, refund-disputes when they misremember the amount.</li>
+<li><strong>"What's the blast radius if it stays at P2?"</strong> — 14 days × ~500 orders/day × ~3% support-ticket conversion = ~210 tickets. Engineering's cost vs. the alternative cost of fixing now.</li>
+<li><strong>"What's the financial / regulatory exposure?"</strong> — EU consumer protection requires accurate order confirmation. Repeated misses become a complaint to the consumer body.</li>
+<li><strong>"What's our SLA contract with key customers?"</strong> — enterprise contracts mention "accurate transactional emails" as a deliverable.</li>
+</ol>
+<p>If the PM still wants P2 after the conversation, that's their call — log the rationale in the ticket. If a customer complaint or finance-reconciliation issue then materialises, the log is your professional record. The fight stays in the data, not in the room.</p>
+<p><strong>Anti-pattern</strong>: a single "Priority" field that mashes severity and priority into one number. Devs end up arguing "this is a P1 because it's a P1" and the org loses the ability to reason about what's broken vs. what's urgent.</p>
+<p><strong>Senior signal</strong>: when you set severity, you also write a one-line <em>impact statement</em> ("100% of paying customers, every email, missing financial info"). That statement is what the PM uses to set priority. You don't get to set the priority — but you absolutely set the data the priority is reasoned over.</p>`
+    },
+    {
+      id: "b3f1c004-2026-4000-8000-000000000104",
+      q: "Release readiness checklist — 10 things that must be true before you sign off on a customer-facing release.",
+      diff: "mid",
+      tags: ["release", "checklist", "governance"],
+      answer: `<p>A checklist is not bureaucracy; it's a forcing function for the things that get forgotten under deadline pressure. The senior version is short, owner-attributed, and dashboards-not-claims.</p>
+<table>
+<tr><th>#</th><th>Item</th><th>Evidence (link)</th><th>Owner</th></tr>
+<tr><td>1</td><td>All P0/P1 ACs have passing automated tests on main</td><td>traceability report — current ✓ / ✗ per AC</td><td>Feature lead + QA</td></tr>
+<tr><td>2</td><td>0 open P0 / P1 defects in the affected paths</td><td>JIRA filter URL</td><td>QA</td></tr>
+<tr><td>3</td><td>Performance budget met on staging at expected peak</td><td>k6 / Lighthouse dashboard snapshot</td><td>Feature lead</td></tr>
+<tr><td>4</td><td>Feature flag exists and disabling it removes the new code path</td><td>flag-off test trace</td><td>Engineer + QA</td></tr>
+<tr><td>5</td><td>Rollback path tested in staging (not theoretical)</td><td>release rehearsal log</td><td>Release manager</td></tr>
+<tr><td>6</td><td>Observability: new endpoints have logs, metrics, traces, dashboards</td><td>Grafana folder link</td><td>SRE + Feature lead</td></tr>
+<tr><td>7</td><td>Alerts wired to on-call with documented runbook</td><td>PagerDuty service + runbook URL</td><td>SRE</td></tr>
+<tr><td>8</td><td>Security scan green; new dependencies have no high/critical CVEs</td><td>Snyk report URL</td><td>Security champion</td></tr>
+<tr><td>9</td><td>Customer-facing communication ready (changelog, support article, in-app notice)</td><td>links to drafts</td><td>Product / customer success</td></tr>
+<tr><td>10</td><td>Go/no-go meeting held with all owners present</td><td>recorded decision in ticket</td><td>Engineering manager</td></tr>
+</table>
+<h4>How to actually use it</h4>
+<ul>
+<li><strong>The links are mandatory.</strong> "Done" without a link is "claimed". 30% of the items will fail this rule on the first release; that's the value.</li>
+<li><strong>Each row has ONE owner.</strong> No co-ownership — somebody has the pen. The owner is the person who pastes the evidence link.</li>
+<li><strong>Items 4–8 are the ones that get skipped under pressure.</strong> When the PM says "we'll do those after launch", that's the moment to refer to the prior incident the same shortcut caused.</li>
+<li><strong>Item 5 (rollback rehearsed)</strong> is non-negotiable. If you cannot demonstrate the rollback in staging, you do not ship to production. Every team that ignored this has at least one war story.</li>
+</ul>
+<h4>2026 additions worth considering</h4>
+<ul>
+<li><strong>AI-generated content fence</strong>: if the feature includes LLM output, have item 11 = "evaluation suite + guardrail prompts reviewed by domain expert".</li>
+<li><strong>Accessibility (EU EAA, in force June 2025)</strong>: for B2C, "axe-core CI run passes with 0 violations on changed views" is a real legal exposure if skipped.</li>
+<li><strong>Data residency</strong> for EU/regulated customers: "no new endpoint stores or transmits PII outside agreed regions".</li>
+</ul>
+<p><strong>Anti-pattern</strong>: a 47-item checklist that nobody reads. The wishlist + ceremony version of release governance is what gives release governance a bad name. 10 items, evidence-backed, owner-attributed beats 47 unchecked boxes every release.</p>
+<p><strong>Senior signal</strong>: you propose the checklist <em>after</em> a near-miss, not before. You point at the specific item that would have caught it. Adoption follows naturally.</p>`
+    },
+    {
+      id: "b3f1c005-2026-4000-8000-000000000105",
+      q: "Design a test-metrics dashboard a senior QA reviews daily. 5 widgets, what they show, what triggers action.",
+      diff: "hard",
+      tags: ["metrics", "dashboards", "governance"],
+      diagram: `flowchart TB
+  subgraph DAILY["Senior QA daily dashboard"]
+    W1["1. Defect escape rate<br/>(weekly trend)"]
+    W2["2. Flakiness top-10<br/>(by test, by week)"]
+    W3["3. CI lead time + DORA<br/>(p50, p95)"]
+    W4["4. Coverage on changed code<br/>(diff coverage %)"]
+    W5["5. Open P0/P1 + age<br/>(per area)"]
+  end
+  W1 -->|trend up 2 weeks| ACT1["root-cause review"]
+  W2 -->|new entry top 10| ACT2["quarantine + ticket"]
+  W3 -->|p95 up 25%| ACT3["pipeline owner sync"]
+  W4 -->|< 70% on PRs| ACT4["block release branch"]
+  W5 -->|age > 7d| ACT5["escalation"]`,
+      answer: `<p>A dashboard is not a wall of charts; it's a daily decision tool. Five widgets, each with a number, a trend, and a documented action when the trend goes wrong.</p>
+<h4>Widget 1 — Defect escape rate (the north star)</h4>
+<ul>
+<li><strong>What it shows</strong>: (defects found in production over the last N days) ÷ (defects found total over the same window). Weekly bucket, 8-week trend line.</li>
+<li><strong>Healthy</strong>: ≤ 5%, stable or trending down.</li>
+<li><strong>Action when it rises 2 weeks running</strong>: convene the 3 highest-cost incidents, ask "what test layer should have caught this?", report the answer at the next retro.</li>
+</ul>
+<h4>Widget 2 — Flakiness top-10</h4>
+<ul>
+<li><strong>What it shows</strong>: per-test flake rate over the last 30 days. Top 10 by rate, with their owner and the open-ticket link.</li>
+<li><strong>Healthy</strong>: individual ≤ 1%, no test in the list owns &gt; 3% for two weeks running.</li>
+<li><strong>Action when a NEW test enters top 10</strong>: quarantine it the same day, open a ticket with a 14-day fix-or-delete SLA. Keep the test in the list with its quarantine status until resolved — visibility is the pressure.</li>
+</ul>
+<h4>Widget 3 — CI lead time + DORA</h4>
+<ul>
+<li><strong>What it shows</strong>: PR-to-merge lead time (p50, p95). Daily deployment frequency. Change failure rate. MTTR for production incidents. Rolling 30 days.</li>
+<li><strong>Healthy</strong> (per DORA's "elite" band): lead time &lt; 1 day, deploy daily, change fail rate &lt; 15%, MTTR &lt; 1 hour.</li>
+<li><strong>Action when p95 lead time increases 25%</strong>: sync with the pipeline owner. Almost always a slow test, a flake-driven retry, or a stage that's been added without budget review.</li>
+</ul>
+<h4>Widget 4 — Coverage on changed code (not absolute coverage)</h4>
+<ul>
+<li><strong>What it shows</strong>: per-PR, the % of changed lines covered by automated tests. NOT total project coverage. Use diff-coverage (codecov, coveralls), not overall %.</li>
+<li><strong>Healthy</strong>: ≥ 80% per PR on app code, no PR &lt; 60%.</li>
+<li><strong>Action when a release candidate has &lt; 70% on changed code</strong>: block the release branch; require either more tests or an opt-out with named risk owner.</li>
+<li><strong>Why diff coverage matters</strong>: a 90% overall coverage number is meaningless if every new PR adds untested code. Diff coverage catches the rot.</li>
+</ul>
+<h4>Widget 5 — Open P0/P1 + age</h4>
+<ul>
+<li><strong>What it shows</strong>: per-area, count of open P0/P1 defects and the age of the oldest one.</li>
+<li><strong>Healthy</strong>: 0 P0; P1 age &lt; 7 days.</li>
+<li><strong>Action when a P1 ages past 7 days</strong>: escalate to engineering manager with the age, the prior triage discussion, and a proposed resolution path (fix this sprint / re-categorise / accept and document).</li>
+</ul>
+<h4>What the dashboard is NOT</h4>
+<ul>
+<li>Not a wall of vanity metrics. No "total tests written". No "lines of test code". No "% coverage" without diff scoping.</li>
+<li>Not for executives. This is the QA lead's tool. The exec dashboard is a different layer (1 widget — escape rate trend + DORA composite).</li>
+<li>Not consumed weekly. <em>Daily.</em> 5 minutes with coffee. If it takes longer, simplify.</li>
+</ul>
+<h4>Tooling</h4>
+<ul>
+<li>Metabase / Grafana over the JIRA + CI + codecov APIs. Each widget = one panel, one SQL or PromQL query.</li>
+<li>Alert routing: each "action when X" should also fire a Slack message to the QA channel. The dashboard catches trends; the alerts catch single events.</li>
+</ul>
+<p><strong>Anti-pattern</strong>: dashboards built once, never reviewed. The fix: a 10-minute Monday standup item where the QA lead screen-shares the dashboard and names this week's focus. Once the team sees the dashboard drives the agenda, they start watching it themselves.</p>`
+    },
   ]
 };
 
@@ -178,15 +409,91 @@ const testingStrategy: Category = {
       q: "When is exploratory testing more valuable than automation?",
       diff: "mid",
       tags: ["strategy", "exploratory"],
-      answer: `<p>Automation finds <em>known</em> bugs (regressions of behavior you specified). Exploratory finds <em>unknown</em> bugs (behavior nobody specified). They complement each other.</p>
+      answer: `<p>Automation finds <em>known</em> bugs (regressions of behaviour you specified). Exploratory finds <em>unknown</em> bugs (behaviour nobody specified). They complement each other — and the senior move is to run exploratory with structure so the value is visible, not vibes-based.</p>
 <p><strong>Lean exploratory when:</strong></p>
 <ul>
-<li>A feature is new and the spec is fuzzy — automation hardens after the design stabilizes.</li>
+<li>A feature is new and the spec is fuzzy — automation hardens after the design stabilises.</li>
 <li>UX-heavy flows where "feel" matters as much as correctness.</li>
 <li>Post-incident — look for sibling defects the automation can't see.</li>
-<li>Charter-driven sessions (e.g. "abuse the cart for 60 minutes with focus on quantity edge cases").</li>
+<li>Charter-driven sessions ("abuse the cart for 60 minutes with focus on quantity edge cases").</li>
 </ul>
-<p>Output isn't pass/fail — it's <strong>findings, questions, new test ideas</strong>. The best findings become permanent automated cases.</p>`
+<p>Output isn't pass/fail — it's <strong>findings, questions, and new test ideas</strong>. The best findings become permanent automated cases.</p>
+<h4>A worked example — charter + findings doc</h4>
+<pre class="code"><code># Charter: Cart edge cases on the new pricing engine
+
+Time-box: 75 minutes
+Tester:   Andrei
+Build:    v3.2.0-rc1 in staging
+Area:     Cart → discount-stack application
+Risk:     Pricing engine was rewritten in PR #5102
+
+Mission:
+  Investigate behaviour when multiple discount conditions interact
+  (member discount + promo code + bulk discount), especially around
+  rounding, eligibility transitions, and currency conversion.
+
+Inputs:
+  - Spec SPEC-947 (discount stack precedence)
+  - 3 prior pricing bugs from last quarter (DEF-411, DEF-422, DEF-489)
+  - Test data: 4 user types × 3 currencies × 5 cart sizes
+
+Test ideas (seed):
+  - 0.99 + 0.01 quantity round-trips
+  - removing the last item that qualified for bulk
+  - promo code applied at 99% of cart total (negative price floor?)
+  - currency switch mid-checkout
+  - admin-impersonated user (should member discount apply?)
+
+Out of scope:
+  - subscription pricing (covered last week)
+  - tax calculation (separate charter)</code></pre>
+<pre class="code"><code># Findings — Cart edge cases — Andrei — 2026-06-07 — 73 min
+
+Bugs filed (3):
+  - DEF-571 [P1] Currency switch mid-cart leaves promo applied to wrong base
+            Steps: EUR cart, apply WELCOME10, switch to USD → discount = 10% of EUR
+            Expected: discount recomputed at the new currency base
+            Owner: pricing-team
+
+  - DEF-572 [P2] Bulk discount lingers after removing the qualifying item
+            Steps: 10x SKU-A (bulk threshold) + apply, remove 1 item, total
+                   shows bulk-discounted price
+            Expected: bulk discount removed when below threshold
+            Owner: cart-team
+
+  - DEF-573 [P3] Admin-impersonated user shows member discount on non-member
+            Steps: admin impersonate non-member, member discount applied
+            Expected: impersonation should use target user's eligibility
+            Owner: admin-team (also: spec ambiguity, see Q1)
+
+Questions to product (2):
+  Q1: When admin impersonates, whose discount eligibility applies?
+      (spec is silent; current behaviour seems wrong but is consistent)
+  Q2: Is "negative price floor" a hard 0.00 or 0.01? Promo at 99%+ hits
+      this. (no documented expectation)
+
+Test ideas — convert to automation:
+  - Property test: discount applied amount &lt;= cart_total (always)
+  - Unit test: bulk threshold transition (8 → 9 → 10 → 9 items)
+  - E2E: currency switch invalidates promo
+  - Contract test: impersonation header preserves discount eligibility rules
+
+Coverage:
+  Of 5 seed ideas, 4 executed. Currency switch took 30 min — 5th idea
+  (admin impersonation) cut short. Charter for next session created.
+
+Session quality:
+  Bugs/hour: 2.5 (3 bugs in 73 min). Last 4-session average: 1.8/hr.
+  Pricing engine area is high-yield right now; charter another session
+  within the sprint.</code></pre>
+<h4>Why this format works</h4>
+<ul>
+<li><strong>The charter is auditable</strong> — exec or manager can read it and know what was tested and why.</li>
+<li><strong>The findings convert to regression tests explicitly</strong> — each idea has a destination layer. The team knows what the session produces beyond bugs.</li>
+<li><strong>"Coverage" is honest</strong> — 80% of seed ideas executed, 20% deferred with reason. The session was bounded; the report says so.</li>
+<li><strong>Session quality has a metric</strong> — bugs/hour over a rolling baseline. Trending high = the area is bug-rich and deserves more charters; trending low = the surface is stable and exploratory ROI is dropping (move to automation, move to another area).</li>
+</ul>
+<p><strong>Senior signal</strong>: you can show the charter document and the findings document from a real session. "We did exploratory testing" sounds vague; "here are the four charters from last sprint, here are the 11 bugs found, here are the 7 that became regression tests" is the evidence interviewers and managers actually want.</p>`
     },
     {
       id: "6393d97c-7ac9-4c92-8a85-260f43ec3e23",
@@ -267,6 +574,278 @@ const testingStrategy: Category = {
 <p><strong>Non-goals you call out explicitly:</strong> not chasing 90% unit coverage; not building a custom test framework when Maestro exists; not auto-testing every device — pick 5 representative ones via crashlytics demographics.</p>
 <p><strong>Release strategy:</strong> phased rollout via App Store / Play staged release (1% → 10% → 100%), feature flags for risky paths, on-call rota for week-1 launch.</p>
 <p>Senior signal: you named what you're <em>not</em> doing and why. Junior signal: you'd promise full coverage of everything.</p>`
+    },
+    {
+      id: "b3f1c002-2026-4000-8000-000000000201",
+      q: "Session-Based Test Management (SBTM): design a 90-minute charter for a new checkout flow. What's in the charter, what's in the debrief, how do you convert findings to regression tests?",
+      diff: "hard",
+      tags: ["sbtm", "exploratory", "charter"],
+      diagram: `flowchart LR
+  CH["Charter<br/>scope, time-box, risks"] --> SES["Session (90 min)<br/>explore + notes"]
+  SES --> DEBR["Debrief (10 min)<br/>what, why, gaps, ideas"]
+  DEBR --> FIND["Findings<br/>(bugs, questions, charters for next time)"]
+  FIND --> CONV["High-value bugs<br/>→ regression tests<br/>→ traceability matrix"]
+  FIND --> BACK["Follow-up charters<br/>back to backlog"]`,
+      answer: `<p>SBTM (Session-Based Test Management, Bach + Bolton) is structured exploratory testing — time-boxed, charter-led, debriefed. It turns "let me poke around" into auditable, repeatable work that produces real evidence. Standard session: 45–90 minutes.</p>
+<h4>The charter — one page, written BEFORE the session</h4>
+<pre class="code"><code># Charter: New checkout flow — guest payment
+
+Time-box:    90 min
+Tester:      Maria
+Build:       v2.41.0-rc2 in staging
+Area:        Checkout → guest payment (Stripe + 3DS)
+
+Mission:
+  Investigate the new "guest checkout" path for behaviour that
+  differs from logged-in checkout, with focus on edge cases
+  introduced by skipping the account-creation step.
+
+Inputs / context:
+  - PR #4421 (added skip-create-account branch)
+  - Linked spec: SPEC-882
+  - Risk areas flagged by team:
+      * 3DS redirect with no account
+      * email validation under guest mode
+      * cart persistence across the auth fork
+      * post-checkout email confirmation
+
+Test ideas (seed, not exhaustive):
+  - decline cards (Stripe test 4000 0000 0000 0002)
+  - 3DS-required cards (4000 0000 0000 3220)
+  - extra-long email (320 chars)
+  - cart with 25+ items
+  - browser back at the 3DS step
+  - opening checkout in a 2nd tab mid-session
+
+Out of scope:
+  - logged-in checkout (covered by SES-431 last week)
+  - account creation flow
+  - subscription products
+  - cross-browser (this is a Chromium-only session)</code></pre>
+<h4>During the session — notes, not minutes</h4>
+<p>Three columns running in real time:</p>
+<ul>
+<li><strong>Setup</strong>: what you did to get to the test condition. Useful for repro.</li>
+<li><strong>Observed</strong>: what happened. Screenshots, network captures, console logs.</li>
+<li><strong>Question / Note</strong>: hypotheses, follow-ups, "this feels off".</li>
+</ul>
+<p>Discipline: do not leave the session to triage. A finding goes in the notes; the call about whether it's a bug happens at debrief.</p>
+<h4>Debrief (10–15 min, with one other person)</h4>
+<ol>
+<li><strong>Coverage walk</strong>: what test ideas got executed, what didn't, why.</li>
+<li><strong>Bug list</strong>: findings classified into bugs (file with steps), questions (spec ambiguity to PM), and ideas (charters for next session).</li>
+<li><strong>Time-on-task</strong>: rough split: setup, test design, bug investigation, reporting, blocked. Useful trend metric across sessions.</li>
+<li><strong>Session output</strong>: 1 file per session in the repo (markdown), linked from the test management tool.</li>
+</ol>
+<h4>Converting findings into regression tests — the senior loop</h4>
+<table>
+<tr><th>Finding type</th><th>Convert to</th><th>Where</th></tr>
+<tr><td>Crash / hard error</td><td>Component or E2E test that reproduces</td><td>existing suite, tagged with bug ID</td></tr>
+<tr><td>Edge-case value bug (e.g. 320-char email)</td><td>Unit / contract test on the validator</td><td>at the lowest level that catches it</td></tr>
+<tr><td>State-machine bug (browser-back at 3DS)</td><td>Playwright spec with the exact step sequence</td><td>integration / E2E</td></tr>
+<tr><td>Spec ambiguity</td><td>PR comment + JIRA ticket to PM</td><td>NOT a test; the spec needs the fix</td></tr>
+<tr><td>"Feels off" with no repro</td><td>Charter for next session</td><td>backlog</td></tr>
+</table>
+<h4>Metrics worth tracking across sessions</h4>
+<ul>
+<li><strong>Bugs / hour</strong>, per area. Trending. Don't use it to grade testers; use it to flag areas that yield bugs above their fair share.</li>
+<li><strong>Coverage of test ideas executed</strong>: % of charter ideas that ran. Below 60% over a quarter = your charters are too ambitious for 90 min.</li>
+<li><strong>Findings → tests conversion rate</strong>: of "bug" findings, how many became regression tests within 14 days? Below 70% = the loop is leaking.</li>
+</ul>
+<p><strong>Senior signal</strong>: SBTM is how you defend exploratory testing to a sceptical manager. "We tested for 8 hours" sounds vague; "we ran four 90-min sessions, charter and notes attached, 5 P1 bugs found, 3 already converted to regression tests" is unimpeachable.</p>
+<p><strong>Anti-pattern</strong>: open-ended exploratory time without a charter. Two-hour sessions that produce two paragraphs of unstructured notes and one bug. The session was wasted not because exploration is wasted — exploration is the highest-yield testing — but because no charter means no debrief means no follow-up.</p>`
+    },
+    {
+      id: "b3f1c003-2026-4000-8000-000000000202",
+      q: "When should a test stay manual (not automated)? Name 3 scenarios and justify with the cost framing.",
+      diff: "mid",
+      tags: ["strategy", "automation-roi", "manual"],
+      answer: `<p>Automation is the default at most modern shops. That's good for regression; bad for the cases where automation costs more than it returns. A senior names the cases explicitly and resists "automate it because we automate everything".</p>
+<h4>1. High-volatility UI under active design iteration</h4>
+<p><strong>The case</strong>: a screen the design team has restructured 4 times in 6 weeks. Each restructure breaks every selector, every flow.</p>
+<p><strong>Cost</strong>: 8 hours per restructure to re-stabilise the automated tests, plus 2 days of flakes during the transition. The team has done this loop four times. That's a sprint of QA work and you're still chasing the next change.</p>
+<p><strong>Manual instead</strong>: a 30-minute exploratory session per iteration. Findings go straight to design. When the screen stabilises (UAT, customer review with no further changes for 30+ days), <em>then</em> automate.</p>
+<p><strong>Senior framing</strong>: "Automate when the surface is stable enough that the test outlives the next two changes. Until then, the test is more expensive than the bug it catches."</p>
+<h4>2. One-time verification with no regression value</h4>
+<p><strong>The case</strong>: a data migration. You need to verify 50M rows moved correctly. The migration runs once.</p>
+<p><strong>Cost</strong>: writing a robust migration-verification test framework = 2–4 weeks. It runs once. Maintenance value = zero.</p>
+<p><strong>Manual / scripted-once instead</strong>: a one-shot SQL parity script (see API & DB Testing category). Reviewed by an engineer, run during the migration window, archived. No CI integration, no test suite entry.</p>
+<p><strong>Senior framing</strong>: "Automation pays back when you run it many times. A one-shot test is a script, not a test."</p>
+<h4>3. Visual / UX evaluation that requires human judgement</h4>
+<p><strong>The case</strong>: "does the new onboarding flow feel intuitive?" Image-rich pages with subjective layout, copy tone, animation quality.</p>
+<p><strong>Cost</strong>: visual regression catches pixel differences, not "feel". An automated test that asserts "feels good" doesn't exist; it would be a measure of agreement between graders, not a property of the product.</p>
+<p><strong>Manual instead</strong>: usability sessions, accessibility audits, exploratory testing by a fresh tester (recency-bias-free). Findings feed into design, not into a regression suite.</p>
+<p><strong>Senior framing</strong>: "Automation answers 'did this work?' Humans answer 'is this good?' The two are different questions."</p>
+<h4>The general rule, four levers</h4>
+<table>
+<tr><th>Lever</th><th>Favours automation</th><th>Favours manual</th></tr>
+<tr><td>Stability of the surface</td><td>High — selectors stable, spec stable</td><td>Low — surface changes faster than tests can keep up</td></tr>
+<tr><td>Execution frequency needed</td><td>Many times (CI, regression)</td><td>Once or twice</td></tr>
+<tr><td>Oracle clarity</td><td>Yes/no answer exists</td><td>Subjective judgement needed</td></tr>
+<tr><td>Cost ratio</td><td>Automation cost &lt; manual × frequency</td><td>Automation cost &gt;&gt; manual × frequency</td></tr>
+</table>
+<p><strong>The senior conversation to have with engineering managers who default to "automate everything"</strong>: "Automation is an investment. Investments need a return. For these N tests the return is positive — they run every release, the surface is stable, the cost amortises. For these M tests the return is negative — once-off, volatile surface, subjective oracle. We will manual-test those and revisit annually."</p>
+<p><strong>Anti-pattern</strong>: writing automation for the volatile screen as a "leadership signal" while the tests fail every PR and get muted. The mute is the real outcome. Better to manual-test honestly than ship an automated test that's silenced inside two weeks.</p>`
+    },
+    {
+      id: "b3f1c004-2026-4000-8000-000000000203",
+      q: "Scenario: a feature has 50 candidate test cases. You can only automate 20 this sprint. Which 20 and why?",
+      diff: "hard",
+      tags: ["strategy", "prioritisation", "risk"],
+      diagram: `quadrantChart
+  title Risk × ROI matrix
+  x-axis Low automation ROI --> High automation ROI
+  y-axis Low business risk --> High business risk
+  quadrant-1 Automate now (high risk, high ROI)
+  quadrant-2 Manual, watch (high risk, low ROI)
+  quadrant-3 Drop or batch (low risk, low ROI)
+  quadrant-4 Automate when bandwidth allows (low risk, high ROI)
+  "Login P0 path": [0.85, 0.95]
+  "Checkout P0 path": [0.9, 0.95]
+  "Payment 3DS happy": [0.7, 0.9]
+  "Promo stack edge case": [0.4, 0.55]
+  "i18n: Romanian only": [0.3, 0.35]
+  "Edge: 1000-item cart": [0.5, 0.6]
+  "UI label spelling": [0.2, 0.15]`,
+      answer: `<p>This is the central senior-QA exercise: you cannot automate everything, you cannot manually-test everything, the next sprint starts Monday. You triage on two axes — business risk and automation ROI — then pick a defensible 20.</p>
+<h4>Step 1 — score every case on two axes</h4>
+<p><strong>Business risk (1–5)</strong> = impact × likelihood of breakage. Impact: user count, revenue, regulatory. Likelihood: complexity, recent change rate, history of bugs.</p>
+<p><strong>Automation ROI (1–5)</strong> = stability of the surface × execution frequency / cost-to-automate. Stable selectors + run every release / cheap-to-write = 5. Volatile UI + run once / expensive-to-write = 1.</p>
+<h4>Step 2 — the picks</h4>
+<table>
+<tr><th>Tier</th><th>Risk</th><th>ROI</th><th>Action</th><th>Approx count from 50</th></tr>
+<tr><td>1</td><td>4–5</td><td>4–5</td><td>Automate this sprint</td><td>~12</td></tr>
+<tr><td>2</td><td>4–5</td><td>2–3</td><td>Manual this release; revisit next sprint</td><td>~8</td></tr>
+<tr><td>3</td><td>2–3</td><td>4–5</td><td>Automate IF time remains; otherwise next sprint</td><td>~8 → pick 5–8 if bandwidth</td></tr>
+<tr><td>4</td><td>2–3</td><td>2–3</td><td>Batch test manually; consider dropping</td><td>~15 → may consolidate to 5</td></tr>
+<tr><td>5</td><td>1</td><td>any</td><td>Drop. Add to "explore if a complaint surfaces" backlog</td><td>~7</td></tr>
+</table>
+<p>From 50 candidates: ~12 from Tier 1 + ~8 from Tier 3 = 20 automated this sprint. ~8 from Tier 2 cover the rest of the high-risk space manually. Tier 4 + 5 = ~22 cases that don't get formal coverage this release — and that's a deliberate call, not negligence.</p>
+<h4>Step 3 — document the call</h4>
+<p>This is the part that distinguishes senior. A page in the release notes:</p>
+<ul>
+<li>20 cases automated (linked).</li>
+<li>8 cases manual this release (named, owner assigned).</li>
+<li>22 cases not covered this release, with the rationale and the trigger for revisiting ("if a bug in this area surfaces in support tickets, escalate immediately").</li>
+</ul>
+<p>The document is the audit trail. When a bug ships in the uncovered 22 area, the postmortem question "why didn't QA catch this?" has an answer that's already on file — and the action is to reweight, not to blame.</p>
+<h4>Worked example — a feature flag rollout to EU users</h4>
+<ul>
+<li><strong>Automate</strong>: P0 paths (login, purchase, refund); regulatory paths (GDPR data deletion, EU consumer-protection wording); high-frequency paths (search, dashboard load).</li>
+<li><strong>Manual</strong>: 3DS variants that are expensive to spin up reliably; UAT for the new copy with native speakers.</li>
+<li><strong>Drop</strong>: spelling consistency check on internal admin pages (low risk, low ROI); two-tab edge cases on a desktop-only feature.</li>
+</ul>
+<p><strong>Senior signal</strong>: you defend the "drop" pile out loud, in the team meeting, with numbers. Hiding it in a spreadsheet sets you up for a fight when the bug ships.</p>
+<p><strong>Anti-pattern</strong>: "automate the easy ones" (a strategy optimised for ROI but not risk → high-risk gaps), or "automate the hardest ones first" (a strategy optimised for risk but not ROI → sprint runs out, low-hanging fruit goes uncovered). The matrix balances both.</p>`
+    },
+    {
+      id: "b3f1c005-2026-4000-8000-000000000204",
+      q: "Shift-left in practice: what specifically do you ask devs to unit-test so QA can focus higher up the stack?",
+      diff: "mid",
+      tags: ["shift-left", "developer-collaboration"],
+      answer: `<p>"Shift-left" is the most overused phrase in QA discourse. As a slogan it's useless; as an explicit ask of developers it's powerful. The senior move is to be specific about <em>what</em> shifts left and what stays in QA's lane.</p>
+<h4>What devs unit-test (your explicit ask)</h4>
+<ol>
+<li><strong>Business logic with branches.</strong> Pricing, discount stacks, eligibility checks, state-machine transitions. If the code has an <code>if</code>, an enum, or a math operator with edge cases, that's a unit test.</li>
+<li><strong>Error paths and exception handling.</strong> Every <code>throw</code>, every <code>try/catch</code>. The happy path covers 60% of the code and 5% of the bugs.</li>
+<li><strong>Data validation and parsing.</strong> Date formats, currency rounding, decimal precision, locale strings, regex validation. If it can come from input, it can be wrong.</li>
+<li><strong>Type guards and schema validators.</strong> Zod / io-ts / class-validator etc. Every guard you ship needs a test that proves it rejects the bad shape AND accepts the good shape.</li>
+<li><strong>Boundary conditions on numeric inputs.</strong> 0, 1, max, max+1, negative, NaN, Infinity. Off-by-one is still the most-shipped bug class in 2026.</li>
+<li><strong>State invariants in reducers / state stores.</strong> "After action X, state[y] must satisfy Z." Unit-testable; very hard to retro-test at integration level.</li>
+</ol>
+<h4>What you DON'T ask devs to unit-test (it's QA's lane or a different layer)</h4>
+<ul>
+<li><strong>Cross-component behaviour</strong> (component A renders state from component B). That's integration / component test, not unit.</li>
+<li><strong>UI interaction flows</strong> (click sequence, modal flow). That's E2E or component-level.</li>
+<li><strong>Visual layout / pixel correctness</strong>. Visual regression, not unit.</li>
+<li><strong>Real-API contract</strong>. Contract testing (Pact / OpenAPI), not unit.</li>
+<li><strong>Race conditions across services</strong>. Integration test with controlled concurrency.</li>
+<li><strong>Accessibility tree correctness</strong>. axe-core in component / E2E layer.</li>
+</ul>
+<h4>How to actually make the ask land</h4>
+<ul>
+<li><strong>PR template additions.</strong> "Did you add unit tests for new branches and error paths?" with a checkbox. Polite friction.</li>
+<li><strong>Diff-coverage gate.</strong> Codecov / coveralls — block merge if changed lines have &lt; 70% coverage. <em>Diff</em> coverage, not total. The number drives behaviour.</li>
+<li><strong>Mutation score on the critical path.</strong> Run Stryker nightly on payments / auth / pricing. PR-level mutation testing is too expensive; nightly with a threshold is sustainable.</li>
+<li><strong>Pair-on-tests in the first week of a new feature.</strong> 30 minutes of QA + dev working through what to unit-test for the new logic. Done once, the dev internalises the pattern.</li>
+<li><strong>Show the ROI back to devs.</strong> "Last quarter, 11 of 14 incident escapes had no unit test on the branch that broke." When devs see this, the next PR has the tests.</li>
+</ul>
+<h4>What you commit to in return</h4>
+<p>Shift-left isn't a one-sided demand. QA's reciprocal commitments:</p>
+<ul>
+<li>QA does not duplicate unit-level assertions at E2E. If the dev tested the calculation, you don't re-test it through the UI.</li>
+<li>QA focuses on cross-component flows, integration seams, exploratory testing, security paths, accessibility. The things devs cannot reliably test from their position.</li>
+<li>QA reviews PRs for testability concerns — flags hard-to-test code BEFORE merge, not after. The earlier-the-better extends both ways.</li>
+</ul>
+<p><strong>Senior signal</strong>: "shift-left" appears in your sentence with a noun next to it ("shift the input validation tests left", "shift the schema contract assertions left"). Without the noun, it's a slogan and the dev team rolls their eyes.</p>
+<p><strong>Anti-pattern</strong>: telling devs to "write more unit tests" without specifying which kind. They will write 50 tests for the getter/setter on the User class and not one test for the discount-stack logic. Specificity is the lever.</p>`
+    },
+    {
+      id: "b3f1c006-2026-4000-8000-000000000205",
+      q: "Canary deployment as a test strategy: use production monitoring to gate stages. Define the SLOs.",
+      diff: "hard",
+      tags: ["canary", "production-testing", "slo"],
+      diagram: `flowchart TB
+  DEPLOY["Deploy v2 behind flag"] --> S1["1% canary<br/>(30 min hold)"]
+  S1 --> CHK1{"SLO check<br/>err rate, latency"}
+  CHK1 -->|pass| S2["10% (2h hold)"]
+  CHK1 -->|fail| ROLL["Auto-rollback<br/>+ alert"]
+  S2 --> CHK2{"SLO check"}
+  CHK2 -->|pass| S3["50% (4h hold)"]
+  CHK2 -->|fail| ROLL
+  S3 --> CHK3{"SLO check"}
+  CHK3 -->|pass| S4["100%"]
+  CHK3 -->|fail| ROLL`,
+      answer: `<p>Canary deployment is a test strategy. The hypothesis under test is "<em>the new build behaves as well as the old build on production traffic</em>." Each stage is a deliberate, measurable experiment whose pass condition is the SLO holding under real load.</p>
+<h4>The stages and what they test</h4>
+<table>
+<tr><th>Stage</th><th>% traffic</th><th>Hold time</th><th>What this stage tests</th></tr>
+<tr><td>0. Smoke</td><td>0 (synthetic)</td><td>5 min</td><td>The build boots, healthchecks green</td></tr>
+<tr><td>1. Canary</td><td>1%</td><td>30 min</td><td>No catastrophic regression; the obvious crashes</td></tr>
+<tr><td>2. Limited</td><td>10%</td><td>2 hours</td><td>Steady-state behaviour under varied real traffic; segment-specific bugs</td></tr>
+<tr><td>3. Majority</td><td>50%</td><td>4 hours</td><td>Capacity, downstream impact, cache pressure</td></tr>
+<tr><td>4. Full</td><td>100%</td><td>—</td><td>Done; observe for 24h with elevated attention</td></tr>
+</table>
+<h4>The SLOs that gate each stage</h4>
+<ul>
+<li><strong>Error rate</strong>: new build error rate ≤ old build error rate × 1.1 (10% tolerance) on a 5-minute rolling window.</li>
+<li><strong>Latency p95</strong>: new ≤ old × 1.2 (20% tolerance, because p95 is noisier).</li>
+<li><strong>Latency p99</strong>: new ≤ old × 1.5 — the tail tells you about queue / GC / contention. Wider tolerance, harder threshold.</li>
+<li><strong>Business KPI</strong>: conversion rate / checkout success / login success — within ±2% of baseline on the canaried slice.</li>
+<li><strong>Downstream pressure</strong>: DB connections, cache miss rate, queue depth — must not exceed agreed ceilings during the hold.</li>
+</ul>
+<h4>The auto-rollback rules</h4>
+<pre class="code"><code># pseudo-config for an Argo Rollouts / Flagger-style controller
+analysis:
+  interval: 60s
+  threshold: 5      # consecutive failed checks before rollback
+  failureLimit: 3
+  metrics:
+    - name: error-rate
+      provider: prometheus
+      query: |
+        sum(rate(http_requests_total{job="api",status=~"5..",
+          version="new"}[5m]))
+        / sum(rate(http_requests_total{job="api",
+          version="new"}[5m]))
+      successCondition: result &lt; 0.005
+    - name: latency-p95-vs-baseline
+      provider: prometheus
+      query: |
+        histogram_quantile(0.95, ...new) /
+        histogram_quantile(0.95, ...old)
+      successCondition: result &lt; 1.2</code></pre>
+<h4>What QA owns</h4>
+<ul>
+<li><strong>Defining the SLOs with engineering.</strong> The thresholds are negotiated, not handed down. QA brings the historical noise data ("p95 normally varies ±8% week-over-week, so 20% tolerance is appropriate") so the threshold isn't pulled from a hat.</li>
+<li><strong>Owning the dashboard for the canary window.</strong> Watching real traffic, calling abort early if a non-SLO signal looks bad (e.g. a specific endpoint's error rate is fine in aggregate but bad on a key customer segment).</li>
+<li><strong>Post-canary review.</strong> Every release with a non-trivial canary outcome gets a 15-min review: what did we learn? Should the SLOs tighten or loosen? Did the rollback trigger work?</li>
+</ul>
+<h4>What this replaces (and what it doesn't)</h4>
+<p>Canary <em>complements</em> pre-prod testing; it does not replace it. Pre-prod catches the classes of bug whose impact you don't want to inflict on even 1% of real users (data corruption, security holes, regulatory violations). Canary catches the classes pre-prod can't reproduce: real traffic mix, real downstream pressure, real customer segment behaviours.</p>
+<p>The two together are why elite teams ship to production frequently without high change-failure rates.</p>
+<p><strong>Senior signal</strong>: when you describe canary, you describe specific SLO thresholds, the auto-rollback policy, the post-canary review, and what pre-prod still owns. "We do canary" is junior; "we hold at 1% for 30 min with these five metrics, auto-rollback at threshold breach, post-release review weekly" is senior.</p>
+<p><strong>Anti-pattern</strong>: canary as a slow rollout with no SLO gates — the "1%, 10%, 50%, 100%" rollout where each stage is just a timer. That's a delivery cadence, not a test strategy. Real canary requires the metric and the abort.</p>`
     },
   ]
 };
@@ -399,6 +978,397 @@ const automationFrameworks: Category = {
 <li>Share the rubric with the team before scoring; let people argue weights, not totals.</li>
 </ul>
 <p>The number is a tiebreaker. The conversation is the deliverable.</p>`
+    },
+    {
+      id: "b3f1c001-2026-4000-8000-000000000301",
+      q: "Write a Vitest unit test with mocks and spies. Show how to cover the error path.",
+      diff: "mid",
+      tags: ["vitest", "unit", "mocks"],
+      answer: `<p>Vitest's mock + spy API mirrors Jest's almost 1:1, but the watch loop is ~3× faster because it shares Vite's transform. The senior pattern is to mock at the module boundary, never inside the unit under test.</p>
+<pre class="code"><code>// src/services/orders.ts — system under test
+import { paymentsClient } from './payments';
+export async function placeOrder(userId: string, items: Item[]) {
+  const total = items.reduce((s, i) =&gt; s + i.price * i.qty, 0);
+  if (total &lt;= 0) throw new Error('Empty order');
+  const res = await paymentsClient.charge({ userId, amount: total });
+  if (!res.ok) throw new Error(\`Payment failed: \${res.code}\`);
+  return { orderId: res.id, total };
+}</code></pre>
+<pre class="code"><code>// src/services/orders.test.ts
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { paymentsClient } from './payments';
+import { placeOrder } from './orders';
+
+vi.mock('./payments', () =&gt; ({
+  paymentsClient: { charge: vi.fn() },
+}));
+
+const charge = vi.mocked(paymentsClient.charge);
+
+beforeEach(() =&gt; vi.resetAllMocks());
+
+describe('placeOrder', () =&gt; {
+  it('charges the payment client and returns an order id', async () =&gt; {
+    charge.mockResolvedValueOnce({ ok: true, id: 'ord-1', code: 'OK' });
+    const out = await placeOrder('u-1', [{ price: 10, qty: 2 }]);
+    expect(out).toEqual({ orderId: 'ord-1', total: 20 });
+    expect(charge).toHaveBeenCalledWith({ userId: 'u-1', amount: 20 });
+  });
+
+  it('throws on empty order WITHOUT calling payments', async () =&gt; {
+    await expect(placeOrder('u-1', [])).rejects.toThrow('Empty order');
+    expect(charge).not.toHaveBeenCalled();    // proves no side effect
+  });
+
+  it('propagates payment failure with the provider code', async () =&gt; {
+    charge.mockResolvedValueOnce({ ok: false, id: '', code: 'CARD_DECLINED' });
+    await expect(placeOrder('u-1', [{ price: 5, qty: 1 }]))
+      .rejects.toThrow('Payment failed: CARD_DECLINED');
+  });
+});</code></pre>
+<p><strong>What separates this from junior work:</strong></p>
+<ul>
+<li><strong>Reset between tests</strong> — <code>vi.resetAllMocks()</code> in <code>beforeEach</code>. Without it, call history leaks. The most common reason "test passes alone, fails in suite".</li>
+<li><strong>Assert the NOT path</strong> — the empty-order test asserts <code>charge</code> was not called. Junior tests assert the throw; senior tests assert the absence of side effects.</li>
+<li><strong>Verify the call shape</strong> — <code>toHaveBeenCalledWith</code> with the full payload. Catches drift when the function changes the API silently.</li>
+<li><strong>Mock at module boundary</strong> — not inside <code>placeOrder</code>. Lets you swap implementations in integration tests without touching production code.</li>
+</ul>
+<p><strong>Anti-pattern</strong>: spying on internal functions of the unit under test (<code>vi.spyOn(orders, 'placeOrder')</code>). That's testing the implementation, not the behaviour. If you need to do that, the unit is too big — split it.</p>
+<p><strong>2026 reality check</strong>: Vitest 2.0 is ~3.8× faster than Jest 30 on a 10k-test React suite and ~40% lower memory. On a Vite-based codebase there is no reason to start a new project on Jest. On a legacy Webpack/CRA codebase the ROI of migrating is real but the cost is non-zero (mock factories, snapshot format, custom resolvers) — usually a 2-week project for a 5k-test suite.</p>`
+    },
+    {
+      id: "b3f1c002-2026-4000-8000-000000000302",
+      q: "Testing Library: query by role vs query by CSS. Show an example that breaks on a CSS refactor.",
+      diff: "mid",
+      tags: ["rtl", "component", "accessibility"],
+      answer: `<p>React Testing Library's guiding rule: <em>tests should resemble how users (and assistive tech) interact with the UI</em>. The query priority is documented: <code>getByRole</code> → <code>getByLabelText</code> → <code>getByText</code> → <code>getByTestId</code> → CSS as last resort.</p>
+<pre class="code"><code>// LoginForm.tsx — production component (extract)
+&lt;form&gt;
+  &lt;label htmlFor="email"&gt;Email&lt;/label&gt;
+  &lt;input id="email" type="email" className="form-input form-input--lg" /&gt;
+  &lt;button type="submit" className="btn btn-primary btn-lg"&gt;Log in&lt;/button&gt;
+&lt;/form&gt;</code></pre>
+<pre class="code"><code>// ❌ Brittle — couples test to CSS class names
+test('login fails on invalid email (CSS-coupled)', async () =&gt; {
+  render(&lt;LoginForm /&gt;);
+  await user.type(container.querySelector('.form-input')!, 'not-an-email');
+  await user.click(container.querySelector('.btn-primary')!);
+  expect(screen.getByText('Invalid email')).toBeVisible();
+});
+
+// ✅ Resilient — queries by role/label, survives CSS refactors
+test('login fails on invalid email', async () =&gt; {
+  render(&lt;LoginForm /&gt;);
+  await user.type(screen.getByLabelText(/email/i), 'not-an-email');
+  await user.click(screen.getByRole('button', { name: /log in/i }));
+  expect(await screen.findByRole('alert')).toHaveTextContent(/invalid email/i);
+});</code></pre>
+<p>The CSS-coupled test will break the moment your design system renames <code>.btn-primary</code> to <code>.button--primary</code>, or your CSS-in-JS engine generates <code>.css-xyz123</code> class hashes. The role-based test survives all of that — the only thing that breaks it is a real user-facing change.</p>
+<p><strong>What query to reach for, by case:</strong></p>
+<table>
+<tr><th>Element</th><th>Best query</th><th>Why</th></tr>
+<tr><td>Buttons, links, headings, regions</td><td><code>getByRole</code></td><td>What screen readers announce</td></tr>
+<tr><td>Form fields</td><td><code>getByLabelText</code></td><td>Forces a real <code>&lt;label&gt;</code> — accessibility-by-default</td></tr>
+<tr><td>Visible static text</td><td><code>getByText</code></td><td>Resilient to surrounding layout</td></tr>
+<tr><td>Anything else</td><td><code>getByTestId</code></td><td>Escape hatch — but flags a missing semantic role</td></tr>
+<tr><td>Dynamic, will appear later</td><td><code>findByRole</code> / <code>findByText</code></td><td>Built-in await; never <code>waitFor</code>+<code>getBy</code></td></tr>
+</table>
+<p><strong>Senior signal</strong>: when your test <em>cannot</em> find an element by role, that's a bug report for the dev team — the element is invisible to assistive tech. Several EU consumer-facing companies (post-EAA, in force June 2025) treat "RTL fell back to <code>getByTestId</code>" as a code-review smell that produces an a11y ticket.</p>
+<p><strong>Anti-pattern</strong>: <code>act(() =&gt; { ... }); fireEvent.click(...)</code> instead of <code>await user.click(...)</code>. <code>user-event</code> wraps events the way a real browser fires them (focus, mousedown, mouseup, click, change). <code>fireEvent</code> is a low-level escape hatch; use it only when <code>user-event</code> physically can't do the thing.</p>`
+    },
+    {
+      id: "b3f1c003-2026-4000-8000-000000000303",
+      q: "MSW: intercept an API in component tests. Cover happy and error paths.",
+      diff: "mid",
+      tags: ["msw", "mocking", "component"],
+      diagram: `flowchart LR
+  TEST["Component test (Vitest + RTL)"] --> MSW["MSW Service Worker<br/>(or msw/node in jsdom)"]
+  MSW -->|matched| HANDLER["Per-test handler<br/>http.get / http.post"]
+  MSW -->|unmatched| WARN["console.warn<br/>(or onUnhandledRequest: 'error')"]
+  HANDLER --> RES["HttpResponse.json(...)<br/>+ status"]
+  RES --> COMPONENT["Component receives<br/>real fetch / axios"]`,
+      answer: `<p>MSW (Mock Service Worker) intercepts requests at the network layer — same code path as production. The component under test calls <code>fetch</code> / <code>axios</code> normally; MSW returns the canned response. Unlike <code>jest.mock('axios')</code>, you are not mocking the client; you are mocking the wire.</p>
+<pre class="code"><code>// src/test/server.ts — one shared server, reset between tests
+import { setupServer } from 'msw/node';
+import { http, HttpResponse } from 'msw';
+
+export const server = setupServer(
+  // Default handler — overridden per test as needed
+  http.get('/api/orders/:id', ({ params }) =&gt;
+    HttpResponse.json({ id: params.id, status: 'PENDING', total: 0 }),
+  ),
+);
+
+// src/test/setup.ts (referenced from vitest.config.ts)
+import { beforeAll, afterAll, afterEach } from 'vitest';
+import { server } from './server';
+
+beforeAll(() =&gt; server.listen({ onUnhandledRequest: 'error' })); // explicit fail
+afterEach(() =&gt; server.resetHandlers());                          // test isolation
+afterAll(()  =&gt; server.close());</code></pre>
+<pre class="code"><code>// OrderStatus.test.tsx
+import { render, screen } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
+import { server } from '../test/server';
+import { OrderStatus } from './OrderStatus';
+
+it('renders shipped status when API returns SHIPPED', async () =&gt; {
+  server.use(
+    http.get('/api/orders/:id', () =&gt;
+      HttpResponse.json({ id: 'ord-1', status: 'SHIPPED', total: 42 }),
+    ),
+  );
+  render(&lt;OrderStatus orderId="ord-1" /&gt;);
+  expect(await screen.findByRole('status')).toHaveTextContent(/shipped/i);
+});
+
+it('shows an error banner when API returns 500', async () =&gt; {
+  server.use(
+    http.get('/api/orders/:id', () =&gt;
+      new HttpResponse(null, { status: 500 }),
+    ),
+  );
+  render(&lt;OrderStatus orderId="ord-1" /&gt;);
+  expect(await screen.findByRole('alert')).toHaveTextContent(/couldn't load/i);
+});
+
+it('handles network failure (no response at all)', async () =&gt; {
+  server.use(
+    http.get('/api/orders/:id', () =&gt; HttpResponse.error()),
+  );
+  render(&lt;OrderStatus orderId="ord-1" /&gt;);
+  expect(await screen.findByRole('alert')).toHaveTextContent(/offline/i);
+});</code></pre>
+<p><strong>Why MSW beats <code>vi.mock('axios')</code>:</strong></p>
+<ul>
+<li><strong>Same handlers in tests, Storybook, and dev mode.</strong> The same <code>http.get(...)</code> definitions can run as a Service Worker in the browser during local dev — your dev environment uses the same mocks the tests do.</li>
+<li><strong>Catches client-library bugs.</strong> If the component switches from <code>axios</code> to <code>fetch</code>, the test still works. Module mocks don't.</li>
+<li><strong>Status codes, headers, timing</strong> — first-class. <code>HttpResponse.json(body, { status: 429, headers: { 'Retry-After': '60' } })</code> mirrors real APIs.</li>
+</ul>
+<p><strong>Critical config flag</strong>: <code>onUnhandledRequest: 'error'</code>. Without it, an unmatched request returns whatever the real server does (or hangs in CI). With it, every unmatched URL fails the test loudly — exactly what you want.</p>
+<p><strong>Anti-pattern</strong>: defining handlers inside individual tests without <code>server.resetHandlers()</code> after each. Handlers leak across tests and you spend a Friday afternoon bisecting a flake that's actually an isolation bug.</p>`
+    },
+    {
+      id: "b3f1c004-2026-4000-8000-000000000304",
+      q: "Stryker mutation report: what do killed / survived / no-coverage / timeout mean? Fix a survived mutant.",
+      diff: "hard",
+      tags: ["stryker", "mutation-testing", "coverage"],
+      diagram: `graph TB
+  SRC["Source: total > 0"] --> MUT["Stryker generates mutants"]
+  MUT --> M1["Mutant A: total >= 0"]
+  MUT --> M2["Mutant B: total < 0"]
+  MUT --> M3["Mutant C: true"]
+  M1 --> RUN["Tests run<br/>against each mutant"]
+  M2 --> RUN
+  M3 --> RUN
+  RUN --> K["KILLED<br/>(test caught it)<br/>✓ assertions strong"]
+  RUN --> S["SURVIVED<br/>(test missed it)<br/>✗ weak assertion or<br/>missing test case"]
+  RUN --> NC["NO COVERAGE<br/>(no test exercised line)<br/>→ add a test"]
+  RUN --> TO["TIMEOUT<br/>(mutant caused infinite loop)<br/>usually a kill"]`,
+      answer: `<p>Stryker introduces small code changes ("mutants") and re-runs your tests against each one. If a mutant survives, your tests passed on a deliberately broken program — which means an assertion is weak or a test is missing. Score = killed ÷ (killed + survived + timeout) × 100.</p>
+<p>ThoughtWorks Tech Radar (April 2026) flagged mutation testing as the way to "shift focus from how much code is executed to how much code is actually verified" — meaning: 100% line coverage with a 35% mutation score is a much louder signal than the line number suggested.</p>
+<h4>The four outcomes</h4>
+<table>
+<tr><th>Outcome</th><th>Meaning</th><th>Action</th></tr>
+<tr><td><strong>KILLED</strong></td><td>≥ 1 test failed against the mutant. Your assertions caught the change.</td><td>Nothing — this is the goal.</td></tr>
+<tr><td><strong>SURVIVED</strong></td><td>All tests passed against the mutant. Your tests run the line but don't assert what matters about it.</td><td>Strengthen the assertion OR add a missing case.</td></tr>
+<tr><td><strong>NO COVERAGE</strong></td><td>No test exercises the mutated line at all.</td><td>Add a test. Lower priority than survived if the line is genuinely dead.</td></tr>
+<tr><td><strong>TIMEOUT</strong></td><td>Mutant caused an infinite loop / hang. Stryker stops it at <code>timeoutMS</code>.</td><td>Counts as killed (the test would have failed anyway). Investigate only if your real code is timing out too.</td></tr>
+</table>
+<h4>Mutation operators (the most useful ones)</h4>
+<ul>
+<li><strong>Conditional boundary</strong>: <code>&gt;</code> → <code>&gt;=</code>, <code>&lt;</code> → <code>&lt;=</code>. Catches off-by-one assertions.</li>
+<li><strong>Conditional negation</strong>: <code>if (x)</code> → <code>if (!x)</code>. Catches "I tested true but never tested false".</li>
+<li><strong>Arithmetic</strong>: <code>+</code> → <code>-</code>. Catches "I asserted the result is non-zero but never asserted the correct value".</li>
+<li><strong>String literal</strong>: <code>'PENDING'</code> → <code>""</code>. Catches "I check the field exists but not the value".</li>
+<li><strong>Boolean</strong>: <code>return true</code> → <code>return false</code>. Catches "I called the function but never asserted the return".</li>
+</ul>
+<h4>Walking a survived mutant</h4>
+<pre class="code"><code>// Source
+function applyDiscount(total: number, code: string) {
+  if (total &gt; 100 &amp;&amp; code === 'WELCOME10') return total * 0.9;
+  return total;
+}
+
+// Existing test (the one that lets a mutant survive)
+it('applies discount when threshold is met', () =&gt; {
+  expect(applyDiscount(150, 'WELCOME10')).toBeLessThan(150);  // ⚠ weak
+});
+
+// Stryker mutates: total &gt; 100 → total &gt;= 100
+// → mutant survives because we only test with 150, never 100 itself.</code></pre>
+<pre class="code"><code>// Fixed test — adds boundary + asserts exact value
+it('applies 10% discount above 100', () =&gt; {
+  expect(applyDiscount(150, 'WELCOME10')).toBe(135);    // exact value
+  expect(applyDiscount(100, 'WELCOME10')).toBe(100);    // boundary — NOT discounted
+  expect(applyDiscount(101, 'WELCOME10')).toBe(90.9);   // boundary — DISCOUNTED
+});
+// Now both conditional-boundary and arithmetic mutants are killed.</code></pre>
+<h4>CI integration</h4>
+<p>Stryker is expensive (each mutant = full test re-run). Don't run on every PR. Strategy:</p>
+<ul>
+<li><strong>Nightly on main</strong> — full mutation run, ~30 min for 5k LOC.</li>
+<li><strong>Per-PR only on changed files</strong> — <code>stryker run --since main</code> mode. ~2 min budget.</li>
+<li><strong>Threshold gating</strong>: <code>mutationScore.high: 80, low: 60</code> in <code>stryker.conf.json</code>. PR fails if score drops below 60.</li>
+<li><strong>Trend reporting</strong>: Stryker Dashboard or weekly digest. Watching the score trend matters more than the absolute number.</li>
+</ul>
+<p><strong>Anti-pattern</strong>: chasing 100% mutation score. The last 10% is usually <em>equivalent mutants</em> — semantically identical changes Stryker can't distinguish. Disable them via <code>StrykerIgnore</code> comments rather than burn a sprint on them.</p>`
+    },
+    {
+      id: "b3f1c005-2026-4000-8000-000000000305",
+      q: "Property-based testing with fast-check: write a property that catches a boundary bug a unit test would miss.",
+      diff: "hard",
+      tags: ["fast-check", "property-based", "unit"],
+      answer: `<p>Property-based testing flips the model: instead of "test these N inputs", you assert "<em>for all</em> inputs satisfying X, property Y holds". fast-check generates 100s of random inputs per run and <em>shrinks</em> a failing case down to the minimum reproduction.</p>
+<p>Where it earns its place: encoders, parsers, money math, date math, anywhere edge cases hide in the input space combinatorics.</p>
+<pre class="code"><code>// System under test — naive currency rounding
+export function roundCents(amount: number): number {
+  return Math.round(amount * 100) / 100;
+}
+
+// ❌ Example-based test — passes
+it('rounds to 2 decimals', () =&gt; {
+  expect(roundCents(1.234)).toBe(1.23);
+  expect(roundCents(1.235)).toBe(1.24);   // happy
+  expect(roundCents(0)).toBe(0);
+});</code></pre>
+<pre class="code"><code>// ✓ Property-based test — finds the floating-point trap
+import fc from 'fast-check';
+
+it('always rounds to at most 2 decimal places', () =&gt; {
+  fc.assert(
+    fc.property(fc.float({ min: 0, max: 1_000_000, noNaN: true }), (amount) =&gt; {
+      const rounded = roundCents(amount);
+      const decimals = (rounded.toString().split('.')[1] ?? '').length;
+      expect(decimals).toBeLessThanOrEqual(2);
+    }),
+    { numRuns: 1000 },
+  );
+});
+
+// fast-check finds and shrinks:
+// Counterexample: 1.005
+// Expected: decimals &lt;= 2
+// Received: 1.0049999999999999  → 5 decimal places
+// Root cause: 1.005 * 100 = 100.49999... due to IEEE 754
+// (use Math.round((amount * 100) + Number.EPSILON) / 100, or a decimal lib)</code></pre>
+<h4>What "shrinking" buys you</h4>
+<p>When a property fails, fast-check doesn't hand you the failing random input. It hands you the <em>smallest</em> input that still fails — typically 1–3 chars, a single-digit number, an empty array. That makes the bug reproducible in a debugger in under a minute.</p>
+<h4>Useful arbitraries</h4>
+<table>
+<tr><th>Arbitrary</th><th>Use case</th></tr>
+<tr><td><code>fc.integer({ min, max })</code></td><td>Bounded numeric domains</td></tr>
+<tr><td><code>fc.string({ minLength, maxLength })</code></td><td>Parsers, validators</td></tr>
+<tr><td><code>fc.array(fc.integer())</code></td><td>Sort, dedupe, aggregate functions</td></tr>
+<tr><td><code>fc.record({ id: fc.uuid(), age: fc.nat() })</code></td><td>Domain objects</td></tr>
+<tr><td><code>fc.constantFrom('EUR', 'USD', 'GBP')</code></td><td>Enums / discriminated unions</td></tr>
+<tr><td><code>fc.oneof(fc.integer(), fc.string())</code></td><td>Union types — test the discriminator handles both branches</td></tr>
+</table>
+<h4>Property patterns to reach for</h4>
+<ul>
+<li><strong>Round-trip</strong>: <code>decode(encode(x)) === x</code>. Catches encoder asymmetry bugs.</li>
+<li><strong>Idempotence</strong>: <code>f(f(x)) === f(x)</code>. Catches "normalize is not stable".</li>
+<li><strong>Invariant</strong>: <code>sort(arr).length === arr.length</code>. Catches "we silently dropped elements".</li>
+<li><strong>Commutativity</strong>: <code>add(a, b) === add(b, a)</code>. Catches order-dependent bugs.</li>
+<li><strong>Monotonicity</strong>: <code>a &lt;= b → f(a) &lt;= f(b)</code>. Catches ranking/scoring bugs.</li>
+</ul>
+<p><strong>Trade-off</strong>: property-based tests are slower (1000 runs vs 1) and harder to debug when the property itself is wrong. Use them on <em>pure</em> functions and at <em>tight</em> boundaries. Don't try to property-test a Playwright flow — that's not what it's for.</p>
+<p><strong>Anti-pattern</strong>: testing "the function returns a number" — that's the type checker's job, not a property test. Test invariants the type system cannot express: range, order, conservation, parity.</p>`
+    },
+    {
+      id: "b3f1c006-2026-4000-8000-000000000306",
+      q: "Testcontainers: spin up Postgres + Redis for integration tests, seed data, verify isolation between parallel test workers.",
+      diff: "hard",
+      tags: ["testcontainers", "integration", "isolation"],
+      diagram: `graph TB
+  W1["Vitest worker 1"] --> C1["Postgres container :random_port_1"]
+  W2["Vitest worker 2"] --> C2["Postgres container :random_port_2"]
+  W3["Vitest worker 3"] --> C3["Postgres container :random_port_3"]
+  W1 --> R1["Redis container :random_port_4"]
+  W2 --> R2["Redis container :random_port_5"]
+  W3 --> R3["Redis container :random_port_6"]
+  NOTE["Each worker = own ephemeral DB.<br/>No shared state. No cleanup races."] -.-> C1`,
+      answer: `<p>Testcontainers launches real Docker containers (Postgres, Redis, Kafka, Mongo, anything with an image) for the duration of your test run, then tears them down. You test against the real engine, not an in-memory simulator — caught a dozen "works with H2, fails on real Postgres" bugs at every shop I've used it at.</p>
+<pre class="code"><code>// src/test/db-fixture.ts
+import { GenericContainer, StartedTestContainer } from 'testcontainers';
+import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
+import { Pool } from 'pg';
+import { createClient, RedisClientType } from 'redis';
+
+let pg: StartedPostgreSqlContainer;
+let redis: StartedTestContainer;
+export let pool: Pool;
+export let cache: RedisClientType;
+
+export async function startInfra() {
+  // Each worker gets its own pair of containers on random host ports
+  pg = await new PostgreSqlContainer('postgres:16-alpine')
+    .withDatabase('app_test')
+    .withUsername('test')
+    .withPassword('test')
+    .start();
+
+  redis = await new GenericContainer('redis:7-alpine')
+    .withExposedPorts(6379)
+    .start();
+
+  pool = new Pool({ connectionString: pg.getConnectionUri() });
+  cache = createClient({ url: \`redis://\${redis.getHost()}:\${redis.getMappedPort(6379)}\` });
+  await cache.connect();
+
+  // Schema migration — run once per worker
+  await pool.query(await readFile('./migrations/001_init.sql', 'utf-8'));
+}
+
+export async function stopInfra() {
+  await pool.end();
+  await cache.disconnect();
+  await pg.stop();
+  await redis.stop();
+}</code></pre>
+<pre class="code"><code>// vitest.setup.ts — one set of containers per worker, not per test
+import { beforeAll, afterAll, beforeEach } from 'vitest';
+import { startInfra, stopInfra, pool, cache } from './src/test/db-fixture';
+
+beforeAll(startInfra, 60_000);  // 60s timeout — pulling images
+afterAll(stopInfra);
+
+// Per-test isolation: truncate, don't drop+recreate
+beforeEach(async () =&gt; {
+  await pool.query('TRUNCATE orders, users RESTART IDENTITY CASCADE');
+  await cache.flushDb();
+});</code></pre>
+<pre class="code"><code>// example.test.ts — full-stack assertion against real engines
+import { pool, cache } from './src/test/db-fixture';
+import { placeOrder } from './src/orders';
+
+it('writes the order to Postgres and caches the total in Redis', async () =&gt; {
+  await pool.query("INSERT INTO users(id, email) VALUES('u1', 'a@b.c')");
+  const { orderId, total } = await placeOrder('u1', [
+    { sku: 'SKU-1', price: 10, qty: 3 },
+  ]);
+
+  // DB invariant
+  const row = await pool.query('SELECT total FROM orders WHERE id = $1', [orderId]);
+  expect(row.rows[0].total).toBe('30.00');
+
+  // Cache invariant
+  expect(await cache.get(\`order:total:\${orderId}\`)).toBe('30');
+});</code></pre>
+<h4>Parallel-worker isolation</h4>
+<ul>
+<li>Vitest runs tests in worker threads by default. Each worker gets its own port-mapped container pair — there is no sharing.</li>
+<li>Truncate (not drop) between tests inside a worker — schema stays, data resets, ~10 ms vs ~1 s.</li>
+<li><code>RESTART IDENTITY CASCADE</code> resets sequences so primary keys don't drift between tests.</li>
+</ul>
+<h4>Cost guardrails</h4>
+<ul>
+<li><strong>Image pull time</strong> dominates first-run cost. Pin tags (<code>postgres:16-alpine</code>, not <code>postgres:latest</code>) and let CI cache Docker layers.</li>
+<li><strong>Reuse mode</strong>: <code>.withReuse()</code> + <code>testcontainers.properties</code> with <code>testcontainers.reuse.enable=true</code> keeps containers alive across runs in dev — multi-second savings per <code>npm test</code> invocation.</li>
+<li><strong>CI runner sizing</strong>: each parallel worker = ~150 MB Postgres + 30 MB Redis. A 4-worker run wants 1 GB headroom.</li>
+</ul>
+<p><strong>When NOT to reach for Testcontainers</strong>: a pure unit test of a SQL query builder. There you mock the driver. Testcontainers earns its keep when you need real planner behaviour, real ACID, real network — i.e. when you're testing the seam between code and engine.</p>
+<p><strong>Anti-pattern</strong>: one shared container for the whole test suite with manual cleanup. Cleanup races, parallelism dies, you debug "test passes alone, fails in suite" forever.</p>`
     },
   ]
 };
@@ -633,6 +1603,454 @@ LIMIT 10;</code></pre>
 <li>The 1% sample with row-level diff catches per-row drift cheaply; full row-diff on 100M is unnecessary if the aggregates and sample agree.</li>
 </ul>`
     },
+    {
+      id: "b3f1c004-2026-4000-8000-000000000401",
+      q: "MongoDB aggregation pipeline: find the top 3 best-selling products per category. Contrast with SQL window functions.",
+      diff: "hard",
+      tags: ["mongodb", "nosql", "aggregation"],
+      answer: `<p>MongoDB's aggregation pipeline is the NoSQL counterpart to SQL's window functions, GROUP BY, and JOINs — combined into a single declarative chain. Each stage transforms the document stream and feeds the next.</p>
+<pre class="code"><code>// Documents in 'orders' collection
+{ _id, productId, categoryId, productName, qty, price, createdAt }</code></pre>
+<pre class="code"><code>// MongoDB — top 3 best-sellers per category by units sold
+db.orders.aggregate([
+  // 1. Sum units per (category, product)
+  { $group: {
+      _id:    { categoryId: '$categoryId', productId: '$productId' },
+      name:   { $first: '$productName' },
+      sold:   { $sum: '$qty' },
+  }},
+  // 2. Sort within partition: highest sales first
+  { $sort: { '_id.categoryId': 1, sold: -1 } },
+  // 3. Re-group by category, push products into ordered array
+  { $group: {
+      _id:      '$_id.categoryId',
+      products: { $push: { productId: '$_id.productId', name: '$name', sold: '$sold' } },
+  }},
+  // 4. Keep only the first 3 per category
+  { $project: {
+      categoryId: '$_id',
+      top3:       { $slice: ['$products', 3] },
+      _id:        0,
+  }},
+]);</code></pre>
+<pre class="code"><code>-- SQL equivalent — window function
+SELECT category_id, product_id, product_name, sold
+FROM (
+  SELECT
+    category_id, product_id, product_name,
+    SUM(qty) AS sold,
+    ROW_NUMBER() OVER (PARTITION BY category_id ORDER BY SUM(qty) DESC) AS rn
+  FROM orders
+  GROUP BY category_id, product_id, product_name
+) ranked
+WHERE rn &lt;= 3;</code></pre>
+<h4>What's different — what a tester needs to assert</h4>
+<table>
+<tr><th>SQL</th><th>MongoDB</th><th>Test implication</th></tr>
+<tr><td><code>JOIN</code></td><td><code>$lookup</code></td><td>Test that nulls propagate correctly when the right side is missing</td></tr>
+<tr><td><code>GROUP BY</code></td><td><code>$group</code></td><td>Test that missing fields aggregate to 0/null, not throw</td></tr>
+<tr><td>Window functions</td><td>Multi-stage <code>$group</code> + <code>$slice</code></td><td>Test the per-partition cut, not just the global top N</td></tr>
+<tr><td>Stable schema</td><td>Schema drift across versions</td><td>Test that pipelines handle documents missing optional fields</td></tr>
+</table>
+<h4>Test patterns specific to aggregation</h4>
+<ul>
+<li><strong>Empty collection</strong>: pipeline should return <code>[]</code>, not throw. <code>db.orders.deleteMany({}); expect(aggregate(pipeline)).toEqual([])</code>.</li>
+<li><strong>Single-document collection</strong>: top-3 with 1 product should return that 1 product, not error on <code>$slice</code>.</li>
+<li><strong>Missing field</strong>: a document without <code>qty</code> — does <code>$sum</code> treat it as 0 (yes) or skip (no)? Assert which one your business rule wants.</li>
+<li><strong>Tie-breaking</strong>: two products with identical <code>sold</code> count — which is in the top 3? Deterministic? Add <code>productId ASC</code> as the tie-breaker in the <code>$sort</code> stage and assert it.</li>
+<li><strong>Index usage</strong>: <code>db.orders.aggregate(pipeline, { explain: true })</code> should show <code>IXSCAN</code> on the leading <code>$match</code>, not <code>COLLSCAN</code>. CI gate on this for production-critical queries.</li>
+</ul>
+<p><strong>Senior signal</strong>: a junior writes the pipeline; a senior asks "what happens when this runs against 50M documents?". The answer involves <code>$match</code> as stage 1 (use the index), <code>allowDiskUse: true</code> only when necessary, and the <code>$facet</code> stage for parallel aggregations on the same input.</p>
+<p><strong>Anti-pattern</strong>: testing aggregation against a single hand-curated 5-document fixture. The pipeline that works on 5 documents may melt on 5M — test data scale matters. Pair the correctness test with a Testcontainers run against a 1M-row seed for ops-critical pipelines.</p>`
+    },
+    {
+      id: "b3f1c005-2026-4000-8000-000000000402",
+      q: "DynamoDB access patterns: design a table for an order system supporting order-by-user AND order-by-status queries. Pick partition key + GSI.",
+      diff: "hard",
+      tags: ["dynamodb", "nosql", "access-patterns"],
+      diagram: `graph TB
+  PK["Base table<br/>PK: userId<br/>SK: orderId"]
+  GSI1["GSI1: status-createdAt<br/>PK: status<br/>SK: createdAt"]
+  PK -.indexes.-> GSI1
+  Q1["Query: orders by user<br/>Q(PK=userId)"]
+  Q2["Query: PENDING orders this week<br/>Q(GSI1, PK=PENDING, SK between)"]
+  Q3["Query: single order<br/>GetItem(userId, orderId)"]
+  Q1 --> PK
+  Q3 --> PK
+  Q2 --> GSI1`,
+      answer: `<p>DynamoDB punishes you for thinking in SQL. There are no flexible queries — you must design the keys for every access pattern up front. The discipline is called <strong>single-table design</strong>, and the senior heuristic is: list every query you need before you create the table.</p>
+<h4>The two access patterns</h4>
+<ol>
+<li>"All orders for user <code>u-42</code>, newest first."</li>
+<li>"All <code>PENDING</code> orders across the system, oldest first (to dispatch)."</li>
+</ol>
+<h4>Schema</h4>
+<pre class="code"><code>// Base table
+{
+  PK:        "u-42",                           // userId — partition key
+  SK:        "ORDER#2026-06-07T10:15:00#o-1",  // composite sort key
+  status:    "PENDING",
+  total:     142.50,
+  createdAt: "2026-06-07T10:15:00Z",
+  // ... rest of the document
+}
+
+// GSI: status-createdAt-index
+// PK: status, SK: createdAt</code></pre>
+<h4>Query 1 — orders for a user</h4>
+<pre class="code"><code>const res = await ddb.query({
+  TableName: 'orders',
+  KeyConditionExpression: 'PK = :u AND begins_with(SK, :prefix)',
+  ExpressionAttributeValues: { ':u': 'u-42', ':prefix': 'ORDER#' },
+  ScanIndexForward: false,    // newest first
+  Limit: 20,
+});</code></pre>
+<h4>Query 2 — pending orders by age</h4>
+<pre class="code"><code>const res = await ddb.query({
+  TableName: 'orders',
+  IndexName: 'status-createdAt-index',
+  KeyConditionExpression: '#s = :s AND createdAt BETWEEN :from AND :to',
+  ExpressionAttributeNames:  { '#s': 'status' },
+  ExpressionAttributeValues: {
+    ':s':    'PENDING',
+    ':from': '2026-06-01T00:00:00Z',
+    ':to':   '2026-06-07T23:59:59Z',
+  },
+  ScanIndexForward: true,    // oldest first
+  Limit: 100,
+});</code></pre>
+<h4>What QA must verify</h4>
+<ul>
+<li><strong>Hot partition</strong>: if 80% of orders land in <code>status=PENDING</code>, your GSI partition is a hot spot. Test under load and watch CloudWatch metrics — DynamoDB will return <code>ProvisionedThroughputExceededException</code>. Mitigation: <em>write sharding</em> — append <code>#0..9</code> to the status to spread across 10 partitions.</li>
+<li><strong>Sparse index</strong>: only <code>PENDING</code> needs to be queryable by status? Use a sparse index — only items with the attribute appear in the GSI. Saves storage and write costs.</li>
+<li><strong>Eventually consistent reads (GSIs)</strong>: <strong>all GSI reads are eventually consistent</strong>, even if the base table read is strong. A new order may not appear in the GSI for ~100ms. Tests must poll, not assert immediately.</li>
+<li><strong>Single-table joins</strong>: storing user profile and orders in the same table with <code>PK=userId</code>, <code>SK=PROFILE</code> vs <code>SK=ORDER#...</code> = one query gets both. Test the parse logic that demultiplexes them.</li>
+</ul>
+<h4>2026 reality check</h4>
+<p>DynamoDB now supports <strong>multi-region strong consistency for global tables</strong> (announced 2024, GA 2025) — a senior should know this exists, because the historical answer "DynamoDB is eventually consistent across regions" is no longer correct for global tables. Cost ~25% premium.</p>
+<p><strong>Test the eventually-consistent path anyway</strong> — most apps don't pay for global strong consistency, and your tests must validate the polling/retry behaviour at the consistency window.</p>
+<p><strong>Anti-pattern</strong>: <code>Scan</code> for analytics. Scan reads every item in the table — fine on a 1k-row dev table, catastrophic on a 100M production table. If you need analytics, stream the table to S3 + Athena via DynamoDB Streams. The test discipline: <em>any test that uses <code>Scan</code> on a production-shaped table fails the review</em>.</p>`
+    },
+    {
+      id: "b3f1c006-2026-4000-8000-000000000403",
+      q: "Eventual consistency: a write to Service A appears in Service B with up to 50ms lag. Design the test that proves it.",
+      diff: "hard",
+      tags: ["eventual-consistency", "distributed", "async"],
+      diagram: `sequenceDiagram
+  participant T as Test
+  participant A as Service A (writer)
+  participant Q as Event bus / Outbox
+  participant B as Service B (reader)
+  T->>A: POST /orders (create)
+  A->>A: write + emit OrderCreated
+  A->>Q: publish event
+  A-->>T: 201 Created (orderId)
+  Q->>B: deliver event (latency ~50ms)
+  B->>B: project into read model
+  loop poll up to 2s
+    T->>B: GET /orders/:id
+    B-->>T: 404 (not yet) or 200 (consistent)
+  end
+  T->>T: assert eventually 200 + correct state`,
+      answer: `<p>Eventual consistency is not a bug; it is a property. The bug is testing it as if it were strong consistency. The senior pattern is <strong>poll with backoff up to a documented consistency window</strong>, and treat a never-converged read as a real failure.</p>
+<pre class="code"><code>// helpers/eventually.ts — generic eventually-assert helper
+export async function eventually&lt;T&gt;(
+  probe: () =&gt; Promise&lt;T | null&gt;,
+  predicate: (value: T) =&gt; boolean,
+  opts = { timeoutMs: 2000, intervalMs: 25, label: 'condition' },
+): Promise&lt;T&gt; {
+  const start = Date.now();
+  let last: T | null = null;
+  while (Date.now() - start &lt; opts.timeoutMs) {
+    last = await probe();
+    if (last != null && predicate(last)) return last;
+    await new Promise(r =&gt; setTimeout(r, opts.intervalMs));
+  }
+  throw new Error(
+    \`eventually(\${opts.label}) did not converge in \${opts.timeoutMs}ms. Last value: \${JSON.stringify(last)}\`,
+  );
+}</code></pre>
+<pre class="code"><code>// orders-consistency.test.ts
+import { eventually } from './helpers/eventually';
+
+it('order created in Service A is visible in Service B within consistency window', async () =&gt; {
+  // Arrange + act — single write to A
+  const { orderId } = await serviceA.post('/orders', { userId: 'u-1', total: 42 });
+
+  // Assert — poll B until it converges OR timeout fails the test
+  const order = await eventually(
+    () =&gt; serviceB.get(\`/orders/\${orderId}\`).then(r =&gt; r.status === 200 ? r.data : null),
+    o =&gt; o.id === orderId && o.total === 42,
+    { timeoutMs: 2000, intervalMs: 25, label: 'order visible in B' },
+  );
+
+  expect(order.status).toBe('NEW');
+});</code></pre>
+<h4>What the timeout is</h4>
+<ul>
+<li><strong>~4× the documented p99 lag.</strong> If your SLO says "data is consistent in B within 500ms p99", use a 2s timeout. Tight enough to fail fast on a real broken system; generous enough to absorb GC pauses.</li>
+<li>If the timeout is too short, the test is flaky. If it's too long, real propagation failures look like slowness, not bugs.</li>
+</ul>
+<h4>What you must NOT do</h4>
+<ul>
+<li><strong><code>setTimeout(2000)</code> then a single assertion.</strong> That's a sleep, not a poll. Real-system convergence is much faster than your sleep — you slow CI for no reason. And when convergence is slow, the test STILL fails (the sleep didn't help).</li>
+<li><strong>Read-your-own-write on B immediately after writing to A.</strong> That's testing strong consistency, which isn't the contract.</li>
+<li><strong>Polling without a timeout.</strong> A broken event bus = test hangs forever in CI.</li>
+</ul>
+<h4>Causal consistency — the harder case</h4>
+<p>If Service B fans out to C and D, a test for end-to-end propagation needs to either:</p>
+<ol>
+<li>Poll the <em>final</em> read model (D) — but then a failure tells you nothing about <em>where</em> propagation broke.</li>
+<li>Poll each hop and report which one missed convergence. More instrumentation; better diagnosis.</li>
+</ol>
+<p>In a payments pipeline (auth → capture → ledger → notification) the senior choice is option 2 with metrics emitted per hop. Each hop has its own <code>eventually()</code> with its own window. A test that fails at "ledger" tells you the bug is between capture and ledger — not somewhere downstream.</p>
+<p><strong>Property pattern worth knowing</strong>: <em>monotonic read consistency</em>. Once B has returned <code>status=PROCESSING</code>, it must never return <code>status=NEW</code> again. Add an assertion: in a loop of 10 reads, the status is monotonic in your defined state machine. Catches a rare class of "read replica fell behind primary" bugs.</p>`
+    },
+    {
+      id: "b3f1c007-2026-4000-8000-000000000404",
+      q: "Redis cache test: assert invalidation works, TTL is honored, and design defends against cache stampede.",
+      diff: "mid",
+      tags: ["redis", "caching", "stampede"],
+      answer: `<p>Cache testing splits into three concerns: <em>correctness</em> (right value, right TTL), <em>invalidation</em> (stale data doesn't leak), and <em>contention</em> (the cache itself does not become a single point of failure under load).</p>
+<pre class="code"><code>// src/services/orders.ts — read-through cache
+import { redis } from './redis';
+import { db } from './db';
+
+const TTL_SECONDS = 60;
+
+export async function getOrder(orderId: string) {
+  const cacheKey = \`order:\${orderId}\`;
+  const cached = await redis.get(cacheKey);
+  if (cached) return JSON.parse(cached);
+
+  const fresh = await db.fetchOrder(orderId);
+  await redis.setEx(cacheKey, TTL_SECONDS, JSON.stringify(fresh));
+  return fresh;
+}
+
+export async function updateOrder(orderId: string, patch: Partial&lt;Order&gt;) {
+  await db.update(orderId, patch);
+  await redis.del(\`order:\${orderId}\`);    // invalidate
+}</code></pre>
+<pre class="code"><code>import { redis } from './redis';
+import { db } from './db';
+import { getOrder, updateOrder } from './services/orders';
+
+beforeEach(async () =&gt; {
+  await redis.flushDb();
+  vi.spyOn(db, 'fetchOrder');
+});
+
+it('serves from cache on the 2nd read (DB hit count = 1)', async () =&gt; {
+  vi.mocked(db.fetchOrder).mockResolvedValue({ id: 'o-1', total: 42 });
+  await getOrder('o-1');
+  await getOrder('o-1');
+  expect(db.fetchOrder).toHaveBeenCalledTimes(1);
+});
+
+it('invalidates the cache on update', async () =&gt; {
+  vi.mocked(db.fetchOrder)
+    .mockResolvedValueOnce({ id: 'o-1', total: 42 })
+    .mockResolvedValueOnce({ id: 'o-1', total: 99 });
+  await getOrder('o-1');                                  // cache miss
+  await updateOrder('o-1', { total: 99 });                // del
+  expect(await redis.get('order:o-1')).toBeNull();
+  expect(await getOrder('o-1')).toEqual({ id: 'o-1', total: 99 });   // re-cached
+});
+
+it('TTL expires after 60s — uses fake timers', async () =&gt; {
+  vi.useFakeTimers();
+  vi.mocked(db.fetchOrder).mockResolvedValue({ id: 'o-1', total: 42 });
+  await getOrder('o-1');
+  vi.advanceTimersByTime(61_000);
+  await getOrder('o-1');
+  expect(db.fetchOrder).toHaveBeenCalledTimes(2);
+  vi.useRealTimers();
+});</code></pre>
+<h4>Cache stampede — the failure mode you must defend against</h4>
+<p>When a popular key expires, every concurrent request misses cache and slams the DB simultaneously. 1k requests in flight, 1k DB queries, the DB falls over, the cache stays cold. Three defences, pick at least one:</p>
+<ul>
+<li><strong>Single-flight lock</strong> on the cache key — first miss takes a Redis lock (<code>SET key NX PX 5000</code>), refreshes from DB, releases. Other waiters poll the cache until populated.</li>
+<li><strong>Probabilistic early refresh</strong> — refresh the cache before TTL with probability proportional to the time-since-set. By the time TTL hits, the data has likely been refreshed already.</li>
+<li><strong>Stale-while-revalidate</strong> — serve the stale value, kick off an async refresh. Apps where 30s-stale-data is fine (product catalogs, leaderboards) love this; payment systems hate it.</li>
+</ul>
+<pre class="code"><code>// Test for single-flight: 100 concurrent reads on an empty cache → 1 DB hit
+it('only one DB hit when 100 concurrent reads race for a cold cache', async () =&gt; {
+  vi.mocked(db.fetchOrder).mockImplementation(async () =&gt; {
+    await new Promise(r =&gt; setTimeout(r, 20));   // slow DB
+    return { id: 'o-1', total: 42 };
+  });
+  await Promise.all(Array.from({ length: 100 }, () =&gt; getOrder('o-1')));
+  expect(db.fetchOrder).toHaveBeenCalledTimes(1);   // single-flight defence works
+});</code></pre>
+<p><strong>Anti-pattern</strong>: testing the cache with no TTL and no concurrency. Production cache bugs almost never reproduce on a single-threaded happy path; they reproduce under <em>concurrent miss</em> with a slow downstream. The 100-concurrent test above catches the bug the unit test cannot.</p>
+<p><strong>Senior signal</strong>: ask "what is the latency budget on the DB?". If the cache absorbs 95% of traffic and the DB serves the rest at 50ms, your stampede risk is real. If the DB is 200μs and over-provisioned, single-flight is overkill — just expire TTLs at slightly randomized offsets to scatter the misses.</p>`
+    },
+    {
+      id: "b3f1c008-2026-4000-8000-000000000405",
+      q: "Saga pattern: payment → fulfillment → invoice across 3 services. Design tests for the happy path AND rollback.",
+      diff: "hard",
+      tags: ["saga", "distributed", "compensation"],
+      diagram: `flowchart TB
+  START["Order placed"] --> PAY["Payment Service<br/>charge card"]
+  PAY -->|success| FUL["Fulfillment Service<br/>reserve inventory"]
+  PAY -->|failure| END_FAIL["fail order<br/>no compensation needed"]
+  FUL -->|success| INV["Invoice Service<br/>generate invoice"]
+  FUL -->|failure| C_PAY["compensate:<br/>refund payment"]
+  C_PAY --> END_ROLL["order rolled back"]
+  INV -->|success| END_OK["✓ order complete"]
+  INV -->|failure| C_FUL["compensate:<br/>release inventory"]
+  C_FUL --> C_PAY2["compensate:<br/>refund payment"]
+  C_PAY2 --> END_ROLL`,
+      answer: `<p>A saga splits a distributed transaction into a sequence of local transactions, each with a compensating action that undoes it on failure. There is no two-phase commit — failure rollback is by explicit business logic, not by the database. The test discipline is <em>verify the compensating actions actually fire</em>.</p>
+<h4>The four cases to test</h4>
+<table>
+<tr><th>#</th><th>Scenario</th><th>Compensation expected</th></tr>
+<tr><td>1</td><td>All steps succeed</td><td>None — happy path</td></tr>
+<tr><td>2</td><td>Step 1 (payment) fails</td><td>None — nothing to undo</td></tr>
+<tr><td>3</td><td>Step 2 (fulfillment) fails after step 1</td><td>Refund payment</td></tr>
+<tr><td>4</td><td>Step 3 (invoice) fails after steps 1 + 2</td><td>Release inventory + refund payment</td></tr>
+</table>
+<pre class="code"><code>// orchestrator/place-order.test.ts (using Testcontainers + nock for service mocks)
+beforeEach(async () =&gt; { await resetSagaState(); nock.cleanAll(); });
+
+it('case 4: invoice fails — both prior steps are compensated', async () =&gt; {
+  // Arrange — set up successful payment + fulfillment, failing invoice
+  nock(PAYMENT_URL)
+    .post('/charges').reply(200, { chargeId: 'ch-1', status: 'succeeded' })
+    .post('/refunds').reply(200, { refundId: 'rf-1' });
+
+  nock(FULFILLMENT_URL)
+    .post('/reservations').reply(200, { reservationId: 'rs-1' })
+    .delete('/reservations/rs-1').reply(200);
+
+  nock(INVOICE_URL)
+    .post('/invoices').reply(500, { error: 'INVOICE_DB_DOWN' });
+
+  // Act
+  const result = await placeOrder({ userId: 'u-1', items: [{ sku: 'A', qty: 1 }] });
+
+  // Assert — happy path failed
+  expect(result.status).toBe('ROLLED_BACK');
+
+  // Assert — both compensations fired, in REVERSE order
+  expect(nock.isDone()).toBe(true);          // all expected mocks were called
+  const audit = await getSagaAudit(result.sagaId);
+  expect(audit.events.map(e =&gt; e.type)).toEqual([
+    'PAYMENT_CHARGED',
+    'FULFILLMENT_RESERVED',
+    'INVOICE_FAILED',
+    'FULFILLMENT_RELEASED',   // compensation 1
+    'PAYMENT_REFUNDED',       // compensation 2 (reverse order)
+  ]);
+});</code></pre>
+<h4>The two non-obvious things to test</h4>
+<ul>
+<li><strong>Idempotency of compensations.</strong> The orchestrator may retry a compensation if it crashes mid-rollback. Refunding twice is a real-money bug. Every compensation handler must accept an idempotency key.
+<pre class="code"><code>it('refund is idempotent across orchestrator retries', async () =&gt; {
+  nock(PAYMENT_URL).post('/refunds').times(3).reply(200, { refundId: 'rf-1' });
+  // Simulate 3 crashes that each retry the same compensation
+  await runCompensation({ idempotencyKey: 'saga-1-step-3', amount: 42 });
+  await runCompensation({ idempotencyKey: 'saga-1-step-3', amount: 42 });
+  await runCompensation({ idempotencyKey: 'saga-1-step-3', amount: 42 });
+  // The DOWNSTREAM (Payment service) must dedupe by idempotency key.
+  expect(await getRefundsForUser('u-1')).toHaveLength(1);
+});</code></pre>
+</li>
+<li><strong>What happens if compensation itself fails.</strong> The refund API returns 500 forever. Saga state must end up in a manual-intervention state, not a retry loop. Tests verify the state transitions to <code>NEEDS_HUMAN</code> and emits an alert.</li>
+</ul>
+<h4>State persistence — non-negotiable</h4>
+<p>The orchestrator's state must be persisted at every step. If the orchestrator crashes between "payment charged" and "fulfillment called", on restart it needs to know to compensate the payment. Tests verify this by force-killing the process (SIGKILL, not graceful) and asserting that on restart the saga resumes from the right state.</p>
+<p><strong>Senior signal</strong>: ask "what does the audit log show for a failed saga?". If the answer is "the last step's error message", the design is wrong — you need the full event timeline (started, succeeded, failed, compensated) per step, with timestamps and correlation IDs. Forensic readability matters more than line coverage on this code.</p>
+<p><strong>Anti-pattern</strong>: testing only the happy path with mocked services that always return 200. You will ship a system that has never executed a compensation in test, then a payment provider has a regional outage and you discover the compensation code throws a TypeError on second-day-of-deployment.</p>`
+    },
+    {
+      id: "b3f1c009-2026-4000-8000-000000000406",
+      q: "k6 load test: ramp 0→100 VUs over 2 min, assert p95 < 1s and error rate < 0.1%. Show the full script.",
+      diff: "hard",
+      tags: ["k6", "performance", "load"],
+      answer: `<p>k6 is the canonical 2026 load tool because the script <em>is</em> JavaScript — your QA team can read it, reviewers understand it, and the thresholds feature turns "did the system meet its SLO?" into a pass/fail boolean in CI.</p>
+<pre class="code"><code>// load/orders-place.js — full script
+import http from 'k6/http';
+import { check, sleep } from 'k6';
+import { Trend, Rate } from 'k6/metrics';
+
+const placeLatency = new Trend('place_order_ms', true);
+const placeErrors  = new Rate('place_order_errors');
+
+export const options = {
+  // Stage definition: how the load shape evolves
+  stages: [
+    { duration: '30s', target: 20  },   // warm up
+    { duration: '60s', target: 100 },   // ramp to peak
+    { duration: '30s', target: 100 },   // hold peak
+    { duration: '30s', target: 0   },   // cool down
+  ],
+  // Pass/fail criteria — CI gate
+  thresholds: {
+    http_req_duration:               ['p(95)&lt;1000', 'p(99)&lt;2500'],  // ms
+    'http_req_failed{expected:true}':['rate&lt;0.001'],                 // < 0.1%
+    place_order_ms:                  ['p(95)&lt;800'],                  // tighter for the SUT
+    place_order_errors:              ['rate&lt;0.005'],
+  },
+  // Send the result to a dashboard
+  ext: { loadimpact: { name: 'place-order daily' } },
+};
+
+const BASE = __ENV.BASE_URL || 'https://staging.api.acme.test';
+const TOKEN = __ENV.LOAD_TOKEN;   // ephemeral test token, never prod credential
+
+export default function () {
+  // Each VU gets a unique payload — no cross-VU state pollution
+  const idempotencyKey = \`load-\${__VU}-\${__ITER}-\${Date.now()}\`;
+  const res = http.post(\`\${BASE}/orders\`, JSON.stringify({
+    userId: \`u-load-\${__VU}\`,
+    items:  [{ sku: 'LOAD-SKU', qty: 1 }],
+  }), {
+    headers: {
+      'Content-Type':    'application/json',
+      'Authorization':   \`Bearer \${TOKEN}\`,
+      'Idempotency-Key': idempotencyKey,
+    },
+    tags: { expected: 'true' },
+  });
+
+  const ok = check(res, {
+    'status is 201':           (r) =&gt; r.status === 201,
+    'has orderId':             (r) =&gt; !!r.json('orderId'),
+    'response under 1s':       (r) =&gt; r.timings.duration &lt; 1000,
+  });
+
+  placeLatency.add(res.timings.duration);
+  placeErrors.add(!ok);
+
+  sleep(1);   // think time — not a delay against the SUT
+}</code></pre>
+<h4>What "p95 < 1s" actually means</h4>
+<ul>
+<li>k6 measures from request send to response receipt. Network → load balancer → app → DB → return.</li>
+<li>p95 is the 95th-percentile latency. It is <strong>not</strong> the average. A system that averages 200ms but has 6% of requests at 2s fails p95 = 1s and that's the right behaviour.</li>
+<li>p95 and p99 together tell you the tail story. A system with p95=500ms / p99=600ms is healthy. p95=500ms / p99=8s is a queueing problem in disguise.</li>
+</ul>
+<h4>CI integration</h4>
+<pre class="code"><code># .github/workflows/load-test.yml
+- name: Run k6 nightly load test
+  uses: grafana/k6-action@v0.3
+  with:
+    filename: load/orders-place.js
+    flags: --quiet --out json=results.json
+  env:
+    BASE_URL:   \${{ secrets.STAGING_API_URL }}
+    LOAD_TOKEN: \${{ secrets.LOAD_TEST_TOKEN }}
+# If any threshold fails, k6 exit-codes non-zero and the workflow fails.</code></pre>
+<h4>What QA must own</h4>
+<ul>
+<li><strong>The thresholds.</strong> They are the SLO in code. When product wants a faster p95, the threshold changes — and the test will fail until the engineering work is done. That's the lever.</li>
+<li><strong>Realistic data shapes.</strong> Hitting <code>/orders</code> with the same single SKU is not load — it's a single-cache-line benchmark. Inject realistic SKU/qty/userId variety via <code>SharedArray</code>.</li>
+<li><strong>Cleanup.</strong> Load tests create real rows. Either run against an ephemeral env or include a teardown that uses an idempotency-tag to delete the load-created data.</li>
+</ul>
+<p><strong>Anti-pattern</strong>: load testing the staging environment, then declaring the prod SLO met. Stage capacity ≠ prod capacity. The right move: run against prod-shaped infra at scaled-down load and project, or run a controlled shadow-traffic test on prod with feature-flag isolation.</p>`
+    },
   ]
 };
 
@@ -692,14 +2110,38 @@ OWNER: &lt;name&gt;        DATE: &lt;yyyy-mm-dd&gt;       STATUS: Proposed | Tri
       q: "How do you anchor a proposal in external benchmarks (without being pretentious)?",
       diff: "mid",
       tags: ["improvement", "research"],
-      answer: `<ul>
-<li><strong>Quote sources, don't lean on them</strong> — "DORA shows elite teams have lead time &lt; 1 day; we're at 6 days." One number, one source.</li>
-<li><strong>Prefer benchmarks the audience trusts</strong> — DORA / State of DevOps, State of Testing, ISTQB body of knowledge, well-known engineering blogs in your domain.</li>
-<li><strong>Adapt, don't import</strong> — "Spotify squads" verbatim almost always fails. Take the principle, fit the context.</li>
-<li><strong>Show that you considered alternatives</strong> — "We could do A, B, or C; B fits because…" Demonstrates rigor.</li>
-<li><strong>Acknowledge limits</strong> — "This benchmark is from B2C SaaS; we're B2B regulated. Here's what still applies."</li>
+      answer: `<p>External evidence supports judgment — it doesn't replace it. The senior move is: cite the strongest benchmark you have, attach <em>your</em> current number, propose <em>your</em> target. One paragraph beats a deck.</p>
+<h4>The primary benchmark in 2026: DORA</h4>
+<p>For delivery health, the DORA report (annual, published by Google's DevOps Research and Assessment team) is the single most-cited and most-respected source at the exec level. Use it as your default.</p>
+<table>
+<tr><th>Metric</th><th>Where you find it</th><th>Cite as</th></tr>
+<tr><td>Lead time for changes</td><td>git API + CI deploy log</td><td>"DORA elite: &lt; 1 day. We are at 6.2 days p50. Target: 2 days by Q4."</td></tr>
+<tr><td>Deployment frequency</td><td>release tags / feature-flag service</td><td>"DORA elite: multiple per day. We deploy 3x / week. Target: daily by EOY."</td></tr>
+<tr><td>Change failure rate</td><td>incident tracker tagged "caused by deploy"</td><td>"DORA elite: 0–5%. We are at 11%. Target: &lt; 8%."</td></tr>
+<tr><td>MTTR</td><td>incident tracker</td><td>"DORA elite: &lt; 1 hour. We are at 4.5 hours. Target: &lt; 2 hours."</td></tr>
+</table>
+<p><strong>How to extract it without a vendor tool</strong>: GitHub CLI + jq + your incident tracker's API. A weekend's work; you don't need to pay for a DORA dashboard product to start the conversation.</p>
+<h4>Other benchmarks worth knowing — and when</h4>
+<ul>
+<li><strong>State of Testing</strong> (PractiTest, annual). Useful for "our automation coverage on critical paths is X% vs the survey median Y%". Treat as directional, not authoritative.</li>
+<li><strong>ISTQB body of knowledge</strong>. Useful for regulated / EU enterprise audiences where formal certification is a baseline expectation.</li>
+<li><strong>ThoughtWorks Tech Radar</strong>. Useful for tool / practice signals — "Tech Radar moved property-based testing to Adopt in 2026" is a real talking point.</li>
+<li><strong>Engineering blogs from peer companies</strong>. Most credible when from a company in your sector at your scale.</li>
 </ul>
-<p>External evidence supports judgment — it doesn't replace it. Bring the data and own the recommendation.</p>`
+<h4>The format that lands</h4>
+<pre class="code"><code>One paragraph, four sentences:
+
+"[Benchmark] reports [number] for [our band]. We are at [our number].
+The gap is [X]. I propose we target [our number → new number] over
+[time window] by [the one thing we will do]. Risk: [what could go wrong]."</code></pre>
+<h4>Failure modes to avoid</h4>
+<ul>
+<li><strong>Quoting the headline number out of context.</strong> "Elite teams deploy daily" without "we are a regulated B2B with monthly release ceremonies" reads as naive. Always show you understand the gap between the benchmark's cohort and yours.</li>
+<li><strong>Borrowing a label.</strong> "Let's do Spotify Squads" almost always fails — the label travels, the context doesn't. Take the principle, fit the context.</li>
+<li><strong>Citing without your own number.</strong> "DORA shows elite teams have lead time &lt; 1 day" is decoration unless you say what your lead time actually is. Quote sources; lean on your own data.</li>
+<li><strong>Treating one benchmark as ground truth.</strong> DORA measures delivery; State of Testing measures testing practice; the two won't always agree on a single org. Pick the one that fits the conversation.</li>
+</ul>
+<p><strong>Senior signal</strong>: the proposal that wins always names the benchmark, the current value, the target, the lever, and the risk — in that order. Five lines, not five slides.</p>`
     },
     {
       id: "666d3507-3437-4180-b4c0-6c9074bee8c9",
@@ -824,6 +2266,239 @@ End of June. Otherwise H2 plan slips one quarter.</code></pre>
 <li>Tied to business metrics, not QA vanity metrics.</li>
 </ul>
 <p><strong>How to use it:</strong> walk in with this on one page printed, walk out with a yes/no/maybe in 15 minutes. Don't ship a 12-slide deck.</p>`
+    },
+    {
+      id: "b3f1c005-2026-4000-8000-000000000501",
+      q: "Calculate DORA metrics for your team from CI + git. What do the four numbers tell you, and where do they lie in 2026?",
+      diff: "hard",
+      tags: ["dora", "metrics", "delivery"],
+      diagram: `flowchart LR
+  GIT["git: commits + PRs"] --> LT["Lead Time<br/>commit → prod"]
+  CI["CI: deploys"] --> DF["Deployment Frequency<br/>deploys / day"]
+  INC["incidents: failures + rollbacks"] --> CFR["Change Failure Rate<br/>% deploys causing incident"]
+  INC --> MTTR["MTTR<br/>incident start → resolved"]
+  LT --> ELITE{"Elite vs<br/>High vs<br/>Medium vs<br/>Low"}
+  DF --> ELITE
+  CFR --> ELITE
+  MTTR --> ELITE`,
+      answer: `<p>DORA (DevOps Research and Assessment) measures four delivery outcomes. They're the most defensible "is our team healthy?" lens in 2026, because they tie engineering work to business impact (frequency × stability) instead of vanity metrics (commits, story points).</p>
+<h4>The four numbers — what, where from, how</h4>
+<table>
+<tr><th>Metric</th><th>Definition</th><th>Source</th><th>How to compute</th></tr>
+<tr><td><strong>Lead Time for Changes</strong></td><td>From commit to production</td><td>git + CI/CD audit log</td><td>per merged PR: <code>deploy_to_prod_timestamp − first_commit_timestamp</code>. Aggregate p50, p95 weekly.</td></tr>
+<tr><td><strong>Deployment Frequency</strong></td><td>Successful prod deploys per day</td><td>CI/CD or feature-flag service</td><td>count of <code>release</code> events in a window; per-team, per-service.</td></tr>
+<tr><td><strong>Change Failure Rate</strong></td><td>% of deploys that cause a degradation</td><td>incident tracker + CI/CD</td><td><code>(deploys_causing_incident_or_rollback) / (total_deploys)</code> over 30 days. "Caused" needs a clear tag policy.</td></tr>
+<tr><td><strong>MTTR (Failed-Deployment Recovery Time)</strong></td><td>Restore time after an incident or failed deploy</td><td>incident tracker</td><td>per incident: <code>resolved_at − detected_at</code>. Median, not average (1 long incident skews the mean).</td></tr>
+</table>
+<h4>The 2026 performance bands (DORA's own thresholds)</h4>
+<table>
+<tr><th>Band</th><th>Lead Time</th><th>Deploy Freq</th><th>Change Fail Rate</th><th>MTTR</th></tr>
+<tr><td>Elite</td><td>&lt; 1 day</td><td>multiple / day</td><td>0–5%</td><td>&lt; 1 hour</td></tr>
+<tr><td>High</td><td>1 day – 1 week</td><td>1 / day – 1 / week</td><td>5–10%</td><td>&lt; 1 day</td></tr>
+<tr><td>Medium</td><td>1 week – 1 month</td><td>1 / week – 1 / month</td><td>10–15%</td><td>1 day – 1 week</td></tr>
+<tr><td>Low</td><td>&gt; 1 month</td><td>&lt; 1 / month</td><td>&gt; 15%</td><td>&gt; 1 week</td></tr>
+</table>
+<pre class="code"><code># Minimal extraction with GitHub CLI + jq — feed into a Grafana dashboard
+# Lead time per PR (merged in last 30 days)
+gh pr list --state merged --search "merged:&gt;$(date -v-30d +%Y-%m-%d)" --json mergedAt,createdAt \\
+  | jq '.[] | { lead_minutes: ((.mergedAt | fromdate) - (.createdAt | fromdate)) / 60 }'
+
+# Deployment frequency — assumes prod deploy = release tag
+git log --since="30 days ago" --tags --simplify-by-decoration --pretty="format:%cI %d" \\
+  | grep "prod-" | wc -l</code></pre>
+<h4>Where the numbers lie — the 2026 caveat</h4>
+<p>DORA itself flagged in 2025–2026 that two of the four metrics degrade under AI-assisted development:</p>
+<ul>
+<li><strong>Deployment Frequency rises</strong> while Change Failure Rate quietly creeps up — AI-assisted PRs ship faster than they're reviewed. Track both, not just frequency, or you'll claim "elite" while quality drops.</li>
+<li><strong>Lead Time falls</strong> because PR size shrinks, while time-to-incident-detection rises (smaller PRs make root cause harder). Pair with "time to detect" if AI assistance is a meaningful share of your codebase.</li>
+</ul>
+<h4>How to act on them as a senior QA</h4>
+<ul>
+<li><strong>Change Failure Rate trending up + escape rate up = your test gate is leaking.</strong> Investigate per-area: which service is responsible for the rise? Where are the test layers thin?</li>
+<li><strong>Lead Time up + Deploy Frequency down = pipeline / review bottleneck</strong>, not a quality bottleneck. Don't propose more tests.</li>
+<li><strong>MTTR up = observability or runbook gap</strong>, not necessarily a test gap. Drive instrumentation investment, not test investment.</li>
+</ul>
+<p><strong>Senior signal</strong>: cite the DORA band you're in, the trend (improving/stable/degrading), and ONE proposed lever. Naming the metrics without the trend or the lever is just executive bingo.</p>
+<p><strong>Anti-pattern</strong>: gaming the numbers. Splitting commits to inflate deploy frequency, or downgrading incident severity to lower change failure rate. Both ship a story to leadership that doesn't match reality. The metrics are most useful when they make you uncomfortable.</p>`
+    },
+    {
+      id: "b3f1c006-2026-4000-8000-000000000502",
+      q: "Design a QA community of practice: charter, cadence, deliverables, success metric. Why CoP beats centre-of-excellence in 2026.",
+      diff: "mid",
+      tags: ["community-of-practice", "influence"],
+      answer: `<p>DORA's 2026 research is unambiguous: <em>communities of practice (CoP) outperform centres of excellence (CoE)</em> on delivery outcomes. CoEs concentrate authority, slow change, and create gatekeeping; CoPs distribute expertise, accelerate change, and create network effects.</p>
+<h4>Charter — one page</h4>
+<pre class="code"><code># QA Community of Practice — Charter
+
+Purpose
+  Share QA expertise across team boundaries to lift the floor and
+  raise the ceiling, without becoming a gate on anyone's work.
+
+Membership
+  Open. At least one QA voice from each delivery team, with rotating
+  attendance. Engineers welcome — testability is everyone's job.
+
+Out of scope
+  - Approving / blocking releases (teams own that)
+  - Mandating frameworks (we recommend, teams choose)
+  - Owning team test suites (teams own theirs)
+
+Sponsorship
+  Director of Engineering. Sponsor attends quarterly, defends the
+  group's time investment to leadership.
+
+Decision rights
+  - Recommend: yes (e.g. "we recommend Vitest over Jest for new TS work")
+  - Mandate:   no
+  - Veto:      no</code></pre>
+<h4>Cadence</h4>
+<table>
+<tr><th>What</th><th>When</th><th>Output</th></tr>
+<tr><td>30-min sync</td><td>Weekly</td><td>1 lightning topic (15 min) + 1 problem brought by a team (15 min)</td></tr>
+<tr><td>Deep-dive workshop</td><td>Monthly</td><td>1 hour, 1 topic with hands-on (Stryker, Pact, k6 thresholds)</td></tr>
+<tr><td>Retro on the CoP itself</td><td>Quarterly</td><td>are we delivering value? what to change?</td></tr>
+<tr><td>External speaker</td><td>Quarterly</td><td>30 min talk from another team / company / OSS maintainer</td></tr>
+</table>
+<h4>Deliverables (the non-meeting work)</h4>
+<ul>
+<li><strong>Living playbook</strong> in the wiki: "how we test X" for each shared concern (auth, payments, eventually-consistent reads, mobile). Owned collectively, edited freely.</li>
+<li><strong>Tool recommendations</strong>: not mandates. "We recommend Vitest for new TS projects; here's why; here's a 1-day migration guide for existing Jest." Teams choose.</li>
+<li><strong>Internal "test conference"</strong> once a year: half day, lightning talks from teams. Cheap to organise, builds enormous goodwill.</li>
+<li><strong>Mentoring pairs</strong>: a junior in one team paired with a senior in another for 1 hr / 2 weeks. Cross-pollinates patterns better than any document.</li>
+</ul>
+<h4>Success metric</h4>
+<p>The only honest metric: <strong>are practices spreading?</strong> Three concrete proxies:</p>
+<ol>
+<li><strong>Cross-team PR reviews</strong>: % of PRs reviewed by someone outside the author's team. Up = the CoP is creating relationships that produce review traffic.</li>
+<li><strong>Tool adoption</strong>: of the patterns the CoP recommended, how many teams adopted within 6 months? Target ≥ 50%.</li>
+<li><strong>Repeat attendance</strong>: of regulars, what % attend ≥ 60% of syncs? Below 50% means the CoP isn't earning its hour.</li>
+</ol>
+<h4>How a CoP fails</h4>
+<ul>
+<li><strong>Becomes a gatekeeper.</strong> The moment the CoP can <em>block</em> a team's choice, it's a CoE in disguise. Watch this drift carefully.</li>
+<li><strong>Founder dependency.</strong> If the syncs only happen when one person calls them, you don't have a community.</li>
+<li><strong>Topics get stale.</strong> Without external speakers and fresh problems, attendance collapses in ~6 months.</li>
+<li><strong>No exec air cover.</strong> Without a sponsor defending the time budget, the CoP gets cut in the next planning crunch.</li>
+</ul>
+<p><strong>Centre-of-excellence comparison</strong>:</p>
+<table>
+<tr><th></th><th>CoE</th><th>CoP</th></tr>
+<tr><td>Authority</td><td>Centralised, can mandate</td><td>Distributed, can only recommend</td></tr>
+<tr><td>Speed</td><td>Slow — adds review gates</td><td>Fast — teams self-serve</td></tr>
+<tr><td>Adoption</td><td>Compliance, often grudging</td><td>Pull-driven, sticks</td></tr>
+<tr><td>Risk</td><td>Bottleneck on the experts</td><td>Drifts without active stewards</td></tr>
+<tr><td>DORA finding (2026)</td><td>Net negative on delivery</td><td>Net positive on delivery</td></tr>
+</table>
+<p><strong>Anti-pattern</strong>: a CoP that produces meeting notes and nothing else. The output of a healthy CoP is changed behaviour in other teams — measurably. If you cannot point to a concrete adoption story, you're running a book club, not a CoP.</p>`
+    },
+    {
+      id: "b3f1c007-2026-4000-8000-000000000503",
+      q: "Blameless postmortem on a P0 escape: facilitate it so it changes systems, not people. Walk through the structure.",
+      diff: "hard",
+      tags: ["postmortem", "incident", "facilitation"],
+      diagram: `flowchart TB
+  PREP["Pre-read 24h before<br/>(timeline + raw facts)"] --> KICKOFF["Kickoff<br/>Prime Directive read aloud"]
+  KICKOFF --> TIMELINE["Walk the timeline<br/>'what happened, then what?'"]
+  TIMELINE --> WHY["Why × 5<br/>(systems, not people)"]
+  WHY --> CONTRIB["Contributing factors<br/>(no single root cause)"]
+  CONTRIB --> ACTIONS["Action items<br/>each: SMART + owner + date"]
+  ACTIONS --> FOLLOWUP["30-day follow-up<br/>did actions land?"]`,
+      answer: `<p>A blameless postmortem treats the incident as a property of the system, not of any individual. Done well, it changes how the system behaves. Done badly, it punishes the person on shift and the next incident is hidden.</p>
+<h4>The Prime Directive</h4>
+<p>Read this at the top of every postmortem, verbatim:</p>
+<blockquote style="border-left: 3px solid var(--accent); padding: 0 12px; margin: 8px 0;">
+"Regardless of what we discover, we understand and truly believe that everyone did the best job they could, given what they knew at the time, their skills and abilities, the resources available, and the situation at hand." — Norm Kerth
+</blockquote>
+<p>Not decoration. It changes the room.</p>
+<h4>Pre-read (24h before)</h4>
+<ul>
+<li>Timeline of events, raw — start of issue, detection time, escalations, mitigations, resolution. With timestamps and Slack/PagerDuty links.</li>
+<li>Customer impact (count + duration + severity).</li>
+<li>What was working / not working in monitoring.</li>
+<li>No analysis yet. Just facts.</li>
+</ul>
+<h4>Facilitator's running order (60–75 min)</h4>
+<ol>
+<li><strong>5 min — Read the Prime Directive.</strong> Out loud. Yes, every time.</li>
+<li><strong>5 min — Recap impact.</strong> Number of users, dollars, downtime. The cost we are learning from.</li>
+<li><strong>20 min — Walk the timeline.</strong> Facilitator reads each event aloud, asks "what happened, then what?" — fill gaps. Resist "why" until next phase.</li>
+<li><strong>20 min — Contributing factors.</strong> Plural. Five-whys per factor, applied to <em>systems</em> not people. "The deploy bypassed canary because the canary stage was skipped" → "why was it skipped?" → "because the YAML default flips when the previous stage fails" → "why does it flip silently?" → "no test covers the fallback path."</li>
+<li><strong>15 min — Action items.</strong> Each must be SMART (Specific, Measurable, Achievable, Relevant, Time-bound), with a named owner and a date. No "review later" or "look into".</li>
+<li><strong>5 min — Recap + close.</strong> Reread the action list. Confirm owners agree. Schedule 30-day follow-up.</li>
+</ol>
+<h4>Language patterns that keep it blameless</h4>
+<table>
+<tr><th>Avoid</th><th>Use instead</th></tr>
+<tr><td>"Alice pushed without canary"</td><td>"The deployment process allowed a push without canary"</td></tr>
+<tr><td>"Why didn't anyone notice?"</td><td>"What signal would have surfaced this earlier?"</td></tr>
+<tr><td>"Human error"</td><td>"What in the system led the person to that action?"</td></tr>
+<tr><td>"Should have known"</td><td>"What information was visible at decision time?"</td></tr>
+</table>
+<h4>Action item taxonomy</h4>
+<ul>
+<li><strong>Preventive</strong>: changes that make the same incident impossible. Highest value. Example: <em>"add a CI check that fails any deploy YAML missing the canary stage."</em></li>
+<li><strong>Detective</strong>: changes that make the same incident faster to spot. Medium value. Example: <em>"alert when canary stage is skipped, not just when it fails."</em></li>
+<li><strong>Restorative</strong>: changes that make recovery faster. Medium value. Example: <em>"runbook step to roll back this deploy class added to the on-call wiki."</em></li>
+<li><strong>Process</strong>: changes to how we work. Use sparingly — they're the easiest to write and the hardest to enforce.</li>
+</ul>
+<h4>What QA owns specifically</h4>
+<ul>
+<li>The "what test layer could have caught this?" question. Answer must be specific: "a contract test on the upstream payload would have caught the schema drift". If the answer is "more tests", that's not an answer.</li>
+<li>The traceability from the new test back to the incident — link the test ID to the incident ID in the comment. Future you will thank present you.</li>
+<li>The 30-day follow-up: did the test land? Has it been removed or quarantined? An action item that quietly dies in 60 days is a failure of the process, not the engineer.</li>
+</ul>
+<p><strong>Anti-pattern</strong>: postmortem-as-blame-ritual where the on-call engineer narrates their decisions while others judge. A team that does this once won't volunteer for on-call again, and the next incident gets quietly buried. The Prime Directive isn't HR theatre — it's why you'll hear about the next incident at all.</p>`
+    },
+    {
+      id: "b3f1c008-2026-4000-8000-000000000504",
+      q: "Set Q3 OKRs for the QA function: 3 Objectives, 2 KRs each, all quantified, all defensible at exec level.",
+      diff: "hard",
+      tags: ["okrs", "goals", "strategy"],
+      answer: `<p>QA OKRs done badly read like task lists ("write more tests"). Done well, they tie testing investment to business outcomes the exec recognises: time-to-market, customer impact, infrastructure cost.</p>
+<h4>The three objectives — each is a sentence about an outcome, not an activity</h4>
+<h4>O1 — Ship faster without lowering the quality floor</h4>
+<ul>
+<li><strong>KR1.1</strong>: median PR-to-prod lead time falls from 26 hours to ≤ 12 hours.<br/>
+  <em>Source</em>: GitHub API + deployment audit log. <em>Risk</em>: lead time can fall while change-fail rate rises — KR1.2 guards this.</li>
+<li><strong>KR1.2</strong>: change failure rate stays ≤ 8% (current 7.2%).<br/>
+  <em>Source</em>: incident tracker tagged "caused by deploy". <em>Why this matters</em>: prevents O1 from becoming a "ship faster, break more" trap.</li>
+</ul>
+<h4>O2 — Reduce production escapes on high-value customer journeys</h4>
+<ul>
+<li><strong>KR2.1</strong>: defect escape rate on top-5 user journeys (login, checkout, search, account-settings, support-ticket) falls from 6.4% to ≤ 3%.<br/>
+  <em>Source</em>: monthly QA review of prod incidents tagged by journey. <em>Why specific journeys</em>: the absolute number hides the bad spots — 6.4% total may include 18% on checkout.</li>
+<li><strong>KR2.2</strong>: mean-time-to-detect on these journeys falls from 47 min to ≤ 15 min.<br/>
+  <em>Source</em>: detection time (first alert → first triage) in the incident tracker. <em>Why this matters</em>: catching faster is half of customer-impact reduction.</li>
+</ul>
+<h4>O3 — Make the test suite an asset, not a tax</h4>
+<ul>
+<li><strong>KR3.1</strong>: end-to-end CI time falls from 38 min p95 to ≤ 18 min p95, without reducing test count.<br/>
+  <em>Source</em>: CI dashboard. <em>How</em>: parallelisation, sharding, contract tests replacing E2E coverage on stable paths.</li>
+<li><strong>KR3.2</strong>: rolling 4-week flakiness rate drops from 4.1% to ≤ 1.5% on the critical-path suite.<br/>
+  <em>Source</em>: CI metrics. <em>Why this matters</em>: high flakes erode test trust and ultimately get the suite ignored.</li>
+</ul>
+<h4>Why these work at the exec level</h4>
+<ul>
+<li><strong>Every KR has a number, a current value, and a source.</strong> Disagreement happens about the targets, not the existence of the metric.</li>
+<li><strong>Each Objective ties to a business concern</strong> a non-QA leader cares about — speed, customer experience, cost.</li>
+<li><strong>The Objectives have built-in tension</strong> (faster + safer + cheaper). Honest tension prevents goodharting any single metric.</li>
+<li><strong>The metrics are tracked daily on the dashboard already.</strong> No new tooling = no excuse not to report.</li>
+</ul>
+<h4>The conversation when leadership says "make the targets more ambitious"</h4>
+<p>Use the data you already have:</p>
+<ul>
+<li>"Lead time from 26h to 12h is the 75th-percentile improvement in the State of DevOps 2025 cohort for our band — moving to 4h would put us in the top 5% and requires investment we haven't budgeted."</li>
+<li>"Escape rate from 6.4% to 3% halves customer impact. Going to 1% means doubling QA capacity or accepting a 40% throughput drop. Pick which trade-off you want."</li>
+</ul>
+<p>The senior move is not to argue against ambition — it's to make the cost of each level of ambition concrete enough that the exec picks.</p>
+<h4>What NOT to put in OKRs</h4>
+<ul>
+<li><strong>"Achieve 90% test coverage."</strong> Vanity. Coverage can rise while assertions weaken. (Mutation score is a better metric and even that doesn't belong as an OKR.)</li>
+<li><strong>"Implement framework X."</strong> Activity, not outcome. The exec doesn't care what you used; they care what changed.</li>
+<li><strong>"Improve QA team morale."</strong> Important, doesn't belong here. Use eNPS in HR's domain.</li>
+<li><strong>"Reduce P0 incidents."</strong> Too dependent on what the rest of the org ships. Use escape rate normalised to delivery volume instead.</li>
+</ul>
+<p><strong>Anti-pattern</strong>: 7 Objectives with 5 KRs each. The team can't prioritise; everything is a top priority means nothing is. Three Objectives is plenty for a quarter. If you have more, you have a list, not a focus.</p>`
     },
   ]
 };

@@ -1,6 +1,6 @@
 # QA Interview Prep — Senior Automation
 
-A personal study app for senior QA Automation Engineer interviews. **~155 questions across 18 categories with full model answers** including TypeScript / Playwright / SQL code examples. Built as a Vite + React + TypeScript single-page app — runs in any modern browser, deploys anywhere static.
+A personal study app for senior QA Automation Engineer interviews. **~180 questions across 18 categories with full model answers** including TypeScript / Playwright / SQL code examples. Built as a Vite + React + TypeScript single-page app — runs in any modern browser, deploys anywhere static.
 
 ![Tech](https://img.shields.io/badge/React-18.3-61dafb?logo=react)
 ![Tech](https://img.shields.io/badge/TypeScript-5.6-3178c6?logo=typescript)
@@ -293,7 +293,7 @@ For code snippets, escape angle brackets: `&lt;` and `&gt;`. The TypeScript file
 
 ## Features
 
-- **~155 senior-level questions** across 18 categories (8 core + 10 specialty) — curated for actual study, not breadth-for-breadth's-sake
+- **~180 senior-level questions** across 18 categories (8 core + 10 specialty) — curated for actual study, anchored to interview-validated feedback (see `FEEDBACK_COVERAGE.md`)
 - **Per-category search** — searches question text, tags, and answer content
 - **Difficulty filter** — easy / mid / hard
 - **Mark-as-reviewed** — checkbox on each question, persists in localStorage

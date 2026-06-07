@@ -813,19 +813,57 @@ const apiRest: Category = {
   classDef good fill:#2a9d8f,color:#fff
   class L1,L2,L3,L4,L5,L6 layer
   class PASS good`,
-      answer: `<p>Layered validation:</p>
+      answer: `<p>A status code says "the wire transaction worked". It does not say "the response is correct". Senior API tests stack six layers, each catching a distinct bug class.</p>
 <ol>
-<li><strong>Status code</strong> — exact, not range.</li>
-<li><strong>Headers</strong> — Content-Type, caching, security (CSP, X-Frame-Options).</li>
-<li><strong>Schema</strong> — JSON Schema with Ajv/Zod. Catches missing fields, wrong types, extras.</li>
-<li><strong>Business invariants</strong> — totals match line items, IDs match request.</li>
-<li><strong>Side effects</strong> — GET after POST returns the new resource.</li>
-<li><strong>Performance</strong> — within SLA.</li>
+<li><strong>Status code</strong> — exact value, not a range. <code>2xx</code> is meaningless; 200 vs 201 vs 204 means different things.</li>
+<li><strong>Headers</strong> — <code>Content-Type</code>, caching (<code>Cache-Control</code>, <code>ETag</code>), security (<code>X-Content-Type-Options</code>, <code>Strict-Transport-Security</code>). Missing security headers ship as code-review smells.</li>
+<li><strong>Schema</strong> — JSON Schema with Ajv (or Zod for type-inferred TS). Catches missing fields, wrong types, drifted extras.</li>
+<li><strong>Business invariants</strong> — totals match the sum of line items, IDs match the request, currency is one of the supported set. These are what users actually see.</li>
+<li><strong>Side effects</strong> — read-your-write: <code>GET</code> after <code>POST</code> returns the new resource (with eventual-consistency polling where the system documents an async window).</li>
+<li><strong>Performance</strong> — p95 latency within SLA. Easy to forget; load tests catch it but per-request smoke tests can too.</li>
 </ol>
-<pre class="code"><code>expect(response.status()).toBe(201);
+<pre class="code"><code>import Ajv from 'ajv';
+const ajv = new Ajv({ allErrors: true, strict: true });
+const validateOrder = ajv.compile(orderSchema);
+
+// 1 + 2 — status + headers
+expect(response.status()).toBe(201);
 expect(response.headers()['content-type']).toContain('application/json');
+expect(response.headers()['x-content-type-options']).toBe('nosniff');
+
+// 3 — schema. allErrors=true makes the failure message list ALL violations
 const body = await response.json();
-expect(ajv.validate(orderSchema, body)).toBe(true);</code></pre>`
+if (!validateOrder(body)) {
+  throw new Error('Schema violations: ' + ajv.errorsText(validateOrder.errors));
+}
+
+// 4 — business invariants
+const computedTotal = body.lineItems.reduce((s, i) =&gt; s + i.qty * i.unitPrice, 0);
+expect(body.total).toBeCloseTo(computedTotal, 2);     // float tolerance
+expect(body.userId).toBe(requestBody.userId);
+
+// 6 — performance
+expect(response.timings.responseEnd - response.timings.requestStart).toBeLessThan(800);</code></pre>
+<h4>The eventual-consistency twist (layer 5)</h4>
+<p>If the system documents that "the new order appears in <code>GET /orders/:id</code> within 200ms after <code>POST</code>", do not assert immediately — that's testing strong consistency, which isn't the contract. Use a bounded poll:</p>
+<pre class="code"><code>// Eventual: poll up to 4× the documented p99 propagation window
+const start = Date.now();
+let fetched: Order | null = null;
+while (Date.now() - start &lt; 800) {
+  const r = await api.get(\`/orders/\${body.orderId}\`);
+  if (r.status() === 200) { fetched = await r.json(); break; }
+  await new Promise(res =&gt; setTimeout(res, 25));
+}
+expect(fetched).not.toBeNull();
+expect(fetched!.userId).toBe(requestBody.userId);</code></pre>
+<p>Without the poll, the test is flaky on a slow CI environment. With the poll, real propagation failures still fail the test inside the 800 ms window — that's the SLO turned into a gate.</p>
+<h4>Senior signals</h4>
+<ul>
+<li>Schema validation with <code>allErrors: true</code> + <code>strict: true</code>. Strict mode catches schemas that reference undefined definitions or use deprecated keywords — a class of "the schema itself is broken" bug.</li>
+<li><strong>Snapshot the response</strong> with sensitive fields scrubbed (IDs, timestamps). Diffs surface contract drift loudly without writing a new assertion per field.</li>
+<li><strong>Layer 4 is the most senior</strong>. Junior tests stop at schema. Senior tests assert the math, the references, and the state-machine validity of the returned resource.</li>
+</ul>
+<p><strong>Anti-pattern</strong>: <code>expect(response.status()).toBeLessThan(500)</code>. That assertion passes on a 200, a 201, a 301, a 404, and any 4xx. It is functionally the assertion "we got SOMETHING back". Always assert exact status codes.</p>`
     },
     {
       id: "fa7e0336-6ab2-40a1-bc43-0fdc46fc43de",
