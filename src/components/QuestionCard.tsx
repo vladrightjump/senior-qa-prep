@@ -1,10 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import type { Question, QuestionComment } from "../types";
 import { Diagram } from "./Diagram";
 import { MediaBlock } from "./MediaBlock";
 import { IconCheck, IconBookmark, IconChevronDown } from "./icons";
-
-const COLLAPSE_LINGER_MS = 240;
 
 interface QuestionCardProps {
   question: Question;
@@ -36,6 +35,9 @@ function formatRelative(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
+// Smooth, slightly springy easing — feels like Notion / Linear
+const SMOOTH_EASE = [0.22, 1, 0.36, 1] as const;
+
 export function QuestionCard({
   question,
   num,
@@ -53,16 +55,6 @@ export function QuestionCard({
   onDeleteComment,
 }: QuestionCardProps) {
   const [draft, setDraft] = useState("");
-  const [contentMounted, setContentMounted] = useState(isOpen);
-
-  useEffect(() => {
-    if (isOpen) {
-      setContentMounted(true);
-      return;
-    }
-    const t = setTimeout(() => setContentMounted(false), COLLAPSE_LINGER_MS);
-    return () => clearTimeout(t);
-  }, [isOpen]);
 
   const submit = () => {
     if (!draft.trim()) return;
@@ -89,7 +81,20 @@ export function QuestionCard({
           tabIndex={-1}
           title={isReviewed ? "Mark as not done" : "Mark as done"}
         >
-          {isReviewed && <IconCheck size={14} strokeWidth={3} />}
+          <AnimatePresence initial={false}>
+            {isReviewed && (
+              <motion.span
+                key="check"
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                transition={{ duration: 0.18, ease: SMOOTH_EASE }}
+                style={{ display: "inline-flex" }}
+              >
+                <IconCheck size={13} strokeWidth={3} />
+              </motion.span>
+            )}
+          </AnimatePresence>
         </span>
         <span className="q-num" aria-hidden="true">
           {String(num).padStart(2, "0")}
@@ -111,20 +116,38 @@ export function QuestionCard({
           >
             <IconBookmark size={16} filled={isFlagged} />
           </span>
-          <span className="q-chevron" aria-hidden="true">
+          <motion.span
+            className="q-chevron"
+            aria-hidden="true"
+            animate={{ rotate: isOpen ? 180 : 0 }}
+            transition={{ duration: 0.25, ease: SMOOTH_EASE }}
+          >
             <IconChevronDown size={18} />
-          </span>
+          </motion.span>
         </span>
       </button>
-      <div className="q-detail-wrap" aria-hidden={!isOpen}>
-        <div className="q-detail">
-          {contentMounted && (
-            <>
+      <AnimatePresence initial={false}>
+        {isOpen && (
+          <motion.section
+            key="detail"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{
+              height: { duration: 0.32, ease: SMOOTH_EASE },
+              opacity: { duration: 0.2, ease: "easeOut" },
+            }}
+            style={{ overflow: "hidden" }}
+          >
+            <div className="q-detail">
               {question.diagram && <Diagram source={question.diagram} />}
               {question.media && question.media.length > 0 && (
                 <MediaBlock media={question.media} />
               )}
-              <div dangerouslySetInnerHTML={{ __html: question.answer }} />
+              <div
+                className="q-detail-body"
+                dangerouslySetInnerHTML={{ __html: question.answer }}
+              />
               <div className="q-detail-foot">
                 <button
                   className={`q-notes-btn ${isCommentsOpen ? "active" : ""} ${
@@ -139,59 +162,75 @@ export function QuestionCard({
                     : `Notes (${comments.length})`}
                 </button>
               </div>
-            </>
-          )}
-        </div>
-      </div>
-      {isCommentsOpen && (
-        <div className="q-comments">
-          <div className="q-comments-title">Notes</div>
-          {comments.length === 0 ? (
-            <div className="q-comments-empty">
-              No notes yet. Add anything you want to remember about this question.
             </div>
-          ) : (
-            <ul className="q-comment-list">
-              {comments.map((c) => (
-                <li key={c.id} className="q-comment">
-                  <div className="q-comment-body">{c.body}</div>
-                  <div className="q-comment-foot">
-                    <span className="q-comment-time">{formatRelative(c.created_at)}</span>
-                    <button
-                      className="q-comment-del"
-                      onClick={() => onDeleteComment(c.id)}
-                      aria-label="Delete note"
-                    >
-                      Delete
-                    </button>
+            <AnimatePresence initial={false}>
+              {isCommentsOpen && (
+                <motion.div
+                  key="comments"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{
+                    height: { duration: 0.28, ease: SMOOTH_EASE },
+                    opacity: { duration: 0.18, ease: "easeOut" },
+                  }}
+                  style={{ overflow: "hidden" }}
+                >
+                  <div className="q-comments">
+                    <div className="q-comments-title">Notes</div>
+                    {comments.length === 0 ? (
+                      <div className="q-comments-empty">
+                        No notes yet. Add anything you want to remember about this question.
+                      </div>
+                    ) : (
+                      <ul className="q-comment-list">
+                        {comments.map((c) => (
+                          <li key={c.id} className="q-comment">
+                            <div className="q-comment-body">{c.body}</div>
+                            <div className="q-comment-foot">
+                              <span className="q-comment-time">
+                                {formatRelative(c.created_at)}
+                              </span>
+                              <button
+                                className="q-comment-del"
+                                onClick={() => onDeleteComment(c.id)}
+                                aria-label="Delete note"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <div className="q-comment-input">
+                      <textarea
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                            e.preventDefault();
+                            submit();
+                          }
+                        }}
+                        placeholder="Add a note… (⌘/Ctrl+Enter to save)"
+                        rows={2}
+                      />
+                      <button
+                        className="q-comment-submit"
+                        onClick={submit}
+                        disabled={!draft.trim()}
+                      >
+                        Add note
+                      </button>
+                    </div>
                   </div>
-                </li>
-              ))}
-            </ul>
-          )}
-          <div className="q-comment-input">
-            <textarea
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                  e.preventDefault();
-                  submit();
-                }
-              }}
-              placeholder="Add a note… (⌘/Ctrl+Enter to save)"
-              rows={2}
-            />
-            <button
-              className="q-comment-submit"
-              onClick={submit}
-              disabled={!draft.trim()}
-            >
-              Add note
-            </button>
-          </div>
-        </div>
-      )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.section>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
