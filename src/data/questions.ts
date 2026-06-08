@@ -1,4 +1,4 @@
-import type { Category } from "../types";
+import type { Category, CategoryGroup } from "../types";
 import { PART_1_CATEGORIES } from "./categories-1";
 import { PART_2_CATEGORIES } from "./categories-2";
 import { PART_3_CATEGORIES } from "./categories-3";
@@ -308,4 +308,52 @@ export const CATEGORIES: Category[] = [
   behavioral,
   ...PART_4_CATEGORIES,
   ...GROWTH_CATEGORIES,
+];
+
+export const CATEGORY_GROUPS: CategoryGroup[] = [
+  {
+    id: "code-frameworks",
+    label: "Code & Frameworks",
+    categoryIds: [
+      "playwright-ts",
+      "typescript-programming",
+      "framework-arch",
+      "project-structure",
+    ],
+  },
+  {
+    id: "apis-data",
+    label: "APIs & Data",
+    categoryIds: [
+      "api-rest",
+      "graphql-contracts",
+      "sql",
+      "growth-api-db-testing",
+    ],
+  },
+  {
+    id: "quality-engineering",
+    label: "Quality Engineering",
+    categoryIds: [
+      "ci-flakiness",
+      "testing-theory",
+      "visual-regression",
+      "feature-flags",
+      "growth-automation-frameworks",
+    ],
+  },
+  {
+    id: "strategy-leadership",
+    label: "Strategy & Leadership",
+    categoryIds: [
+      "growth-test-management",
+      "growth-testing-strategy",
+      "growth-driving-improvements",
+    ],
+  },
+  {
+    id: "interview-prep",
+    label: "Interview Prep",
+    categoryIds: ["scenarios", "behavioral"],
+  },
 ];

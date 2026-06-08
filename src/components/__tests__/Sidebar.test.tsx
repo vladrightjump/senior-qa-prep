@@ -1,8 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Sidebar, NEEDS_INVESTIGATION_ID } from "../Sidebar";
-import type { Category } from "../../types";
+import type { Category, CategoryGroup } from "../../types";
 
 const CATS: Category[] = [
   {
@@ -23,11 +23,20 @@ const CATS: Category[] = [
   },
 ];
 
+const GROUPS: CategoryGroup[] = [
+  { id: "tools", label: "Tools", categoryIds: ["pw", "sql"] },
+];
+
+beforeEach(() => {
+  localStorage.clear();
+});
+
 describe("Sidebar", () => {
-  it("renders every category and the Needs-investigation entry", () => {
+  it("renders the group header and the Saved-for-later entry", () => {
     render(
       <Sidebar
         categories={CATS}
+        groups={GROUPS}
         activeId="pw"
         reviewedIds={new Set()}
         flaggedCount={0}
@@ -36,15 +45,17 @@ describe("Sidebar", () => {
         onCloseMobile={() => {}}
       />,
     );
-    expect(screen.getByText(/1\. Playwright/)).toBeInTheDocument();
-    expect(screen.getByText(/2\. SQL/)).toBeInTheDocument();
-    expect(screen.getByText(/Needs investigation/i)).toBeInTheDocument();
+    expect(screen.getByText("Tools")).toBeInTheDocument();
+    expect(screen.getByText("Playwright")).toBeInTheDocument();
+    expect(screen.getByText("SQL")).toBeInTheDocument();
+    expect(screen.getByText(/Saved for later/i)).toBeInTheDocument();
   });
 
   it("shows the reviewed / total counts per category", () => {
     render(
       <Sidebar
         categories={CATS}
+        groups={GROUPS}
         activeId="pw"
         reviewedIds={new Set(["p1", "p2"])}
         flaggedCount={3}
@@ -55,7 +66,8 @@ describe("Sidebar", () => {
     );
     expect(screen.getByText("2/3")).toBeInTheDocument();
     expect(screen.getByText("0/1")).toBeInTheDocument();
-    expect(screen.getByText(/3 flagged/)).toBeInTheDocument();
+    // Group header shows aggregate "2/4" (2 reviewed of 4 total)
+    expect(screen.getByText("2/4")).toBeInTheDocument();
   });
 
   it("invokes onSelect with the category id when clicked", async () => {
@@ -64,6 +76,7 @@ describe("Sidebar", () => {
     render(
       <Sidebar
         categories={CATS}
+        groups={GROUPS}
         activeId="pw"
         reviewedIds={new Set()}
         flaggedCount={0}
@@ -72,16 +85,17 @@ describe("Sidebar", () => {
         onCloseMobile={onCloseMobile}
       />,
     );
-    await userEvent.click(screen.getByText(/2\. SQL/));
+    await userEvent.click(screen.getByText("SQL"));
     expect(onSelect).toHaveBeenCalledWith("sql");
     expect(onCloseMobile).toHaveBeenCalled();
   });
 
-  it("invokes onSelect with the investigation id when clicked", async () => {
+  it("invokes onSelect with the investigation id when Saved-for-later is clicked", async () => {
     const onSelect = vi.fn();
     render(
       <Sidebar
         categories={CATS}
+        groups={GROUPS}
         activeId="pw"
         reviewedIds={new Set()}
         flaggedCount={0}
@@ -90,7 +104,7 @@ describe("Sidebar", () => {
         onCloseMobile={() => {}}
       />,
     );
-    await userEvent.click(screen.getByText(/Needs investigation/i));
+    await userEvent.click(screen.getByText(/Saved for later/i));
     expect(onSelect).toHaveBeenCalledWith(NEEDS_INVESTIGATION_ID);
   });
 });

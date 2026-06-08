@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CATEGORIES } from "./data/questions";
+import { CATEGORIES, CATEGORY_GROUPS } from "./data/questions";
 import type { DiffFilter, Question, Theme } from "./types";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { useQuestionMeta } from "./hooks/useQuestionMeta";
@@ -174,9 +174,11 @@ export default function App() {
         return;
       }
 
-      if (/^[1-8]$/.test(e.key)) {
+      if (/^[1-5]$/.test(e.key)) {
         const idx = parseInt(e.key, 10) - 1;
-        if (CATEGORIES[idx]) setActiveCategory(CATEGORIES[idx].id);
+        const group = CATEGORY_GROUPS[idx];
+        const firstCategoryId = group?.categoryIds[0];
+        if (firstCategoryId) setActiveCategory(firstCategoryId);
         return;
       }
 
@@ -221,12 +223,12 @@ export default function App() {
     ? "Questions you've starred for another pass. Untoggle the star on any card to remove it."
     : activeCategory!.desc;
 
-  const activeChapterIndex = isInvestigationView
-    ? -1
-    : CATEGORIES.findIndex((c) => c.id === activeCategory!.id);
+  const activeGroup = isInvestigationView
+    ? null
+    : CATEGORY_GROUPS.find((g) => g.categoryIds.includes(activeCategory!.id));
   const chapterEyebrow = isInvestigationView
     ? "Bookmarks"
-    : `Topic ${activeChapterIndex + 1} of ${CATEGORIES.length}`;
+    : (activeGroup?.label ?? "Topic");
 
   const chapterTotal = activeCategory?.questions.length ?? filtered.length;
   const chapterReviewed = isInvestigationView
@@ -253,6 +255,7 @@ export default function App() {
       <div className="layout">
         <Sidebar
           categories={CATEGORIES}
+          groups={CATEGORY_GROUPS}
           activeId={state.activeCategoryId}
           reviewedIds={meta.reviewed}
           flaggedCount={meta.flags.size}

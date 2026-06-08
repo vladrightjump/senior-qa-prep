@@ -37,6 +37,12 @@ export interface Category {
   questions: Question[];
 }
 
+export interface CategoryGroup {
+  id: string;
+  label: string;
+  categoryIds: string[];
+}
+
 export type Theme = "auto" | "light" | "dark";
 export type DiffFilter = "all" | Difficulty;
 

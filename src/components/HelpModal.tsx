@@ -70,7 +70,7 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
           <h3>Keyboard shortcuts</h3>
           <div className="kbd-grid">
             <div><kbd>/</kbd> search</div>
-            <div><kbd>1</kbd>–<kbd>8</kbd> jump to topic</div>
+            <div><kbd>1</kbd>–<kbd>5</kbd> jump to section</div>
             <div><kbd>j</kbd> / <kbd>k</kbd> next / previous</div>
             <div><kbd>Space</kbd> open a card</div>
             <div><kbd>r</kbd> mark completed</div>
