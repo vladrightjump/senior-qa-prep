@@ -14,6 +14,17 @@ const KnowledgeGalaxy = lazy(() =>
   })),
 );
 
+function toRoman(n: number): string {
+  const map: [number, string][] = [
+    [10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"],
+  ];
+  let out = "";
+  for (const [v, s] of map) {
+    while (n >= v) { out += s; n -= v; }
+  }
+  return out;
+}
+
 const STORAGE_KEY = "qa-prep-state-v3";
 const HELP_SEEN_KEY = "qa-prep-help-seen-v1";
 
@@ -240,10 +251,32 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtered, focusedIdx]);
 
-  const headerTitle = isInvestigationView ? "🔎 Needs investigation" : activeCategory!.label;
+  const headerTitle = isInvestigationView ? "Needs investigation" : activeCategory!.label;
   const headerDesc = isInvestigationView
-    ? "Questions you've flagged to revisit. Toggle the magnifier on a card to remove it from this list."
+    ? "A page reserved for prompts you've bookmarked. Untoggle the ✶ on any card to remove it from this margin."
     : activeCategory!.desc;
+
+  // Chapter ribbon — Roman numerals to echo the textbook framing
+  const activeChapterIndex = isInvestigationView
+    ? -1
+    : CATEGORIES.findIndex((c) => c.id === activeCategory!.id);
+  const chapterRoman = activeChapterIndex >= 0 ? toRoman(activeChapterIndex + 1) : "";
+  const chapterEyebrow = isInvestigationView
+    ? "Marginalia · Bookmarks"
+    : `Chapter ${chapterRoman} · of ${toRoman(CATEGORIES.length)}`;
+
+  // Progress story for the active chapter
+  const chapterTotal = activeCategory?.questions.length ?? filtered.length;
+  const chapterReviewed = isInvestigationView
+    ? filtered.filter(({ q }) => meta.reviewed.has(q.id)).length
+    : (activeCategory?.questions.filter((q) => meta.reviewed.has(q.id)).length ?? 0);
+  const chapterFlagged = isInvestigationView
+    ? filtered.length
+    : (activeCategory?.questions.filter((q) => meta.flags.has(q.id)).length ?? 0);
+  // Build the progress track — up to 24 ticks so the row stays compact
+  const trackCount = Math.min(chapterTotal, 24);
+  const trackFilledThreshold = chapterTotal ? (chapterReviewed / chapterTotal) * trackCount : 0;
+  const trackFlaggedThreshold = chapterTotal ? (chapterFlagged / chapterTotal) * trackCount : 0;
 
   return (
     <>
@@ -272,11 +305,12 @@ export default function App() {
           {galaxyOpen ? (
             <div className="galaxy-view">
               <div className="cat-header">
-                <h1>🪐 Knowledge Galaxy</h1>
+                <div className="cat-eyebrow">Overview · All chapters</div>
+                <h1>Knowledge <em>Galaxy</em></h1>
                 <p>
-                  All {CATEGORIES.length} categories at a glance. Orb size = number
-                  of questions, green ring = your progress, gold dot = flagged items.
-                  Click an orb to dive in.
+                  All {CATEGORIES.length} chapters at a glance. Orb size shows how
+                  many prompts wait in each, a warm ring tracks your mastery, and
+                  bookmarked stars catch the eye. Tap an orb to step inside.
                 </p>
               </div>
               <Suspense fallback={<div className="galaxy-loading">Loading galaxy…</div>}>
@@ -291,8 +325,37 @@ export default function App() {
           ) : (
             <>
               <div className="cat-header">
+                <div className="cat-eyebrow">{chapterEyebrow}</div>
                 <h1>{headerTitle}</h1>
                 <p>{headerDesc}</p>
+                {chapterTotal > 0 && (
+                  <div className="chapter-meta" aria-label="Progress in this chapter">
+                    <div className="chapter-progress-track" aria-hidden="true">
+                      {Array.from({ length: trackCount }).map((_, i) => {
+                        const cls =
+                          i < trackFilledThreshold
+                            ? "filled"
+                            : i < trackFilledThreshold + trackFlaggedThreshold
+                              ? "bookmarked"
+                              : "";
+                        return <span key={i} className={cls} />;
+                      })}
+                    </div>
+                    <span className="dot" />
+                    <span>
+                      <strong>{chapterReviewed}</strong> mastered
+                      {" "}of {chapterTotal}
+                    </span>
+                    {chapterFlagged > 0 && (
+                      <>
+                        <span className="dot" />
+                        <span>
+                          <strong>{chapterFlagged}</strong> bookmarked
+                        </span>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
               {meta.error && (
                 <div className="meta-error">

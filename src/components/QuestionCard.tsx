@@ -109,7 +109,7 @@ export function QuestionCard({
         >
           <span className="q-flag-mark" aria-hidden>?</span>
         </span>
-        <span className="q-num">#{num}</span>
+        <span className="q-num" aria-label={`Question ${num}`}>{num}</span>
         <span className="q-text">{question.q}</span>
         <span className="q-meta">
           <span

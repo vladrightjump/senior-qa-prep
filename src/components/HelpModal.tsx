@@ -28,41 +28,45 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
         >
           ✕
         </button>
-        <h2 className="modal-title">Welcome to QA Interview Prep ✨</h2>
+        <h2 className="modal-title">
+          Welcome to <em>QA Interview Prep</em>
+        </h2>
         <p className="modal-lead">
-          A study tool with ~150 senior QA questions across 8 categories — model answers,
-          diagrams, and your own notes. Everything is local: nothing is sent to a server.
+          A guided study journal of senior automation questions, set across chapters
+          you can open at any time. Read, annotate, bookmark, and return — at your own
+          pace. Everything you mark stays with you locally.
         </p>
 
         <div className="modal-grid">
           <section>
-            <h3>🪐 Knowledge Galaxy</h3>
+            <h3>Chapters, one journal</h3>
             <p>
-              Open the <strong>Galaxy</strong> tab to see all categories as a 3D map.
-              Drag to rotate, scroll to zoom, click an orb to dive into a category.
-              Orb size reflects question count; the green ring shows progress.
+              Each chapter opens like a textbook section. Pick a difficulty, search
+              within, and unfold any prompt to read the worked answer with diagrams.
             </p>
           </section>
           <section>
-            <h3>📚 Per-category study</h3>
+            <h3>Track what you've mastered</h3>
             <p>
-              Search inside a category, filter by difficulty, and expand any question
-              for a full answer. Some questions ship with Mermaid diagrams and images.
+              Tap the ✓ to mark a prompt as <em>mastered</em>. Tap the <em>?</em> to
+              bookmark anything that needs another pass — they collect in the{" "}
+              <em>Needs investigation</em> view.
             </p>
           </section>
           <section>
-            <h3>✅ Track what you know</h3>
+            <h3>Knowledge Galaxy</h3>
             <p>
-              Tick <strong>✓</strong> to mark a question as reviewed — the orb in the
-              header fills up. Tap <strong>?</strong> to flag for later; the{" "}
-              <em>Needs investigation</em> view collects them.
+              Need a bird's-eye view? Open the Galaxy to see every chapter as a
+              constellation. Orb size reflects question count; the warm ring tracks
+              your progress.
             </p>
           </section>
           <section>
-            <h3>💬 Personal notes</h3>
+            <h3>Personal marginalia</h3>
             <p>
-              Click the 💬 button on any question to add notes. They sync via
-              Supabase if configured, otherwise stay local.
+              Click ✎ on any prompt to leave a note in the margin — your own
+              shorthand, mnemonic, or follow-up question. Notes sync across devices
+              when signed in.
             </p>
           </section>
         </div>
@@ -70,20 +74,20 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
         <div className="modal-shortcuts">
           <h3>Keyboard shortcuts</h3>
           <div className="kbd-grid">
-            <div><kbd>/</kbd> search</div>
-            <div><kbd>1</kbd>–<kbd>8</kbd> jump to category</div>
-            <div><kbd>j</kbd> / <kbd>k</kbd> next / prev</div>
-            <div><kbd>Space</kbd> expand question</div>
-            <div><kbd>r</kbd> mark reviewed</div>
-            <div><kbd>f</kbd> flag to investigate</div>
-            <div><kbd>g</kbd> open galaxy</div>
-            <div><kbd>?</kbd> open this help</div>
+            <div><kbd>/</kbd> search within chapter</div>
+            <div><kbd>1</kbd>–<kbd>8</kbd> jump to chapter</div>
+            <div><kbd>j</kbd> / <kbd>k</kbd> next / previous card</div>
+            <div><kbd>Space</kbd> open a card</div>
+            <div><kbd>r</kbd> mark mastered</div>
+            <div><kbd>f</kbd> bookmark for later</div>
+            <div><kbd>g</kbd> open the galaxy</div>
+            <div><kbd>?</kbd> reopen this guide</div>
             <div><kbd>Esc</kbd> close / unfocus</div>
           </div>
         </div>
 
         <button className="modal-cta" onClick={onClose}>
-          Got it — let's study
+          Begin — let's study
         </button>
       </div>
     </div>
