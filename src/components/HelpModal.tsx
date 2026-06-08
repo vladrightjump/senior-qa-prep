@@ -28,45 +28,39 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
         >
           ✕
         </button>
-        <h2 className="modal-title">
-          Welcome to <em>QA Interview Prep</em>
-        </h2>
+        <h2 className="modal-title">Welcome to QA Interview Prep</h2>
         <p className="modal-lead">
-          A guided study journal of senior automation questions, set across chapters
-          you can open at any time. Read, annotate, bookmark, and return — at your own
-          pace. Everything you mark stays with you locally.
+          A focused set of senior automation questions organized by topic. Read, mark
+          what you know, save what you want to revisit. Everything is stored locally.
         </p>
 
         <div className="modal-grid">
           <section>
-            <h3>Chapters, one journal</h3>
+            <h3>Browse by topic</h3>
             <p>
-              Each chapter opens like a textbook section. Pick a difficulty, search
-              within, and unfold any prompt to read the worked answer with diagrams.
+              Pick a topic from the sidebar, filter by difficulty, and search within
+              it. Open any question to see the full answer with diagrams and code.
             </p>
           </section>
           <section>
-            <h3>Track what you've mastered</h3>
+            <h3>Track your progress</h3>
             <p>
-              Tap the ✓ to mark a prompt as <em>mastered</em>. Tap the <em>?</em> to
-              bookmark anything that needs another pass — they collect in the{" "}
-              <em>Needs investigation</em> view.
+              Tap the checkbox to mark a question as completed. Tap the star to save it
+              for later — saved items show up under "Saved for later".
             </p>
           </section>
           <section>
-            <h3>Knowledge Galaxy</h3>
+            <h3>Add your own notes</h3>
             <p>
-              Need a bird's-eye view? Open the Galaxy to see every chapter as a
-              constellation. Orb size reflects question count; the warm ring tracks
-              your progress.
+              Open the Notes panel on any question to add personal notes — mnemonics,
+              follow-ups, or anything else you want to remember.
             </p>
           </section>
           <section>
-            <h3>Personal marginalia</h3>
+            <h3>Works offline</h3>
             <p>
-              Click ✎ on any prompt to leave a note in the margin — your own
-              shorthand, mnemonic, or follow-up question. Notes sync across devices
-              when signed in.
+              All progress is saved in your browser. Optionally sign in to sync your
+              progress and notes across devices.
             </p>
           </section>
         </div>
@@ -74,20 +68,19 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
         <div className="modal-shortcuts">
           <h3>Keyboard shortcuts</h3>
           <div className="kbd-grid">
-            <div><kbd>/</kbd> search within chapter</div>
-            <div><kbd>1</kbd>–<kbd>8</kbd> jump to chapter</div>
-            <div><kbd>j</kbd> / <kbd>k</kbd> next / previous card</div>
+            <div><kbd>/</kbd> search</div>
+            <div><kbd>1</kbd>–<kbd>8</kbd> jump to topic</div>
+            <div><kbd>j</kbd> / <kbd>k</kbd> next / previous</div>
             <div><kbd>Space</kbd> open a card</div>
-            <div><kbd>r</kbd> mark mastered</div>
-            <div><kbd>f</kbd> bookmark for later</div>
-            <div><kbd>g</kbd> open the galaxy</div>
-            <div><kbd>?</kbd> reopen this guide</div>
+            <div><kbd>r</kbd> mark completed</div>
+            <div><kbd>f</kbd> bookmark</div>
+            <div><kbd>?</kbd> open this help</div>
             <div><kbd>Esc</kbd> close / unfocus</div>
           </div>
         </div>
 
         <button className="modal-cta" onClick={onClose}>
-          Begin — let's study
+          Get started
         </button>
       </div>
     </div>

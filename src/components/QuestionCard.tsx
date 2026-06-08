@@ -107,7 +107,7 @@ export function QuestionCard({
           tabIndex={-1}
           title="Investigate later"
         >
-          <span className="q-flag-mark" aria-hidden>?</span>
+          <span className="q-flag-mark" aria-hidden>★</span>
         </span>
         <span className="q-num" aria-label={`Question ${num}`}>{num}</span>
         <span className="q-text">{question.q}</span>
@@ -124,7 +124,7 @@ export function QuestionCard({
             tabIndex={-1}
             title={comments.length === 0 ? "Add a note" : `${comments.length} note${comments.length === 1 ? "" : "s"}`}
           >
-            💬 {comments.length > 0 ? comments.length : "+"}
+            Notes {comments.length > 0 ? `(${comments.length})` : ""}
           </span>
           <span className={`badge badge-${question.diff}`}>{question.diff}</span>
           {question.tags?.slice(0, 2).map((t) => (

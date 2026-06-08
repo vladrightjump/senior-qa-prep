@@ -1,5 +1,4 @@
 import type { Theme } from "../types";
-import { ProgressOrb } from "./three/ProgressOrb";
 
 interface TopBarProps {
   totalReviewed: number;
@@ -17,16 +16,13 @@ export function TopBar({
   totalReviewed,
   totalQuestions,
   theme,
-  galaxyOpen,
-  onToggleGalaxy,
   onOpenHelp,
   onCycleTheme,
   onReset,
   onMobileMenuToggle,
 }: TopBarProps) {
   const pct = totalQuestions ? Math.round((totalReviewed / totalQuestions) * 100) : 0;
-  const progress = totalQuestions ? totalReviewed / totalQuestions : 0;
-  const themeIcon = theme === "auto" ? "◐" : theme === "light" ? "☀" : "☾";
+  const themeLabel = theme === "auto" ? "Auto" : theme === "light" ? "Light" : "Dark";
 
   return (
     <header className="topbar">
@@ -39,27 +35,17 @@ export function TopBar({
         ☰
       </button>
       <div className="topbar-title">
-        Atelier Études <span className="dim">A study journal</span>
+        Study <span className="dim">QA Interview Prep</span>
       </div>
       <div className="topbar-spacer" />
-      <button
-        className={`pill-btn ${galaxyOpen ? "active" : ""}`}
-        onClick={onToggleGalaxy}
-        title="Toggle Knowledge Galaxy (g)"
-        aria-pressed={galaxyOpen}
-        aria-label="Toggle Galaxy"
-      >
-        ✦ <span className="pill-btn-label">Galaxy</span>
-      </button>
       <div
         className="topbar-progress"
-        title={`${totalReviewed} of ${totalQuestions} mastered (${pct}%)`}
+        title={`${totalReviewed} of ${totalQuestions} completed (${pct}%)`}
+        aria-label={`Overall progress: ${pct}%`}
       >
-        <ProgressOrb
-          progress={progress}
-          size={38}
-          ariaLabel={`Overall progress: ${pct}%`}
-        />
+        <div className="progress-bar" aria-hidden="true">
+          <div style={{ width: `${pct}%` }} />
+        </div>
         <span className="topbar-progress-num">
           {totalReviewed}/{totalQuestions}
         </span>
@@ -75,10 +61,10 @@ export function TopBar({
       <button
         className="icon-btn"
         onClick={onCycleTheme}
-        title={`Theme: ${theme}. Click to cycle.`}
-        aria-label={`Theme: ${theme}`}
+        title={`Theme: ${themeLabel}. Click to cycle.`}
+        aria-label={`Theme: ${themeLabel}`}
       >
-        {themeIcon}
+        {themeLabel[0]}
       </button>
       <button
         className="icon-btn"
@@ -86,7 +72,7 @@ export function TopBar({
         title="Reset all progress"
         aria-label="Reset progress"
       >
-        ⟳
+        ↺
       </button>
     </header>
   );

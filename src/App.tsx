@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CATEGORIES } from "./data/questions";
 import type { DiffFilter, Question, Theme } from "./types";
 import { useLocalStorage } from "./hooks/useLocalStorage";
@@ -7,23 +7,6 @@ import { TopBar } from "./components/TopBar";
 import { Sidebar, NEEDS_INVESTIGATION_ID } from "./components/Sidebar";
 import { QuestionCard } from "./components/QuestionCard";
 import { HelpModal } from "./components/HelpModal";
-
-const KnowledgeGalaxy = lazy(() =>
-  import("./components/three/KnowledgeGalaxy").then((m) => ({
-    default: m.KnowledgeGalaxy,
-  })),
-);
-
-function toRoman(n: number): string {
-  const map: [number, string][] = [
-    [10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"],
-  ];
-  let out = "";
-  for (const [v, s] of map) {
-    while (n >= v) { out += s; n -= v; }
-  }
-  return out;
-}
 
 const STORAGE_KEY = "qa-prep-state-v3";
 const HELP_SEEN_KEY = "qa-prep-help-seen-v1";
@@ -54,14 +37,12 @@ export default function App() {
   const [diffFilter, setDiffFilter] = useState<DiffFilter>("all");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [focusedIdx, setFocusedIdx] = useState<number>(-1);
-  const [galaxyOpen, setGalaxyOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const focusedCardRef = useRef<HTMLDivElement>(null);
 
   const meta = useQuestionMeta();
 
-  // First-time onboarding: open help modal once
   useEffect(() => {
     try {
       if (!localStorage.getItem(HELP_SEEN_KEY)) {
@@ -73,20 +54,17 @@ export default function App() {
     }
   }, []);
 
-  // Apply theme
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", state.theme);
   }, [state.theme]);
 
   const isInvestigationView = state.activeCategoryId === NEEDS_INVESTIGATION_ID;
 
-  // Active category (or null in investigation view)
   const activeCategory = useMemo(() => {
     if (isInvestigationView) return null;
     return CATEGORIES.find((c) => c.id === state.activeCategoryId) ?? CATEGORIES[0]!;
   }, [state.activeCategoryId, isInvestigationView]);
 
-  // Filtered list — handles both regular categories and the virtual "Needs investigation" view
   const filtered: DisplayItem[] = useMemo(() => {
     const term = search.trim().toLowerCase();
 
@@ -110,26 +88,22 @@ export default function App() {
     });
   }, [activeCategory, search, diffFilter, isInvestigationView, meta.flags]);
 
-  // Reset focused card when filters change or category switches
   useEffect(() => {
     setFocusedIdx(-1);
   }, [search, diffFilter, state.activeCategoryId]);
 
-  // Scroll focused card into view
   useEffect(() => {
     if (focusedIdx >= 0 && focusedCardRef.current) {
       focusedCardRef.current.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
   }, [focusedIdx]);
 
-  // Totals
   const totalQuestions = useMemo(
     () => CATEGORIES.reduce((s, c) => s + c.questions.length, 0),
     []
   );
   const totalReviewed = meta.reviewed.size;
 
-  /* ----- Handlers ----- */
   const cycleTheme = () => {
     setState((p) => {
       const next: Theme = p.theme === "auto" ? "light" : p.theme === "light" ? "dark" : "auto";
@@ -140,7 +114,7 @@ export default function App() {
   const reset = () => {
     if (
       confirm(
-        "Reset local UI state (open cards, theme)? Your reviewed, flagged, and notes are kept.",
+        "Reset local UI state (open cards, theme)? Your completed, flagged, and notes are kept.",
       )
     ) {
       setState({ ...defaultState, theme: state.theme });
@@ -151,7 +125,6 @@ export default function App() {
     setState((p) => ({ ...p, activeCategoryId: id }));
     setSearch("");
     setDiffFilter("all");
-    setGalaxyOpen(false);
   };
 
   const toggleOpen = (id: string) => {
@@ -172,7 +145,6 @@ export default function App() {
     });
   };
 
-  /* ----- Keyboard shortcuts ----- */
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -202,13 +174,6 @@ export default function App() {
         return;
       }
 
-      if (e.key === "g") {
-        e.preventDefault();
-        setGalaxyOpen((v) => !v);
-        return;
-      }
-
-      // 1–8 jump to category
       if (/^[1-8]$/.test(e.key)) {
         const idx = parseInt(e.key, 10) - 1;
         if (CATEGORIES[idx]) setActiveCategory(CATEGORIES[idx].id);
@@ -251,21 +216,18 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtered, focusedIdx]);
 
-  const headerTitle = isInvestigationView ? "Needs investigation" : activeCategory!.label;
+  const headerTitle = isInvestigationView ? "Saved for later" : activeCategory!.label;
   const headerDesc = isInvestigationView
-    ? "A page reserved for prompts you've bookmarked. Untoggle the ✶ on any card to remove it from this margin."
+    ? "Questions you've starred for another pass. Untoggle the star on any card to remove it."
     : activeCategory!.desc;
 
-  // Chapter ribbon — Roman numerals to echo the textbook framing
   const activeChapterIndex = isInvestigationView
     ? -1
     : CATEGORIES.findIndex((c) => c.id === activeCategory!.id);
-  const chapterRoman = activeChapterIndex >= 0 ? toRoman(activeChapterIndex + 1) : "";
   const chapterEyebrow = isInvestigationView
-    ? "Marginalia · Bookmarks"
-    : `Chapter ${chapterRoman} · of ${toRoman(CATEGORIES.length)}`;
+    ? "Bookmarks"
+    : `Topic ${activeChapterIndex + 1} of ${CATEGORIES.length}`;
 
-  // Progress story for the active chapter
   const chapterTotal = activeCategory?.questions.length ?? filtered.length;
   const chapterReviewed = isInvestigationView
     ? filtered.filter(({ q }) => meta.reviewed.has(q.id)).length
@@ -273,7 +235,6 @@ export default function App() {
   const chapterFlagged = isInvestigationView
     ? filtered.length
     : (activeCategory?.questions.filter((q) => meta.flags.has(q.id)).length ?? 0);
-  // Build the progress track — up to 24 ticks so the row stays compact
   const trackCount = Math.min(chapterTotal, 24);
   const trackFilledThreshold = chapterTotal ? (chapterReviewed / chapterTotal) * trackCount : 0;
   const trackFlaggedThreshold = chapterTotal ? (chapterFlagged / chapterTotal) * trackCount : 0;
@@ -284,8 +245,8 @@ export default function App() {
         totalReviewed={totalReviewed}
         totalQuestions={totalQuestions}
         theme={state.theme}
-        galaxyOpen={galaxyOpen}
-        onToggleGalaxy={() => setGalaxyOpen((v) => !v)}
+        galaxyOpen={false}
+        onToggleGalaxy={() => {}}
         onOpenHelp={() => setHelpOpen(true)}
         onCycleTheme={cycleTheme}
         onReset={reset}
@@ -302,151 +263,114 @@ export default function App() {
           onCloseMobile={() => setMobileMenuOpen(false)}
         />
         <main className="main">
-          {galaxyOpen ? (
-            <div className="galaxy-view">
-              <div className="cat-header">
-                <div className="cat-eyebrow">Overview · All chapters</div>
-                <h1>Knowledge <em>Galaxy</em></h1>
-                <p>
-                  All {CATEGORIES.length} chapters at a glance. Orb size shows how
-                  many prompts wait in each, a warm ring tracks your mastery, and
-                  bookmarked stars catch the eye. Tap an orb to step inside.
-                </p>
-              </div>
-              <Suspense fallback={<div className="galaxy-loading">Loading galaxy…</div>}>
-                <KnowledgeGalaxy
-                  categories={CATEGORIES}
-                  reviewedIds={meta.reviewed}
-                  flaggedIds={meta.flags}
-                  onSelect={setActiveCategory}
-                />
-              </Suspense>
-            </div>
-          ) : (
-            <>
-              <div className="cat-header">
-                <div className="cat-eyebrow">{chapterEyebrow}</div>
-                <h1>{headerTitle}</h1>
-                <p>{headerDesc}</p>
-                {chapterTotal > 0 && (
-                  <div className="chapter-meta" aria-label="Progress in this chapter">
-                    <div className="chapter-progress-track" aria-hidden="true">
-                      {Array.from({ length: trackCount }).map((_, i) => {
-                        const cls =
-                          i < trackFilledThreshold
-                            ? "filled"
-                            : i < trackFilledThreshold + trackFlaggedThreshold
-                              ? "bookmarked"
-                              : "";
-                        return <span key={i} className={cls} />;
-                      })}
-                    </div>
-                    <span className="dot" />
-                    <span>
-                      <strong>{chapterReviewed}</strong> mastered
-                      {" "}of {chapterTotal}
-                    </span>
-                    {chapterFlagged > 0 && (
-                      <>
-                        <span className="dot" />
-                        <span>
-                          <strong>{chapterFlagged}</strong> bookmarked
-                        </span>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-              {meta.error && (
-                <div className="meta-error">
-                  Sync issue: {meta.error}. Changes may not be saved.
-                </div>
-              )}
-              <div className="controls">
-                <input
-                  ref={searchRef}
-                  type="text"
-                  className="search"
-                  placeholder={
-                    isInvestigationView
-                      ? "Search flagged questions…   (press /)"
-                      : "Search this category…   (press /)"
-                  }
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-                <div
-                  className="pills"
-                  role="tablist"
-                  aria-label="Difficulty filter"
-                  style={
-                    {
-                      "--pill-active": ["all", "easy", "mid", "hard"].indexOf(
-                        diffFilter,
-                      ),
-                    } as React.CSSProperties
-                  }
-                >
-                  {(["all", "easy", "mid", "hard"] as const).map((d) => (
-                    <button
-                      key={d}
-                      className={`pill ${diffFilter === d ? "active" : ""}`}
-                      onClick={() => setDiffFilter(d)}
-                      role="tab"
-                      aria-selected={diffFilter === d}
-                    >
-                      {d}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {filtered.length === 0 ? (
-                <div className="empty">
-                  {isInvestigationView
-                    ? "Nothing flagged yet. Click 🔎 on any question to add it here."
-                    : "No questions match. Try clearing search or changing difficulty."}
-                </div>
-              ) : (
-                <div className="q-list">
-                  {filtered.map((item, i) => {
-                    const isFocused = i === focusedIdx;
-                    const qid = item.q.id;
-                    // Cap the stagger so a list of 100 doesn't take 2.4s to
-                    // settle — first ~14 items get the staircase, the rest land
-                    // together.
-                    const staggerIdx = Math.min(i, 14);
-                    return (
-                      <div
-                        ref={isFocused ? focusedCardRef : null}
-                        key={qid}
-                        className="q-list-item"
-                        style={{ "--i": staggerIdx } as React.CSSProperties}
-                      >
-                        {isInvestigationView && (
-                          <div className="q-card-source">{item.categoryLabel}</div>
-                        )}
-                        <QuestionCard
-                          question={item.q}
-                          num={item.idx + 1}
-                          isReviewed={meta.reviewed.has(qid)}
-                          isOpen={state.openIds.has(qid)}
-                          isFocused={isFocused}
-                          isFlagged={meta.flags.has(qid)}
-                          isCommentsOpen={state.commentsOpenIds.has(qid)}
-                          comments={meta.commentsByQuestion.get(qid) ?? []}
-                          onToggleOpen={() => toggleOpen(qid)}
-                          onToggleReviewed={() => meta.toggleReviewed(qid)}
-                          onToggleFlag={() => meta.toggleFlag(qid)}
-                          onToggleComments={() => toggleComments(qid)}
-                          onAddComment={(body) => meta.addComment(qid, body)}
-                          onDeleteComment={(cid) => meta.deleteComment(cid)}
-                        />
-                      </div>
-                    );
+          <div className="cat-header">
+            <div className="cat-eyebrow">{chapterEyebrow}</div>
+            <h1>{headerTitle}</h1>
+            <p>{headerDesc}</p>
+            {chapterTotal > 0 && (
+              <div className="chapter-meta" aria-label="Progress in this topic">
+                <div className="chapter-progress-track" aria-hidden="true">
+                  {Array.from({ length: trackCount }).map((_, i) => {
+                    const cls =
+                      i < trackFilledThreshold
+                        ? "filled"
+                        : i < trackFilledThreshold + trackFlaggedThreshold
+                          ? "bookmarked"
+                          : "";
+                    return <span key={i} className={cls} />;
                   })}
                 </div>
-              )}
-            </>
+                <span className="dot" />
+                <span>
+                  <strong>{chapterReviewed}</strong> of {chapterTotal} completed
+                </span>
+                {chapterFlagged > 0 && (
+                  <>
+                    <span className="dot" />
+                    <span>
+                      <strong>{chapterFlagged}</strong> bookmarked
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+          {meta.error && (
+            <div className="meta-error">
+              Sync issue: {meta.error}. Changes may not be saved.
+            </div>
+          )}
+          <div className="controls">
+            <input
+              ref={searchRef}
+              type="text"
+              className="search"
+              placeholder={
+                isInvestigationView
+                  ? "Search bookmarked questions…   (press /)"
+                  : "Search this topic…   (press /)"
+              }
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <div
+              className="pills"
+              role="tablist"
+              aria-label="Difficulty filter"
+            >
+              {(["all", "easy", "mid", "hard"] as const).map((d) => (
+                <button
+                  key={d}
+                  className={`pill ${diffFilter === d ? "active" : ""}`}
+                  onClick={() => setDiffFilter(d)}
+                  role="tab"
+                  aria-selected={diffFilter === d}
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+          </div>
+          {filtered.length === 0 ? (
+            <div className="empty">
+              {isInvestigationView
+                ? "Nothing bookmarked yet. Star any question to save it here."
+                : "No questions match. Try clearing search or changing difficulty."}
+            </div>
+          ) : (
+            <div className="q-list">
+              {filtered.map((item, i) => {
+                const isFocused = i === focusedIdx;
+                const qid = item.q.id;
+                return (
+                  <div
+                    ref={isFocused ? focusedCardRef : null}
+                    key={qid}
+                    className="q-list-item"
+                  >
+                    {isInvestigationView && (
+                      <div className="q-card-source">{item.categoryLabel}</div>
+                    )}
+                    <QuestionCard
+                      question={item.q}
+                      num={item.idx + 1}
+                      isReviewed={meta.reviewed.has(qid)}
+                      isOpen={state.openIds.has(qid)}
+                      isFocused={isFocused}
+                      isFlagged={meta.flags.has(qid)}
+                      isCommentsOpen={state.commentsOpenIds.has(qid)}
+                      comments={meta.commentsByQuestion.get(qid) ?? []}
+                      onToggleOpen={() => toggleOpen(qid)}
+                      onToggleReviewed={() => meta.toggleReviewed(qid)}
+                      onToggleFlag={() => meta.toggleFlag(qid)}
+                      onToggleComments={() => toggleComments(qid)}
+                      onAddComment={(body) => meta.addComment(qid, body)}
+                      onDeleteComment={(cid) => meta.deleteComment(cid)}
+                    />
+                  </div>
+                );
+              })}
+            </div>
           )}
         </main>
       </div>
