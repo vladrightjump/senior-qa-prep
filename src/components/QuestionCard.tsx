@@ -2,10 +2,8 @@ import { useEffect, useState } from "react";
 import type { Question, QuestionComment } from "../types";
 import { Diagram } from "./Diagram";
 import { MediaBlock } from "./MediaBlock";
+import { IconCheck, IconBookmark, IconChevronDown } from "./icons";
 
-// Keep the detail content mounted for a beat after collapse so the
-// grid-row close transition has something to animate against. Matches
-// --dur-med in global.css.
 const COLLAPSE_LINGER_MS = 240;
 
 interface QuestionCardProps {
@@ -80,58 +78,43 @@ export function QuestionCard({
     >
       <button className="q-row" onClick={onToggleOpen} aria-expanded={isOpen}>
         <span
-          className={`q-checkbox q-checkbox-reviewed ${isReviewed ? "checked" : ""}`}
+          className={`q-check ${isReviewed ? "checked" : ""}`}
           onClick={(e) => {
             e.stopPropagation();
             onToggleReviewed();
           }}
           role="checkbox"
           aria-checked={isReviewed}
-          aria-label={isReviewed ? "Mark as not reviewed" : "Mark as reviewed"}
+          aria-label={isReviewed ? "Mark as not done" : "Mark as done"}
           tabIndex={-1}
-          title="Reviewed"
+          title={isReviewed ? "Mark as not done" : "Mark as done"}
         >
-          <svg className="q-check-svg" viewBox="0 0 12 12" aria-hidden>
-            <path d="M2.5 6.2 L5 8.7 L9.5 3.5" />
-          </svg>
+          {isReviewed && <IconCheck size={14} strokeWidth={3} />}
         </span>
-        <span
-          className={`q-checkbox q-checkbox-investigate ${isFlagged ? "checked" : ""}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleFlag();
-          }}
-          role="checkbox"
-          aria-checked={isFlagged}
-          aria-label={isFlagged ? "Remove from investigate list" : "Mark to investigate later"}
-          tabIndex={-1}
-          title="Investigate later"
-        >
-          <span className="q-flag-mark" aria-hidden>★</span>
+        <span className="q-num" aria-hidden="true">
+          {String(num).padStart(2, "0")}
         </span>
-        <span className="q-num" aria-label={`Question ${num}`}>{num}</span>
         <span className="q-text">{question.q}</span>
         <span className="q-meta">
+          <span className={`badge badge-${question.diff}`}>{question.diff}</span>
           <span
-            className={`q-notes-btn ${isCommentsOpen ? "active" : ""} ${comments.length > 0 ? "has-notes" : ""}`}
+            className={`q-flag ${isFlagged ? "active" : ""}`}
             onClick={(e) => {
               e.stopPropagation();
-              onToggleComments();
+              onToggleFlag();
             }}
-            role="button"
-            aria-pressed={isCommentsOpen}
-            aria-label={isCommentsOpen ? "Hide notes" : "Show notes"}
+            role="checkbox"
+            aria-checked={isFlagged}
+            aria-label={isFlagged ? "Remove bookmark" : "Bookmark for later"}
             tabIndex={-1}
-            title={comments.length === 0 ? "Add a note" : `${comments.length} note${comments.length === 1 ? "" : "s"}`}
+            title={isFlagged ? "Remove bookmark" : "Bookmark for later"}
           >
-            Notes {comments.length > 0 ? `(${comments.length})` : ""}
+            <IconBookmark size={16} filled={isFlagged} />
           </span>
-          <span className={`badge badge-${question.diff}`}>{question.diff}</span>
-          {question.tags?.slice(0, 2).map((t) => (
-            <span key={t} className="tag">{t}</span>
-          ))}
+          <span className="q-chevron" aria-hidden="true">
+            <IconChevronDown size={18} />
+          </span>
         </span>
-        <span className="q-chevron">›</span>
       </button>
       <div className="q-detail-wrap" aria-hidden={!isOpen}>
         <div className="q-detail">
@@ -142,6 +125,20 @@ export function QuestionCard({
                 <MediaBlock media={question.media} />
               )}
               <div dangerouslySetInnerHTML={{ __html: question.answer }} />
+              <div className="q-detail-foot">
+                <button
+                  className={`q-notes-btn ${isCommentsOpen ? "active" : ""} ${
+                    comments.length > 0 ? "has-notes" : ""
+                  }`}
+                  onClick={onToggleComments}
+                  aria-pressed={isCommentsOpen}
+                  aria-label={isCommentsOpen ? "Hide notes" : "Show notes"}
+                >
+                  {comments.length === 0
+                    ? "Add a note"
+                    : `Notes (${comments.length})`}
+                </button>
+              </div>
             </>
           )}
         </div>

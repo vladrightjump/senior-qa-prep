@@ -235,9 +235,7 @@ export default function App() {
   const chapterFlagged = isInvestigationView
     ? filtered.length
     : (activeCategory?.questions.filter((q) => meta.flags.has(q.id)).length ?? 0);
-  const trackCount = Math.min(chapterTotal, 24);
-  const trackFilledThreshold = chapterTotal ? (chapterReviewed / chapterTotal) * trackCount : 0;
-  const trackFlaggedThreshold = chapterTotal ? (chapterFlagged / chapterTotal) * trackCount : 0;
+  const chapterPct = chapterTotal ? Math.round((chapterReviewed / chapterTotal) * 100) : 0;
 
   return (
     <>
@@ -269,20 +267,9 @@ export default function App() {
             <p>{headerDesc}</p>
             {chapterTotal > 0 && (
               <div className="chapter-meta" aria-label="Progress in this topic">
-                <div className="chapter-progress-track" aria-hidden="true">
-                  {Array.from({ length: trackCount }).map((_, i) => {
-                    const cls =
-                      i < trackFilledThreshold
-                        ? "filled"
-                        : i < trackFilledThreshold + trackFlaggedThreshold
-                          ? "bookmarked"
-                          : "";
-                    return <span key={i} className={cls} />;
-                  })}
-                </div>
-                <span className="dot" />
                 <span>
                   <strong>{chapterReviewed}</strong> of {chapterTotal} completed
+                  {chapterPct > 0 && <span className="chapter-meta-pct"> · {chapterPct}%</span>}
                 </span>
                 {chapterFlagged > 0 && (
                   <>

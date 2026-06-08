@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { IconClose } from "./icons";
 
 interface HelpModalProps {
   open: boolean;
@@ -26,7 +27,7 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
           aria-label="Close help"
           title="Close (Esc)"
         >
-          ✕
+          <IconClose size={16} />
         </button>
         <h2 className="modal-title">Welcome to QA Interview Prep</h2>
         <p className="modal-lead">
