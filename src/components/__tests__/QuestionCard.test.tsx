@@ -88,22 +88,22 @@ describe("QuestionCard", () => {
   it("fires onToggleReviewed without bubbling up to toggle open", async () => {
     const { onToggleReviewed, onToggleOpen } = setup();
     await userEvent.click(
-      screen.getByRole("checkbox", { name: /mark as reviewed/i }),
+      screen.getByRole("checkbox", { name: /mark as done/i }),
     );
     expect(onToggleReviewed).toHaveBeenCalled();
     expect(onToggleOpen).not.toHaveBeenCalled();
   });
 
-  it("fires onToggleFlag when the investigate checkbox is clicked", async () => {
+  it("fires onToggleFlag when the bookmark checkbox is clicked", async () => {
     const { onToggleFlag } = setup();
     await userEvent.click(
-      screen.getByRole("checkbox", { name: /investigate/i }),
+      screen.getByRole("checkbox", { name: /bookmark for later/i }),
     );
     expect(onToggleFlag).toHaveBeenCalled();
   });
 
-  it("renders the comments panel when isCommentsOpen and submits a note", async () => {
-    const { onAddComment } = setup({ isCommentsOpen: true });
+  it("renders the comments panel when open + isCommentsOpen and submits a note", async () => {
+    const { onAddComment } = setup({ isOpen: true, isCommentsOpen: true });
     const textarea = screen.getByPlaceholderText(/add a note/i);
     await userEvent.type(textarea, "remember the auto-wait nuance");
     await userEvent.click(screen.getByRole("button", { name: /add note/i }));
@@ -111,7 +111,7 @@ describe("QuestionCard", () => {
   });
 
   it("disables the submit button for empty / whitespace drafts", () => {
-    setup({ isCommentsOpen: true });
+    setup({ isOpen: true, isCommentsOpen: true });
     expect(screen.getByRole("button", { name: /add note/i })).toBeDisabled();
   });
 

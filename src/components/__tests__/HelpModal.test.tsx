@@ -14,7 +14,7 @@ describe("HelpModal", () => {
     expect(
       screen.getByRole("heading", { name: /welcome to qa interview prep/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Knowledge Galaxy/i)).toBeInTheDocument();
+    expect(screen.getByText(/Browse by topic/i)).toBeInTheDocument();
     expect(screen.getByText(/Keyboard shortcuts/i)).toBeInTheDocument();
   });
 
@@ -29,7 +29,7 @@ describe("HelpModal", () => {
     const onClose = vi.fn();
     render(<HelpModal open onClose={onClose} />);
     await userEvent.click(
-      screen.getByRole("button", { name: /let's study/i }),
+      screen.getByRole("button", { name: /get started/i }),
     );
     expect(onClose).toHaveBeenCalled();
   });
