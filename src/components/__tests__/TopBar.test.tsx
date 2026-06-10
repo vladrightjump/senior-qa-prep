@@ -3,66 +3,58 @@ import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vitest";
 import { TopBar } from "../TopBar";
 
-// The 3D ProgressOrb renders a <Canvas> via @react-three/fiber; in jsdom
-// WebGL isn't available. We stub it out so TopBar can be unit-tested in
-// isolation without firing up r3f.
-vi.mock("../three/ProgressOrb", () => ({
-  ProgressOrb: ({ ariaLabel }: { ariaLabel?: string }) => (
-    <div data-testid="progress-orb-stub" aria-label={ariaLabel} />
-  ),
-}));
-
-// UserMenu reaches into AuthContext (Supabase) which isn't available in this
-// unit-test scope. Replace with a minimal stub that mirrors the API.
-vi.mock("../../auth/UserMenu", () => ({
-  UserMenu: ({ onSignInClick }: { onSignInClick: () => void }) => (
-    <button onClick={onSignInClick}>stub-sign-in</button>
-  ),
-}));
-
 const baseProps = {
   totalReviewed: 5,
   totalQuestions: 20,
   theme: "auto" as const,
-  galaxyOpen: false,
-  onToggleGalaxy: vi.fn(),
+  screen: "home" as const,
+  isBookmarksActive: false,
+  bookmarksCount: 3,
+  onGoHome: vi.fn(),
+  onGoBrowse: vi.fn(),
+  onGoBookmarks: vi.fn(),
   onOpenHelp: vi.fn(),
-  onOpenSignIn: vi.fn(),
   onCycleTheme: vi.fn(),
   onReset: vi.fn(),
   onMobileMenuToggle: vi.fn(),
 };
 
 describe("TopBar", () => {
-  it("renders the reviewed/total counter and progress orb", () => {
+  it("renders the reviewed/total counter with percentage", () => {
     render(<TopBar {...baseProps} />);
-    expect(screen.getByText("5/20")).toBeInTheDocument();
-    expect(screen.getByTestId("progress-orb-stub")).toHaveAttribute(
-      "aria-label",
-      "Overall progress: 25%",
-    );
+    expect(
+      screen.getByLabelText(/overall progress: 25%/i),
+    ).toBeInTheDocument();
   });
 
   it("computes 0% when no questions exist", () => {
     render(<TopBar {...baseProps} totalQuestions={0} totalReviewed={0} />);
-    expect(screen.getByTestId("progress-orb-stub")).toHaveAttribute(
-      "aria-label",
-      "Overall progress: 0%",
-    );
-  });
-
-  it("invokes onToggleGalaxy when the galaxy pill is clicked", async () => {
-    const onToggleGalaxy = vi.fn();
-    render(<TopBar {...baseProps} onToggleGalaxy={onToggleGalaxy} />);
-    await userEvent.click(screen.getByRole("button", { name: /galaxy/i }));
-    expect(onToggleGalaxy).toHaveBeenCalled();
-  });
-
-  it("marks the galaxy pill as pressed when galaxyOpen is true", () => {
-    render(<TopBar {...baseProps} galaxyOpen />);
     expect(
-      screen.getByRole("button", { name: /galaxy/i }),
-    ).toHaveAttribute("aria-pressed", "true");
+      screen.getByLabelText(/overall progress: 0%/i),
+    ).toBeInTheDocument();
+  });
+
+  it("marks Home as active when screen is home", () => {
+    render(<TopBar {...baseProps} screen="home" />);
+    const homeBtn = screen.getByRole("button", { name: "Home" });
+    expect(homeBtn).toHaveAttribute("aria-current", "page");
+  });
+
+  it("marks Browse as active when screen is category and bookmarks not active", () => {
+    render(
+      <TopBar {...baseProps} screen="category" isBookmarksActive={false} />,
+    );
+    const browseBtn = screen.getByRole("button", { name: "Browse" });
+    expect(browseBtn).toHaveAttribute("aria-current", "page");
+  });
+
+  it("fires goHome on wordmark click", async () => {
+    const onGoHome = vi.fn();
+    render(<TopBar {...baseProps} onGoHome={onGoHome} />);
+    await userEvent.click(
+      screen.getByRole("button", { name: /qa prep — home/i }),
+    );
+    expect(onGoHome).toHaveBeenCalled();
   });
 
   it("invokes help, theme, and reset callbacks", async () => {

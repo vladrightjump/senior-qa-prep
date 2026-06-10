@@ -75,7 +75,7 @@ export function Sidebar({
       {open && <div className="sidebar-backdrop" onClick={onCloseMobile} />}
       <aside className={`sidebar ${open ? "open" : ""}`}>
         <button
-          className={`nav-item nav-item-flag ${
+          className={`nav-item-flag ${
             activeId === NEEDS_INVESTIGATION_ID ? "active" : ""
           }`}
           onClick={() => {
@@ -91,6 +91,7 @@ export function Sidebar({
         </button>
 
         <div className="sidebar-divider" />
+        <div className="sidebar-section">Contents</div>
 
         {groups.map((group) => {
           const isOpen = expanded.has(group.id);
@@ -147,9 +148,7 @@ export function Sidebar({
                         const reviewed = cat.questions.filter((q) =>
                           reviewedIds.has(q.id),
                         ).length;
-                        const pct = total
-                          ? Math.round((reviewed / total) * 100)
-                          : 0;
+                        const isComplete = total > 0 && reviewed === total;
                         return (
                           <button
                             key={cat.id}
@@ -163,13 +162,11 @@ export function Sidebar({
                           >
                             <span className="nav-item-label">{cat.label}</span>
                             <span className="nav-item-meta">
-                              <span>{reviewed}/{total}</span>
-                            </span>
-                            <span
-                              className="nav-item-progress"
-                              aria-hidden="true"
-                            >
-                              <i style={{ width: `${pct}%` }} />
+                              {isComplete ? (
+                                <span className="done" aria-label="Complete">✓</span>
+                              ) : (
+                                <span>{reviewed}/{total}</span>
+                              )}
                             </span>
                           </button>
                         );

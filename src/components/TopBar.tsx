@@ -12,8 +12,12 @@ interface TopBarProps {
   totalReviewed: number;
   totalQuestions: number;
   theme: Theme;
-  galaxyOpen: boolean;
-  onToggleGalaxy: () => void;
+  screen: "home" | "category";
+  isBookmarksActive: boolean;
+  bookmarksCount: number;
+  onGoHome: () => void;
+  onGoBrowse: () => void;
+  onGoBookmarks: () => void;
   onOpenHelp: () => void;
   onCycleTheme: () => void;
   onReset: () => void;
@@ -24,6 +28,12 @@ export function TopBar({
   totalReviewed,
   totalQuestions,
   theme,
+  screen,
+  isBookmarksActive,
+  bookmarksCount,
+  onGoHome,
+  onGoBrowse,
+  onGoBookmarks,
   onOpenHelp,
   onCycleTheme,
   onReset,
@@ -32,6 +42,9 @@ export function TopBar({
   const pct = totalQuestions ? Math.round((totalReviewed / totalQuestions) * 100) : 0;
   const themeLabel = theme === "auto" ? "Auto" : theme === "light" ? "Light" : "Dark";
   const ThemeIcon = theme === "auto" ? IconMonitor : theme === "light" ? IconSun : IconMoon;
+
+  const isHome = screen === "home";
+  const isBrowse = screen === "category" && !isBookmarksActive;
 
   return (
     <header className="topbar">
@@ -43,17 +56,51 @@ export function TopBar({
       >
         <IconMenu size={18} />
       </button>
-      <div className="topbar-title">Study</div>
+      <button
+        className="topbar-title"
+        onClick={onGoHome}
+        title="Home"
+        aria-label="QA Prep — home"
+      >
+        QA Prep
+      </button>
+      <nav className="topbar-nav" aria-label="Primary">
+        <button
+          className={isHome ? "active" : ""}
+          onClick={onGoHome}
+          aria-current={isHome ? "page" : undefined}
+        >
+          Home
+        </button>
+        <button
+          className={isBrowse ? "active" : ""}
+          onClick={onGoBrowse}
+          aria-current={isBrowse ? "page" : undefined}
+        >
+          Browse
+        </button>
+        <button
+          className={isBookmarksActive ? "active" : ""}
+          onClick={onGoBookmarks}
+          aria-current={isBookmarksActive ? "page" : undefined}
+        >
+          Bookmarks<span className="count">({bookmarksCount})</span>
+        </button>
+      </nav>
       <div className="topbar-spacer" />
       <div
         className="topbar-progress"
-        title={`${totalReviewed} of ${totalQuestions} completed (${pct}%)`}
+        title={`${totalReviewed} of ${totalQuestions} reviewed (${pct}%)`}
         aria-label={`Overall progress: ${pct}%`}
       >
-        <span className="topbar-progress-num">
-          {totalReviewed} / {totalQuestions}
+        <span>
+          <span className="topbar-progress-num">{totalReviewed}</span>
+          {" / "}
+          {totalQuestions} reviewed · {pct}%
         </span>
-        <span className="topbar-progress-pct">{pct}%</span>
+        <span className="topbar-progress-bar" aria-hidden="true">
+          <i style={{ width: `${pct}%` }} />
+        </span>
       </div>
       <button
         className="icon-btn"

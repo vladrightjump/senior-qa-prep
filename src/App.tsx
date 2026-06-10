@@ -7,19 +7,28 @@ import { TopBar } from "./components/TopBar";
 import { Sidebar, NEEDS_INVESTIGATION_ID } from "./components/Sidebar";
 import { QuestionCard } from "./components/QuestionCard";
 import { HelpModal } from "./components/HelpModal";
+import { HomeScreen } from "./components/HomeScreen";
+import { FocusSession } from "./components/FocusSession";
+import { IconZap } from "./components/icons";
 
-const STORAGE_KEY = "qa-prep-state-v3";
+const STORAGE_KEY = "qa-prep-state-v4";
 const HELP_SEEN_KEY = "qa-prep-help-seen-v1";
 
+type Screen = "home" | "category";
+
 interface PersistedState {
+  screen: Screen;
   activeCategoryId: string;
+  lastCategoryId: string;
   openIds: Set<string>;
   commentsOpenIds: Set<string>;
   theme: Theme;
 }
 
 const defaultState: PersistedState = {
+  screen: "home",
   activeCategoryId: CATEGORIES[0]!.id,
+  lastCategoryId: CATEGORIES[0]!.id,
   openIds: new Set<string>(),
   commentsOpenIds: new Set<string>(),
   theme: "auto",
@@ -38,6 +47,7 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [focusedIdx, setFocusedIdx] = useState<number>(-1);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [focusSessionCatId, setFocusSessionCatId] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const focusedCardRef = useRef<HTMLDivElement>(null);
 
@@ -58,7 +68,10 @@ export default function App() {
     document.documentElement.setAttribute("data-theme", state.theme);
   }, [state.theme]);
 
-  const isInvestigationView = state.activeCategoryId === NEEDS_INVESTIGATION_ID;
+  const isHome = state.screen === "home";
+  const isInvestigationView =
+    state.screen === "category" &&
+    state.activeCategoryId === NEEDS_INVESTIGATION_ID;
 
   const activeCategory = useMemo(() => {
     if (isInvestigationView) return null;
@@ -90,7 +103,7 @@ export default function App() {
 
   useEffect(() => {
     setFocusedIdx(-1);
-  }, [search, diffFilter, state.activeCategoryId]);
+  }, [search, diffFilter, state.activeCategoryId, state.screen]);
 
   useEffect(() => {
     if (focusedIdx >= 0 && focusedCardRef.current) {
@@ -122,7 +135,45 @@ export default function App() {
   };
 
   const setActiveCategory = (id: string) => {
-    setState((p) => ({ ...p, activeCategoryId: id }));
+    setState((p) => ({
+      ...p,
+      activeCategoryId: id,
+      lastCategoryId: id === NEEDS_INVESTIGATION_ID ? p.lastCategoryId : id,
+      screen: "category",
+    }));
+    setSearch("");
+    setDiffFilter("all");
+  };
+
+  const goHome = () => {
+    setState((p) => ({ ...p, screen: "home" }));
+    setMobileMenuOpen(false);
+  };
+
+  const goBrowse = () => {
+    setState((p) => {
+      const targetId =
+        p.activeCategoryId === NEEDS_INVESTIGATION_ID
+          ? p.lastCategoryId
+          : p.activeCategoryId;
+      return {
+        ...p,
+        screen: "category",
+        activeCategoryId: targetId,
+        lastCategoryId:
+          targetId === NEEDS_INVESTIGATION_ID ? p.lastCategoryId : targetId,
+      };
+    });
+    setSearch("");
+    setDiffFilter("all");
+  };
+
+  const goBookmarks = () => {
+    setState((p) => ({
+      ...p,
+      screen: "category",
+      activeCategoryId: NEEDS_INVESTIGATION_ID,
+    }));
     setSearch("");
     setDiffFilter("all");
   };
@@ -153,6 +204,8 @@ export default function App() {
         target.tagName === "TEXTAREA" ||
         target.isContentEditable;
 
+      if (focusSessionCatId) return;
+
       if (e.key === "Escape") {
         if (inField) (target as HTMLInputElement).blur();
         setMobileMenuOpen(false);
@@ -182,7 +235,7 @@ export default function App() {
         return;
       }
 
-      if (filtered.length === 0) return;
+      if (isHome || filtered.length === 0) return;
 
       if (e.key === "j") {
         e.preventDefault();
@@ -216,19 +269,21 @@ export default function App() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtered, focusedIdx]);
+  }, [filtered, focusedIdx, isHome, focusSessionCatId]);
 
-  const headerTitle = isInvestigationView ? "Saved for later" : activeCategory!.label;
+  const headerTitle = isInvestigationView ? "Saved for later" : activeCategory?.label ?? "";
   const headerDesc = isInvestigationView
     ? "Questions you've starred for another pass. Untoggle the star on any card to remove it."
-    : activeCategory!.desc;
+    : activeCategory?.desc ?? "";
 
   const activeGroup = isInvestigationView
     ? null
-    : CATEGORY_GROUPS.find((g) => g.categoryIds.includes(activeCategory!.id));
+    : activeCategory
+      ? CATEGORY_GROUPS.find((g) => g.categoryIds.includes(activeCategory.id))
+      : null;
   const chapterEyebrow = isInvestigationView
     ? "Bookmarks"
-    : (activeGroup?.label ?? "Topic");
+    : `Chapter · ${activeGroup?.label ?? "Topic"}`;
 
   const chapterTotal = activeCategory?.questions.length ?? filtered.length;
   const chapterReviewed = isInvestigationView
@@ -239,131 +294,168 @@ export default function App() {
     : (activeCategory?.questions.filter((q) => meta.flags.has(q.id)).length ?? 0);
   const chapterPct = chapterTotal ? Math.round((chapterReviewed / chapterTotal) * 100) : 0;
 
+  const focusSessionCategory = focusSessionCatId
+    ? CATEGORIES.find((c) => c.id === focusSessionCatId) ?? null
+    : null;
+
   return (
     <>
       <TopBar
         totalReviewed={totalReviewed}
         totalQuestions={totalQuestions}
         theme={state.theme}
-        galaxyOpen={false}
-        onToggleGalaxy={() => {}}
+        screen={state.screen}
+        isBookmarksActive={isInvestigationView}
+        bookmarksCount={meta.flags.size}
+        onGoHome={goHome}
+        onGoBrowse={goBrowse}
+        onGoBookmarks={goBookmarks}
         onOpenHelp={() => setHelpOpen(true)}
         onCycleTheme={cycleTheme}
         onReset={reset}
         onMobileMenuToggle={() => setMobileMenuOpen((v) => !v)}
       />
-      <div className="layout">
-        <Sidebar
+      {isHome ? (
+        <HomeScreen
           categories={CATEGORIES}
           groups={CATEGORY_GROUPS}
-          activeId={state.activeCategoryId}
           reviewedIds={meta.reviewed}
-          flaggedCount={meta.flags.size}
-          onSelect={setActiveCategory}
-          open={mobileMenuOpen}
-          onCloseMobile={() => setMobileMenuOpen(false)}
+          lastCategoryId={state.lastCategoryId}
+          onOpenCategory={(id) => setActiveCategory(id)}
+          onResume={(id) => setActiveCategory(id)}
         />
-        <main className="main">
-          <div className="cat-header">
-            <div className="cat-eyebrow">{chapterEyebrow}</div>
-            <h1>{headerTitle}</h1>
-            <p>{headerDesc}</p>
-            {chapterTotal > 0 && (
-              <div className="chapter-meta" aria-label="Progress in this topic">
-                <span>
-                  <strong>{chapterReviewed}</strong> of {chapterTotal} completed
-                  {chapterPct > 0 && <span className="chapter-meta-pct"> · {chapterPct}%</span>}
-                </span>
-                {chapterFlagged > 0 && (
-                  <>
-                    <span className="dot" />
-                    <span>
-                      <strong>{chapterFlagged}</strong> bookmarked
-                    </span>
-                  </>
-                )}
+      ) : (
+        <div className="layout">
+          <Sidebar
+            categories={CATEGORIES}
+            groups={CATEGORY_GROUPS}
+            activeId={state.activeCategoryId}
+            reviewedIds={meta.reviewed}
+            flaggedCount={meta.flags.size}
+            onSelect={setActiveCategory}
+            open={mobileMenuOpen}
+            onCloseMobile={() => setMobileMenuOpen(false)}
+          />
+          <main className="main">
+            <div className="cat-header">
+              <div className="cat-eyebrow">{chapterEyebrow}</div>
+              <h1>{headerTitle}</h1>
+              <p>{headerDesc}</p>
+              {chapterTotal > 0 && (
+                <div className="chapter-meta" aria-label="Progress in this topic">
+                  <span className="chapter-bar" aria-hidden="true">
+                    <i style={{ width: `${chapterPct}%` }} />
+                  </span>
+                  <span>
+                    <strong>{chapterReviewed}</strong> of {chapterTotal} reviewed
+                    {chapterFlagged > 0 && (
+                      <> · <strong>{chapterFlagged}</strong> bookmarked</>
+                    )}
+                  </span>
+                  <span className="spacer" />
+                  {!isInvestigationView && activeCategory && activeCategory.questions.length > 0 && (
+                    <button
+                      className="focus-launch"
+                      onClick={() => setFocusSessionCatId(activeCategory.id)}
+                      title="Start a focus session"
+                    >
+                      <IconZap size={14} strokeWidth={2} />
+                      Focus session
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+            {meta.error && (
+              <div className="meta-error">
+                Sync issue: {meta.error}. Changes may not be saved.
               </div>
             )}
-          </div>
-          {meta.error && (
-            <div className="meta-error">
-              Sync issue: {meta.error}. Changes may not be saved.
-            </div>
-          )}
-          <div className="controls">
-            <input
-              ref={searchRef}
-              type="text"
-              className="search"
-              placeholder={
-                isInvestigationView
-                  ? "Search bookmarked questions…   (press /)"
-                  : "Search this topic…   (press /)"
-              }
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <div
-              className="pills"
-              role="tablist"
-              aria-label="Difficulty filter"
-            >
-              {(["all", "easy", "mid", "hard"] as const).map((d) => (
-                <button
-                  key={d}
-                  className={`pill ${diffFilter === d ? "active" : ""}`}
-                  onClick={() => setDiffFilter(d)}
-                  role="tab"
-                  aria-selected={diffFilter === d}
-                >
-                  {d}
-                </button>
-              ))}
-            </div>
-          </div>
-          {filtered.length === 0 ? (
-            <div className="empty">
-              {isInvestigationView
-                ? "Nothing bookmarked yet. Star any question to save it here."
-                : "No questions match. Try clearing search or changing difficulty."}
-            </div>
-          ) : (
-            <div className="q-list">
-              {filtered.map((item, i) => {
-                const isFocused = i === focusedIdx;
-                const qid = item.q.id;
-                return (
-                  <div
-                    ref={isFocused ? focusedCardRef : null}
-                    key={qid}
-                    className="q-list-item"
+            <div className="controls">
+              <input
+                ref={searchRef}
+                type="text"
+                className="search"
+                placeholder={
+                  isInvestigationView
+                    ? "Search bookmarked questions…   (press /)"
+                    : "Search this topic…   (press /)"
+                }
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              <div
+                className="pills"
+                role="tablist"
+                aria-label="Difficulty filter"
+              >
+                {(["all", "easy", "mid", "hard"] as const).map((d) => (
+                  <button
+                    key={d}
+                    className={`pill ${diffFilter === d ? "active" : ""}`}
+                    onClick={() => setDiffFilter(d)}
+                    role="tab"
+                    aria-selected={diffFilter === d}
                   >
-                    {isInvestigationView && (
-                      <div className="q-card-source">{item.categoryLabel}</div>
-                    )}
-                    <QuestionCard
-                      question={item.q}
-                      num={item.idx + 1}
-                      isReviewed={meta.reviewed.has(qid)}
-                      isOpen={state.openIds.has(qid)}
-                      isFocused={isFocused}
-                      isFlagged={meta.flags.has(qid)}
-                      isCommentsOpen={state.commentsOpenIds.has(qid)}
-                      comments={meta.commentsByQuestion.get(qid) ?? []}
-                      onToggleOpen={() => toggleOpen(qid)}
-                      onToggleReviewed={() => meta.toggleReviewed(qid)}
-                      onToggleFlag={() => meta.toggleFlag(qid)}
-                      onToggleComments={() => toggleComments(qid)}
-                      onAddComment={(body) => meta.addComment(qid, body)}
-                      onDeleteComment={(cid) => meta.deleteComment(cid)}
-                    />
-                  </div>
-                );
-              })}
+                    {d}
+                  </button>
+                ))}
+              </div>
             </div>
-          )}
-        </main>
-      </div>
+            {filtered.length === 0 ? (
+              <div className="empty">
+                {isInvestigationView
+                  ? "Nothing bookmarked yet. Star any question to save it here."
+                  : "No questions match. Try clearing search or changing difficulty."}
+              </div>
+            ) : (
+              <div className="q-list">
+                {filtered.map((item, i) => {
+                  const isFocused = i === focusedIdx;
+                  const qid = item.q.id;
+                  return (
+                    <div
+                      ref={isFocused ? focusedCardRef : null}
+                      key={qid}
+                      className="q-list-item"
+                    >
+                      {isInvestigationView && (
+                        <div className="q-card-source">{item.categoryLabel}</div>
+                      )}
+                      <QuestionCard
+                        question={item.q}
+                        num={item.idx + 1}
+                        isReviewed={meta.reviewed.has(qid)}
+                        isOpen={state.openIds.has(qid)}
+                        isFocused={isFocused}
+                        isFlagged={meta.flags.has(qid)}
+                        isCommentsOpen={state.commentsOpenIds.has(qid)}
+                        comments={meta.commentsByQuestion.get(qid) ?? []}
+                        onToggleOpen={() => toggleOpen(qid)}
+                        onToggleReviewed={() => meta.toggleReviewed(qid)}
+                        onToggleFlag={() => meta.toggleFlag(qid)}
+                        onToggleComments={() => toggleComments(qid)}
+                        onAddComment={(body) => meta.addComment(qid, body)}
+                        onDeleteComment={(cid) => meta.deleteComment(cid)}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </main>
+        </div>
+      )}
+      {focusSessionCategory && (
+        <FocusSession
+          category={focusSessionCategory}
+          reviewedIds={meta.reviewed}
+          flaggedIds={meta.flags}
+          onMarkReviewed={(id) => meta.toggleReviewed(id)}
+          onToggleFlag={(id) => meta.toggleFlag(id)}
+          onEnd={() => setFocusSessionCatId(null)}
+        />
+      )}
       <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
     </>
   );
