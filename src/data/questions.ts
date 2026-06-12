@@ -4,6 +4,7 @@ import { PART_2_CATEGORIES } from "./categories-2";
 import { PART_3_CATEGORIES } from "./categories-3";
 import { PART_4_CATEGORIES } from "./categories-4";
 import { GROWTH_CATEGORIES } from "./categories-growth";
+import { LEARNING_CATEGORIES } from "./categories-learning";
 
 const scenarios: Category = {
   id: "scenarios",
@@ -301,6 +302,7 @@ const behavioral: Category = {
    ========================================================================= */
 
 export const CATEGORIES: Category[] = [
+  ...LEARNING_CATEGORIES,
   ...PART_1_CATEGORIES,
   ...PART_2_CATEGORIES,
   ...PART_3_CATEGORIES,
@@ -311,6 +313,15 @@ export const CATEGORIES: Category[] = [
 ];
 
 export const CATEGORY_GROUPS: CategoryGroup[] = [
+  {
+    id: "learning",
+    label: "Learning",
+    categoryIds: [
+      "learning-communication",
+      "learning-critical-thinking",
+      "learning-strategy-planning",
+    ],
+  },
   {
     id: "code-frameworks",
     label: "Code & Frameworks",
