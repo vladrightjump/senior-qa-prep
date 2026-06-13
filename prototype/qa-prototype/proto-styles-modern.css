@@ -388,3 +388,96 @@
 .app[data-style="modern"] ::-webkit-scrollbar-thumb {
   background: var(--rule); border: 2px solid var(--paper);
 }
+
+/* ════════════════════════════════════════════════════════════
+   RESPONSIVE — re-scope mobile adaptations at modern specificity.
+   The base responsive layer (proto-responsive.css) uses unscoped
+   .selector rules; our [data-style="modern"] rules above would
+   otherwise win on specificity and override mobile values.
+   ════════════════════════════════════════════════════════════ */
+
+/* ── Tablet ≤900px ────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .app[data-style="modern"] .layout { grid-template-columns: 1fr; }
+  .app[data-style="modern"] .main { padding: 26px 24px 70px; }
+  .app[data-style="modern"] .home { padding: 26px 24px 60px; }
+  .app[data-style="modern"] .home-title { font-size: 30px; }
+  .app[data-style="modern"] .chapter-title { font-size: 30px; }
+  .app[data-style="modern"] .sidebar-mobilehead-title {
+    font-family: var(--display); font-weight: 500;
+  }
+  .app[data-style="modern"] .topbar { padding: 0 20px; }
+}
+
+/* ── Phone ≤560px ─────────────────────────────────────────── */
+@media (max-width: 560px) {
+  .app[data-style="modern"] .topbar { height: 52px; padding: 0 14px; gap: 8px; }
+  .app[data-style="modern"] .wordmark { font-size: 16px; }
+  .app[data-style="modern"] .topnav { margin-left: 6px; gap: 0; }
+  .app[data-style="modern"] .topnav button { padding: 6px 9px; font-size: 13px; }
+  .app[data-style="modern"] .topnav button.active::after {
+    bottom: -16px; left: 9px; right: 9px;
+  }
+
+  .app[data-style="modern"] .home { padding: 22px 16px 56px; }
+  .app[data-style="modern"] .home-title { font-size: 26px; }
+  .app[data-style="modern"] .home-head { gap: 18px; margin-bottom: 28px; }
+  .app[data-style="modern"] .home-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;
+  }
+  .app[data-style="modern"] .cat-card { padding: 13px 14px 12px; }
+  .app[data-style="modern"] .cat-card-label { font-size: 14px; }
+  .app[data-style="modern"] .continue-card { padding: 18px 18px 18px 22px; }
+  .app[data-style="modern"] .continue-card::before { top: 14px; bottom: 14px; }
+  .app[data-style="modern"] .continue-title { font-size: 18px; }
+
+  .app[data-style="modern"] .main { padding: 20px 16px 64px; }
+  .app[data-style="modern"] .chapter-title { font-size: 26px; }
+  .app[data-style="modern"] .chapter-desc { font-size: 14px; }
+  .app[data-style="modern"] .focus-launch { padding: 9px 14px; }
+
+  .app[data-style="modern"] .search { padding: 11px 14px; font-size: 15px; }
+
+  /* Question rows: 3-col grid, no number, no difficulty chip */
+  .app[data-style="modern"] .q-row {
+    grid-template-columns: 24px 1fr auto; gap: 9px; padding: 14px 2px;
+  }
+  .app[data-style="modern"] .q-num { display: none; }
+  .app[data-style="modern"] .q-text { font-size: 15.5px; }
+  .app[data-style="modern"] .q-row-wrap.open .q-text { font-size: 16px; }
+  .app[data-style="modern"] .q-diff { display: none; }
+  .app[data-style="modern"] .q-detail { padding-left: 33px; padding-right: 2px; }
+  .app[data-style="modern"] .q-row-wrap.open { margin: 0; padding: 0; }
+  .app[data-style="modern"] .q-row-wrap.open::before { left: 0; }
+
+  /* Focus session sized for phone */
+  .app[data-style="modern"] .focus-top { padding: 0 16px; height: 54px; }
+  .app[data-style="modern"] .focus-segs { padding: 0 16px; }
+  .app[data-style="modern"] .focus-stage { padding: 18px 0; }
+  .app[data-style="modern"] .focus-card {
+    width: auto; max-width: 92vw; padding: 24px 22px 22px;
+    border-radius: var(--r-md);
+  }
+  .app[data-style="modern"] .focus-under.u2 { display: none; }
+  .app[data-style="modern"] .focus-q { font-size: 20px; margin-bottom: 16px; }
+  .app[data-style="modern"] .focus-actions { gap: 8px; }
+  .app[data-style="modern"] .focus-act { padding: 13px 0; font-size: 13.5px; }
+}
+
+/* Very small phones (≤360px): single-column card grid */
+@media (max-width: 360px) {
+  .app[data-style="modern"] .home-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Touch refinements: restore iOS-safe 16px search ─────── */
+@media (hover: none) and (pointer: coarse) {
+  .app[data-style="modern"] .search { font-size: 16px; }
+}
+
+/* ── Short / landscape phones: keep focus card usable ─────── */
+@media (max-height: 560px) and (max-width: 900px) {
+  .app[data-style="modern"] .focus-top { height: 48px; }
+  .app[data-style="modern"] .focus-stage { padding: 10px 0; }
+  .app[data-style="modern"] .focus-card { padding: 18px 20px; }
+  .app[data-style="modern"] .focus-q { font-size: 18px; margin-bottom: 14px; }
+}
