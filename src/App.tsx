@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CATEGORIES, CATEGORY_GROUPS } from "./data/questions";
-import type { DiffFilter, Question, Theme } from "./types";
+import type { DiffFilter, Question } from "./types";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { useQuestionMeta } from "./hooks/useQuestionMeta";
+import { useReveal } from "./hooks/useReveal";
 import { TopBar } from "./components/TopBar";
 import { Sidebar, NEEDS_INVESTIGATION_ID } from "./components/Sidebar";
 import { QuestionCard } from "./components/QuestionCard";
 import { HelpModal } from "./components/HelpModal";
 import { HomeScreen } from "./components/HomeScreen";
 import { FocusSession } from "./components/FocusSession";
-import { IconZap } from "./components/icons";
+import { IconZap, IconMenu } from "./components/icons";
 
-const STORAGE_KEY = "qa-prep-state-v4";
+const STORAGE_KEY = "qa-prep-state-v5";
 const HELP_SEEN_KEY = "qa-prep-help-seen-v1";
 
 type Screen = "home" | "category";
@@ -22,7 +23,6 @@ interface PersistedState {
   lastCategoryId: string;
   openIds: Set<string>;
   commentsOpenIds: Set<string>;
-  theme: Theme;
 }
 
 const defaultState: PersistedState = {
@@ -31,7 +31,6 @@ const defaultState: PersistedState = {
   lastCategoryId: CATEGORIES[0]!.id,
   openIds: new Set<string>(),
   commentsOpenIds: new Set<string>(),
-  theme: "auto",
 };
 
 interface DisplayItem {
@@ -64,10 +63,6 @@ export default function App() {
     }
   }, []);
 
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", state.theme);
-  }, [state.theme]);
-
   const isHome = state.screen === "home";
   const isInvestigationView =
     state.screen === "category" &&
@@ -77,6 +72,8 @@ export default function App() {
     if (isInvestigationView) return null;
     return CATEGORIES.find((c) => c.id === state.activeCategoryId) ?? CATEGORIES[0]!;
   }, [state.activeCategoryId, isInvestigationView]);
+
+  const reveal = useReveal(state.activeCategoryId);
 
   const filtered: DisplayItem[] = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -105,6 +102,13 @@ export default function App() {
     setFocusedIdx(-1);
   }, [search, diffFilter, state.activeCategoryId, state.screen]);
 
+  // Reset search/filter and close drawer when switching category
+  useEffect(() => {
+    setSearch("");
+    setDiffFilter("all");
+    setMobileMenuOpen(false);
+  }, [state.activeCategoryId]);
+
   useEffect(() => {
     if (focusedIdx >= 0 && focusedCardRef.current) {
       focusedCardRef.current.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -117,23 +121,6 @@ export default function App() {
   );
   const totalReviewed = meta.reviewed.size;
 
-  const cycleTheme = () => {
-    setState((p) => {
-      const next: Theme = p.theme === "auto" ? "light" : p.theme === "light" ? "dark" : "auto";
-      return { ...p, theme: next };
-    });
-  };
-
-  const reset = () => {
-    if (
-      confirm(
-        "Reset local UI state (open cards, theme)? Your completed, flagged, and notes are kept.",
-      )
-    ) {
-      setState({ ...defaultState, theme: state.theme });
-    }
-  };
-
   const setActiveCategory = (id: string) => {
     setState((p) => ({
       ...p,
@@ -141,8 +128,6 @@ export default function App() {
       lastCategoryId: id === NEEDS_INVESTIGATION_ID ? p.lastCategoryId : id,
       screen: "category",
     }));
-    setSearch("");
-    setDiffFilter("all");
   };
 
   const goHome = () => {
@@ -164,8 +149,6 @@ export default function App() {
           targetId === NEEDS_INVESTIGATION_ID ? p.lastCategoryId : targetId,
       };
     });
-    setSearch("");
-    setDiffFilter("all");
   };
 
   const goBookmarks = () => {
@@ -174,8 +157,6 @@ export default function App() {
       screen: "category",
       activeCategoryId: NEEDS_INVESTIGATION_ID,
     }));
-    setSearch("");
-    setDiffFilter("all");
   };
 
   const toggleOpen = (id: string) => {
@@ -271,11 +252,6 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtered, focusedIdx, isHome, focusSessionCatId]);
 
-  const headerTitle = isInvestigationView ? "Saved for later" : activeCategory?.label ?? "";
-  const headerDesc = isInvestigationView
-    ? "Questions you've starred for another pass. Untoggle the star on any card to remove it."
-    : activeCategory?.desc ?? "";
-
   const activeGroup = isInvestigationView
     ? null
     : activeCategory
@@ -284,6 +260,10 @@ export default function App() {
   const chapterEyebrow = isInvestigationView
     ? "Bookmarks"
     : `Chapter · ${activeGroup?.label ?? "Topic"}`;
+  const headerTitle = isInvestigationView ? "Saved for later" : activeCategory?.label ?? "";
+  const headerDesc = isInvestigationView
+    ? "Questions you've starred for another pass. Untoggle the star on any card to remove it."
+    : activeCategory?.desc ?? "";
 
   const chapterTotal = activeCategory?.questions.length ?? filtered.length;
   const chapterReviewed = isInvestigationView
@@ -299,11 +279,10 @@ export default function App() {
     : null;
 
   return (
-    <>
+    <div className="app" data-style="modern">
       <TopBar
         totalReviewed={totalReviewed}
         totalQuestions={totalQuestions}
-        theme={state.theme}
         screen={state.screen}
         isBookmarksActive={isInvestigationView}
         bookmarksCount={meta.flags.size}
@@ -311,9 +290,6 @@ export default function App() {
         onGoBrowse={goBrowse}
         onGoBookmarks={goBookmarks}
         onOpenHelp={() => setHelpOpen(true)}
-        onCycleTheme={cycleTheme}
-        onReset={reset}
-        onMobileMenuToggle={() => setMobileMenuOpen((v) => !v)}
       />
       {isHome ? (
         <HomeScreen
@@ -325,7 +301,11 @@ export default function App() {
           onResume={(id) => setActiveCategory(id)}
         />
       ) : (
-        <div className="layout">
+        <div className={`layout ${mobileMenuOpen ? "drawer-open" : ""}`}>
+          <div
+            className="sidebar-overlay"
+            onClick={() => setMobileMenuOpen(false)}
+          />
           <Sidebar
             categories={CATEGORIES}
             groups={CATEGORY_GROUPS}
@@ -337,22 +317,27 @@ export default function App() {
             onCloseMobile={() => setMobileMenuOpen(false)}
           />
           <main className="main">
-            <div className="cat-header">
-              <div className="cat-eyebrow">{chapterEyebrow}</div>
-              <h1>{headerTitle}</h1>
-              <p>{headerDesc}</p>
+            <div className={`main-inner ${reveal}`}>
+              <button
+                className="toc-toggle"
+                onClick={() => setMobileMenuOpen(true)}
+              >
+                <IconMenu size={16} /> Contents
+              </button>
+              <div className="chapter-eyebrow">{chapterEyebrow}</div>
+              <h1 className="chapter-title">{headerTitle}</h1>
+              <p className="chapter-desc">{headerDesc}</p>
               {chapterTotal > 0 && (
                 <div className="chapter-meta" aria-label="Progress in this topic">
                   <span className="chapter-bar" aria-hidden="true">
-                    <i style={{ width: `${chapterPct}%` }} />
+                    <span style={{ width: `${chapterPct}%` }} />
                   </span>
-                  <span>
+                  <span className="chapter-counts">
                     <strong>{chapterReviewed}</strong> of {chapterTotal} reviewed
                     {chapterFlagged > 0 && (
                       <> · <strong>{chapterFlagged}</strong> bookmarked</>
                     )}
                   </span>
-                  <span className="spacer" />
                   {!isInvestigationView && activeCategory && activeCategory.questions.length > 0 && (
                     <button
                       className="focus-launch"
@@ -365,66 +350,57 @@ export default function App() {
                   )}
                 </div>
               )}
-            </div>
-            {meta.error && (
-              <div className="meta-error">
-                Sync issue: {meta.error}. Changes may not be saved.
-              </div>
-            )}
-            <div className="controls">
-              <input
-                ref={searchRef}
-                type="text"
-                className="search"
-                placeholder={
-                  isInvestigationView
-                    ? "Search bookmarked questions…   (press /)"
-                    : "Search this topic…   (press /)"
-                }
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              <div
-                className="pills"
-                role="tablist"
-                aria-label="Difficulty filter"
-              >
-                {(["all", "easy", "mid", "hard"] as const).map((d) => (
-                  <button
-                    key={d}
-                    className={`pill ${diffFilter === d ? "active" : ""}`}
-                    onClick={() => setDiffFilter(d)}
-                    role="tab"
-                    aria-selected={diffFilter === d}
-                  >
-                    {d}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {filtered.length === 0 ? (
-              <div className="empty">
-                {isInvestigationView
-                  ? "Nothing bookmarked yet. Star any question to save it here."
-                  : "No questions match. Try clearing search or changing difficulty."}
-              </div>
-            ) : (
-              <div className="q-list">
-                {filtered.map((item, i) => {
-                  const isFocused = i === focusedIdx;
-                  const qid = item.q.id;
-                  return (
-                    <div
-                      ref={isFocused ? focusedCardRef : null}
-                      key={qid}
-                      className="q-list-item"
+              {meta.error && (
+                <div className="meta-error">
+                  Sync issue: {meta.error}. Changes may not be saved.
+                </div>
+              )}
+              <div className="controls">
+                <input
+                  ref={searchRef}
+                  type="text"
+                  className="search"
+                  placeholder={
+                    isInvestigationView
+                      ? "Search bookmarked questions…   (press /)"
+                      : "Search this topic…   (press /)"
+                  }
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+                <div className="pills" role="tablist" aria-label="Difficulty filter">
+                  {(["all", "easy", "mid", "hard"] as const).map((d) => (
+                    <button
+                      key={d}
+                      className={`pill ${diffFilter === d ? "active" : ""}`}
+                      onClick={() => setDiffFilter(d)}
+                      role="tab"
+                      aria-selected={diffFilter === d}
                     >
-                      {isInvestigationView && (
-                        <div className="q-card-source">{item.categoryLabel}</div>
-                      )}
+                      {d}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {filtered.length === 0 ? (
+                <div className="empty">
+                  {isInvestigationView
+                    ? "Nothing bookmarked yet. Star any question to save it here."
+                    : "No questions match. Try clearing search or changing difficulty."}
+                </div>
+              ) : (
+                <div className="q-list">
+                  {filtered.map((item, i) => {
+                    const isFocused = i === focusedIdx;
+                    const qid = item.q.id;
+                    return (
                       <QuestionCard
+                        ref={isFocused ? focusedCardRef : undefined}
+                        key={qid}
                         question={item.q}
                         num={item.idx + 1}
+                        delay={Math.min(i * 35, 420)}
+                        sourceLabel={isInvestigationView ? item.categoryLabel : undefined}
                         isReviewed={meta.reviewed.has(qid)}
                         isOpen={state.openIds.has(qid)}
                         isFocused={isFocused}
@@ -438,11 +414,11 @@ export default function App() {
                         onAddComment={(body) => meta.addComment(qid, body)}
                         onDeleteComment={(cid) => meta.deleteComment(cid)}
                       />
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </main>
         </div>
       )}
@@ -457,6 +433,6 @@ export default function App() {
         />
       )}
       <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
-    </>
+    </div>
   );
 }

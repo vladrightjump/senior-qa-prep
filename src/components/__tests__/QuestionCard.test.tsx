@@ -53,9 +53,15 @@ describe("QuestionCard", () => {
     expect(screen.getByText("mid")).toBeInTheDocument();
   });
 
-  it("hides the answer when collapsed and shows it when open", () => {
+  it("reflects collapsed/open state via aria-expanded on the row", () => {
+    // The answer body is always in the DOM; the row collapses purely in CSS
+    // (grid-template-rows), so open-ness is signalled by aria-expanded.
     const { rerender } = setup();
-    expect(screen.queryByText(/locator is lazy/)).not.toBeInTheDocument();
+    const row = screen.getByRole("button", {
+      name: /difference between locator/i,
+    });
+    expect(row).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByText(/locator is lazy/)).toBeInTheDocument();
     rerender(
       <QuestionCard
         question={Q}
@@ -74,6 +80,9 @@ describe("QuestionCard", () => {
         onDeleteComment={() => {}}
       />,
     );
+    expect(
+      screen.getByRole("button", { name: /difference between locator/i }),
+    ).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText(/locator is lazy/)).toBeInTheDocument();
   });
 

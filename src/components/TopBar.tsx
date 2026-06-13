@@ -1,17 +1,8 @@
-import type { Theme } from "../types";
-import {
-  IconMenu,
-  IconHelp,
-  IconSun,
-  IconMoon,
-  IconMonitor,
-  IconRefresh,
-} from "./icons";
+import { IconHelp } from "./icons";
 
 interface TopBarProps {
   totalReviewed: number;
   totalQuestions: number;
-  theme: Theme;
   screen: "home" | "category";
   isBookmarksActive: boolean;
   bookmarksCount: number;
@@ -19,15 +10,11 @@ interface TopBarProps {
   onGoBrowse: () => void;
   onGoBookmarks: () => void;
   onOpenHelp: () => void;
-  onCycleTheme: () => void;
-  onReset: () => void;
-  onMobileMenuToggle: () => void;
 }
 
 export function TopBar({
   totalReviewed,
   totalQuestions,
-  theme,
   screen,
   isBookmarksActive,
   bookmarksCount,
@@ -35,36 +22,23 @@ export function TopBar({
   onGoBrowse,
   onGoBookmarks,
   onOpenHelp,
-  onCycleTheme,
-  onReset,
-  onMobileMenuToggle,
 }: TopBarProps) {
-  const pct = totalQuestions ? Math.round((totalReviewed / totalQuestions) * 100) : 0;
-  const themeLabel = theme === "auto" ? "Auto" : theme === "light" ? "Light" : "Dark";
-  const ThemeIcon = theme === "auto" ? IconMonitor : theme === "light" ? IconSun : IconMoon;
+  const pct = totalQuestions
+    ? Math.round((totalReviewed / totalQuestions) * 100)
+    : 0;
 
   const isHome = screen === "home";
   const isBrowse = screen === "category" && !isBookmarksActive;
 
   return (
     <header className="topbar">
-      <button
-        className="icon-btn mobile-toggle"
-        onClick={onMobileMenuToggle}
-        aria-label="Toggle menu"
-        title="Toggle menu"
-      >
-        <IconMenu size={18} />
-      </button>
-      <button
-        className="topbar-title"
-        onClick={onGoHome}
-        title="Home"
-        aria-label="QA Prep — home"
-      >
+      <button className="wordmark" onClick={onGoHome} aria-label="QA Prep — home">
         QA Prep
       </button>
-      <nav className="topbar-nav" aria-label="Primary">
+      <span className="tagline">
+        a field guide for the senior automation interview
+      </span>
+      <nav className="topnav" aria-label="Primary">
         <button
           className={isHome ? "active" : ""}
           onClick={onGoHome}
@@ -84,47 +58,26 @@ export function TopBar({
           onClick={onGoBookmarks}
           aria-current={isBookmarksActive ? "page" : undefined}
         >
-          Bookmarks<span className="count">({bookmarksCount})</span>
+          Bookmarks<span className="count">{bookmarksCount}</span>
         </button>
       </nav>
-      <div className="topbar-spacer" />
-      <div
+      <span className="spacer" />
+      <span
         className="topbar-progress"
-        title={`${totalReviewed} of ${totalQuestions} reviewed (${pct}%)`}
         aria-label={`Overall progress: ${pct}%`}
       >
-        <span>
-          <span className="topbar-progress-num">{totalReviewed}</span>
-          {" / "}
-          {totalQuestions} reviewed · {pct}%
-        </span>
-        <span className="topbar-progress-bar" aria-hidden="true">
-          <i style={{ width: `${pct}%` }} />
-        </span>
-      </div>
+        <strong>{totalReviewed}</strong> / {totalQuestions} reviewed · {pct}%
+      </span>
+      <span className="topbar-bar" aria-hidden="true">
+        <span style={{ width: `${pct}%` }} />
+      </span>
       <button
-        className="icon-btn"
+        className="topbar-help"
         onClick={onOpenHelp}
         title="Help (?)"
         aria-label="Open help"
       >
         <IconHelp size={18} />
-      </button>
-      <button
-        className="icon-btn"
-        onClick={onCycleTheme}
-        title={`Theme: ${themeLabel}. Click to cycle.`}
-        aria-label={`Theme: ${themeLabel}`}
-      >
-        <ThemeIcon size={18} />
-      </button>
-      <button
-        className="icon-btn"
-        onClick={onReset}
-        title="Reset all progress"
-        aria-label="Reset progress"
-      >
-        <IconRefresh size={16} />
       </button>
     </header>
   );

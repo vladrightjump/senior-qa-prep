@@ -22,12 +22,9 @@ function loadMermaid() {
 }
 
 function getMermaidTheme(): "default" | "dark" {
-  const t = document.documentElement.getAttribute("data-theme");
-  if (t === "dark") return "dark";
-  if (t === "light") return "default";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "default";
+  // The app uses a single light ("modern") palette, so diagrams always render
+  // with mermaid's light theme to stay visually consistent.
+  return "default";
 }
 
 export function Diagram({ source }: DiagramProps) {

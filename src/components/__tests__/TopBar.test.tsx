@@ -6,7 +6,6 @@ import { TopBar } from "../TopBar";
 const baseProps = {
   totalReviewed: 5,
   totalQuestions: 20,
-  theme: "auto" as const,
   screen: "home" as const,
   isBookmarksActive: false,
   bookmarksCount: 3,
@@ -14,9 +13,6 @@ const baseProps = {
   onGoBrowse: vi.fn(),
   onGoBookmarks: vi.fn(),
   onOpenHelp: vi.fn(),
-  onCycleTheme: vi.fn(),
-  onReset: vi.fn(),
-  onMobileMenuToggle: vi.fn(),
 };
 
 describe("TopBar", () => {
@@ -57,25 +53,10 @@ describe("TopBar", () => {
     expect(onGoHome).toHaveBeenCalled();
   });
 
-  it("invokes help, theme, and reset callbacks", async () => {
+  it("invokes the help callback", async () => {
     const onOpenHelp = vi.fn();
-    const onCycleTheme = vi.fn();
-    const onReset = vi.fn();
-    render(
-      <TopBar
-        {...baseProps}
-        onOpenHelp={onOpenHelp}
-        onCycleTheme={onCycleTheme}
-        onReset={onReset}
-      />,
-    );
+    render(<TopBar {...baseProps} onOpenHelp={onOpenHelp} />);
     await userEvent.click(screen.getByRole("button", { name: /open help/i }));
-    await userEvent.click(screen.getByRole("button", { name: /theme/i }));
-    await userEvent.click(
-      screen.getByRole("button", { name: /reset progress/i }),
-    );
     expect(onOpenHelp).toHaveBeenCalled();
-    expect(onCycleTheme).toHaveBeenCalled();
-    expect(onReset).toHaveBeenCalled();
   });
 });

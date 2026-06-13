@@ -1,8 +1,7 @@
 import { useEffect, useMemo } from "react";
-import { AnimatePresence, motion } from "motion/react";
 import type { Category, CategoryGroup } from "../types";
 import { useLocalStorage } from "../hooks/useLocalStorage";
-import { IconChevronDown, IconBookmark } from "./icons";
+import { IconChevronDown, IconBookmark, IconClose } from "./icons";
 
 export const NEEDS_INVESTIGATION_ID = "__needs_investigation__";
 
@@ -17,7 +16,6 @@ interface SidebarProps {
   onCloseMobile: () => void;
 }
 
-const SMOOTH_EASE = [0.22, 1, 0.36, 1] as const;
 const EXPANDED_KEY = "qa-prep-sidebar-groups-v1";
 
 export function Sidebar({
@@ -70,127 +68,92 @@ export function Sidebar({
     });
   };
 
+  const select = (id: string) => {
+    onSelect(id);
+    onCloseMobile();
+  };
+
   return (
-    <>
-      {open && <div className="sidebar-backdrop" onClick={onCloseMobile} />}
-      <aside className={`sidebar ${open ? "open" : ""}`}>
+    <aside className={`sidebar ${open ? "open" : ""}`}>
+      <div className="sidebar-mobilehead">
+        <span className="sidebar-mobilehead-title">Contents</span>
         <button
-          className={`nav-item-flag ${
-            activeId === NEEDS_INVESTIGATION_ID ? "active" : ""
-          }`}
-          onClick={() => {
-            onSelect(NEEDS_INVESTIGATION_ID);
-            onCloseMobile();
-          }}
+          className="sidebar-close"
+          onClick={onCloseMobile}
+          aria-label="Close contents"
         >
-          <span className="nav-item-icon" aria-hidden="true">
-            <IconBookmark size={14} filled={activeId === NEEDS_INVESTIGATION_ID} />
-          </span>
-          <span className="nav-item-label">Saved for later</span>
-          <span className="nav-item-count">{flaggedCount}</span>
+          <IconClose size={18} />
         </button>
+      </div>
 
-        <div className="sidebar-divider" />
-        <div className="sidebar-section">Contents</div>
+      <button
+        className={`toc-bookmarks ${activeId === NEEDS_INVESTIGATION_ID ? "active" : ""}`}
+        onClick={() => select(NEEDS_INVESTIGATION_ID)}
+      >
+        <IconBookmark size={14} filled={activeId === NEEDS_INVESTIGATION_ID} />
+        <span>Saved for later</span>
+        <span className="count">{flaggedCount}</span>
+      </button>
 
-        {groups.map((group) => {
-          const isOpen = expanded.has(group.id);
-          const groupCategories = group.categoryIds
-            .map((id) => categoriesById.get(id))
-            .filter((c): c is Category => Boolean(c));
-          const groupTotal = groupCategories.reduce(
-            (s, c) => s + c.questions.length,
-            0,
-          );
-          const groupReviewed = groupCategories.reduce(
-            (s, c) =>
-              s + c.questions.filter((q) => reviewedIds.has(q.id)).length,
-            0,
-          );
-          const hasActive = group.categoryIds.includes(activeId);
+      <div className="sidebar-label">Contents</div>
 
-          return (
-            <div key={group.id} className="sidebar-group">
-              <button
-                className={`sidebar-group-header ${hasActive ? "has-active" : ""}`}
-                onClick={() => toggleGroup(group.id)}
-                aria-expanded={isOpen}
-              >
-                <motion.span
-                  className="sidebar-group-chevron"
-                  animate={{ rotate: isOpen ? 0 : -90 }}
-                  transition={{ duration: 0.18, ease: SMOOTH_EASE }}
-                  aria-hidden="true"
-                >
-                  <IconChevronDown size={12} />
-                </motion.span>
-                <span className="sidebar-group-label">{group.label}</span>
-                <span className="sidebar-group-count">
-                  {groupReviewed}/{groupTotal}
-                </span>
-              </button>
-              <AnimatePresence initial={false}>
-                {isOpen && (
-                  <motion.div
-                    key="group-body"
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{
-                      height: { duration: 0.24, ease: SMOOTH_EASE },
-                      opacity: { duration: 0.16, ease: "easeOut" },
-                    }}
-                    style={{ overflow: "hidden" }}
-                  >
-                    <div className="sidebar-group-body">
-                      {groupCategories.map((cat) => {
-                        const total = cat.questions.length;
-                        const reviewed = cat.questions.filter((q) =>
-                          reviewedIds.has(q.id),
-                        ).length;
-                        const isComplete = total > 0 && reviewed === total;
-                        return (
-                          <button
-                            key={cat.id}
-                            className={`nav-item nav-sub ${
-                              cat.id === activeId ? "active" : ""
-                            }`}
-                            onClick={() => {
-                              onSelect(cat.id);
-                              onCloseMobile();
-                            }}
-                          >
-                            <span className="nav-item-label">{cat.label}</span>
-                            <span className="nav-item-meta">
-                              {isComplete ? (
-                                <span className="done" aria-label="Complete">✓</span>
-                              ) : (
-                                <span>{reviewed}/{total}</span>
-                              )}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+      {groups.map((group) => {
+        const isOpen = expanded.has(group.id);
+        const groupCategories = group.categoryIds
+          .map((id) => categoriesById.get(id))
+          .filter((c): c is Category => Boolean(c));
+        const groupTotal = groupCategories.reduce(
+          (s, c) => s + c.questions.length,
+          0,
+        );
+        const groupReviewed = groupCategories.reduce(
+          (s, c) =>
+            s + c.questions.filter((q) => reviewedIds.has(q.id)).length,
+          0,
+        );
+
+        return (
+          <div key={group.id} className="toc-group">
+            <button
+              className="toc-group-head"
+              onClick={() => toggleGroup(group.id)}
+              aria-expanded={isOpen}
+            >
+              <span className="toc-group-label">{group.label}</span>
+              <span className="toc-group-count">
+                {groupReviewed}/{groupTotal}
+              </span>
+              <span className={`toc-chev ${isOpen ? "" : "closed"}`} aria-hidden="true">
+                <IconChevronDown size={12} />
+              </span>
+            </button>
+            <div className={`toc-body ${isOpen ? "" : "closed"}`}>
+              <div>
+                {groupCategories.map((cat) => {
+                  const total = cat.questions.length;
+                  const reviewed = cat.questions.filter((q) =>
+                    reviewedIds.has(q.id),
+                  ).length;
+                  const isComplete = total > 0 && reviewed === total;
+                  return (
+                    <button
+                      key={cat.id}
+                      className={`toc-item ${cat.id === activeId ? "active" : ""}`}
+                      onClick={() => select(cat.id)}
+                    >
+                      <span className="toc-item-label">{cat.label}</span>
+                      <span className="toc-leader" aria-hidden="true" />
+                      <span className="toc-item-count">
+                        {isComplete ? "✓" : `${reviewed}/${total}`}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          );
-        })}
-
-        <div className="sidebar-divider" />
-        <div className="sidebar-section">Shortcuts</div>
-        <div className="sidebar-shortcuts">
-          <kbd>/</kbd> search<br />
-          <kbd>1</kbd>–<kbd>5</kbd> section<br />
-          <kbd>j</kbd>/<kbd>k</kbd> next/prev<br />
-          <kbd>Space</kbd> open<br />
-          <kbd>r</kbd> mark done<br />
-          <kbd>f</kbd> bookmark<br />
-          <kbd>?</kbd> help · <kbd>Esc</kbd>
-        </div>
-      </aside>
-    </>
+          </div>
+        );
+      })}
+    </aside>
   );
 }

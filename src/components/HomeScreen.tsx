@@ -1,5 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, type CSSProperties } from "react";
 import type { Category, CategoryGroup } from "../types";
+import { useReveal } from "../hooks/useReveal";
 import { IconArrowRight } from "./icons";
 
 interface HomeScreenProps {
@@ -110,9 +111,10 @@ export function HomeScreen({
   });
 
   let cardIdx = 0;
+  const reveal = useReveal();
 
   return (
-    <main className="home">
+    <main className={`home ${reveal}`}>
       <div className="home-head">
         <div>
           <div className="home-date">{dateStr}</div>
@@ -194,6 +196,7 @@ export function HomeScreen({
                   <button
                     key={cat.id}
                     className="cat-card"
+                    style={{ "--d": `${Math.min(cardIdx * 45, 540)}ms` } as CSSProperties}
                     onClick={() => onOpenCategory(cat.id)}
                   >
                     <span className="cat-card-top">

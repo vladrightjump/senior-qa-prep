@@ -217,7 +217,10 @@ export function FocusSession({
                 Question {String(pos + 1).padStart(2, "0")}
               </span>
               <span className="focus-card-dot" />
-              <span className={`q-diff ${question.diff}`}>{question.diff}</span>
+              <span className={`q-diff ${question.diff}`}>
+                <span className="dot" aria-hidden="true" />
+                {question.diff}
+              </span>
               <button
                 className={`bookmark-btn ${
                   flaggedIds.has(question.id) ? "active" : ""
@@ -238,8 +241,7 @@ export function FocusSession({
                 <div className="focus-reveal-zone">
                   <div className="focus-answer-label">Model answer</div>
                   <div
-                    className="q-detail q-detail-body"
-                    style={{ padding: 0, maxWidth: "none" }}
+                    className="q-answer"
                     dangerouslySetInnerHTML={{ __html: question.answer }}
                   />
                 </div>
